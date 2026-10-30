@@ -8,6 +8,7 @@ import shutil
 from pathlib import Path
 
 import typer
+from rich.markup import escape
 from rich.panel import Panel
 
 from ..comun import (
@@ -74,7 +75,7 @@ def _recolectar(ruta: Path, profundidad: int, nivel: int = 0) -> list[tuple]:
         with os.scandir(ruta) as entradas:
             ordenadas = sorted(entradas, key=lambda e: e.name.lower())
     except OSError as exc:
-        error_console.print(f"[yellow]No se pudo leer {ruta}: {exc}[/]")
+        error_console.print(f"[yellow]No se pudo leer {escape(str(ruta))}: {escape(str(exc))}[/]")
         return resultado
 
     for entrada in ordenadas:
@@ -120,12 +121,12 @@ def ocupa(
     if profundidad < 1:
         raise typer.BadParameter("La profundidad debe ser como mínimo 1.")
     if not ruta.exists():
-        error_console.print(f"[red]La ruta no existe:[/] {ruta}")
+        error_console.print(f"[red]La ruta no existe:[/] {escape(str(ruta))}")
         raise typer.Exit(1)
 
     if ruta.is_file():
         tam = ruta.stat().st_size
-        console.print(f"{ruta.name}: [bold]{tamano_legible(tam)}[/]")
+        console.print(f"{escape(ruta.name)}: [bold]{tamano_legible(tam)}[/]")
         return
 
     entradas = _recolectar(ruta, profundidad)
@@ -134,7 +135,7 @@ def ocupa(
     libre = shutil.disk_usage(ruta).free
 
     resumen = (
-        f"[bold]{ruta.resolve()}[/]\n"
+        f"[bold]{escape(str(ruta.resolve()))}[/]\n"
         f"Tamaño: [bold cyan]{tamano_legible(total)}[/]  ·  "
         f"Archivos: [bold]{num_archivos:,}[/]  ·  "
         f"Libre en el disco: [bold green]{tamano_legible(libre)}[/]"
@@ -153,7 +154,7 @@ def ocupa(
         porcentaje = (tam / total * 100) if total else 0.0
         nombre = os.path.relpath(ruta_entrada, ruta)
         sangria = "  " * nivel
-        etiqueta = f"{sangria}{nombre}{'/' if es_dir else ''}"
+        etiqueta = escape(f"{sangria}{nombre}{'/' if es_dir else ''}")
         tabla.add_row(
             tamano_legible(tam),
             f"{porcentaje:5.1f}%",
@@ -213,7 +214,7 @@ def limpia(
 ) -> None:
     """Busca y elimina cachés y archivos temporales (node_modules, __pycache__…)."""
     if not ruta.exists() or not ruta.is_dir():
-        error_console.print(f"[red]La carpeta no existe:[/] {ruta}")
+        error_console.print(f"[red]La carpeta no existe:[/] {escape(str(ruta))}")
         raise typer.Exit(1)
 
     candidatos = _buscar_basura(ruta)
@@ -229,7 +230,7 @@ def limpia(
         tabla.add_row(
             tamano_legible(tam),
             tipo,
-            str(ruta_candidata),
+            escape(str(ruta_candidata)),
         )
     console.print(tabla)
     console.print(
@@ -256,7 +257,7 @@ def limpia(
             liberado += tam
         except OSError as exc:
             errores += 1
-            error_console.print(f"[red]No se pudo borrar[/] {ruta_candidata}: {exc}")
+            error_console.print(f"[red]No se pudo borrar[/] {escape(str(ruta_candidata))}: {escape(str(exc))}")
 
     console.print(f"[green]Liberados {tamano_legible(liberado)}.[/]")
     if errores:

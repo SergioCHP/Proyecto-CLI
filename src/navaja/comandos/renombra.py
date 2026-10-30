@@ -7,6 +7,7 @@ from collections import Counter
 from pathlib import Path
 
 import typer
+from rich.markup import escape
 from rich.panel import Panel
 
 from ..comun import (
@@ -99,7 +100,7 @@ def _mostrar_plan(movimientos: list[dict], limite: int = 200) -> None:
         actual = Path(movimiento["origen"]).name
         nuevo = Path(movimiento["destino"]).name
         etiqueta = estado if not movimiento["motivo"] else f"{estado}: {movimiento['motivo']}"
-        tabla.add_row(f"[{color}]{etiqueta}[/]", actual, nuevo)
+        tabla.add_row(f"[{color}]{etiqueta}[/]", escape(actual), escape(nuevo))
     console.print(tabla)
 
     if len(movimientos) > limite:
@@ -108,12 +109,12 @@ def _mostrar_plan(movimientos: list[dict], limite: int = 200) -> None:
 
 def _validar(ruta: Path, patron: str) -> None:
     if not ruta.exists() or not ruta.is_dir():
-        error_console.print(f"[red]La carpeta no existe:[/] {ruta}")
+        error_console.print(f"[red]La carpeta no existe:[/] {escape(str(ruta))}")
         raise typer.Exit(1)
     try:
         re.compile(patron)
     except re.error as exc:
-        error_console.print(f"[red]Expresión regular inválida:[/] {exc}")
+        error_console.print(f"[red]Expresión regular inválida:[/] {escape(str(exc))}")
         raise typer.Exit(2)
 
 
@@ -209,7 +210,7 @@ def aplicar(
             realizados.append({"origen": str(origen), "destino": str(destino)})
         except OSError as exc:
             errores += 1
-            error_console.print(f"[red]No se pudo renombrar[/] {origen}: {exc}")
+            error_console.print(f"[red]No se pudo renombrar[/] {escape(str(origen))}: {escape(str(exc))}")
 
     if realizados:
         guardar_acciones("renombra", realizados)
@@ -249,7 +250,7 @@ def deshacer(
             devueltos += 1
         except OSError as exc:
             errores += 1
-            error_console.print(f"[red]No se pudo devolver[/] {destino}: {exc}")
+            error_console.print(f"[red]No se pudo devolver[/] {escape(str(destino))}: {escape(str(exc))}")
 
     limpiar_acciones("renombra")
     console.print(f"[green]Restaurados {devueltos} nombres.[/]")

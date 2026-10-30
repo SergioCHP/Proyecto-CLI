@@ -10,7 +10,9 @@ from datetime import datetime
 from pathlib import Path
 
 import typer
+from rich.markup import escape
 from rich.panel import Panel
+from rich.text import Text
 
 from ..comun import (
     confirmar,
@@ -60,14 +62,14 @@ def _mostrar(filas: list[sqlite3.Row]) -> None:
         contenido = " ".join(fila["contenido"].split())
         if len(contenido) > 60:
             contenido = contenido[:57] + "…"
-        titulo = fila["titulo"]
+        titulo = escape(fila["titulo"])
         if contenido and fila["tipo"] == "nota":
-            titulo = f"{titulo}\n[dim]{contenido}[/]"
+            titulo = f"{titulo}\n[dim]{escape(contenido)}[/]"
         tabla.add_row(
             str(fila["id"]),
             fila["tipo"],
             titulo,
-            fila["etiquetas"].replace(",", ", "),
+            escape(fila["etiquetas"].replace(",", ", ")),
             fila["actualizado"][:10],
         )
     console.print(tabla)
@@ -101,7 +103,7 @@ def agregar(
             try:
                 contenido = editar_texto()
             except RuntimeError as exc:
-                error_console.print(f"[red]{exc}[/]")
+                error_console.print(f"[red]{escape(str(exc))}[/]")
                 raise typer.Exit(1)
         if not contenido.strip():
             console.print("[yellow]La nota está vacía; no se guardó.[/]")
@@ -121,7 +123,7 @@ def agregar(
 
     console.print(
         f"[green]Guardad{'o' if tipo == 'enlace' else 'a'}[/] "
-        f"{tipo} [bold]{nota_id}[/]: {titulo}"
+        f"{tipo} [bold]{nota_id}[/]: {escape(titulo)}"
     )
 
 
@@ -184,7 +186,7 @@ def abrir(
             try:
                 nuevo = editar_texto(fila["contenido"])
             except RuntimeError as exc:
-                error_console.print(f"[red]{exc}[/]")
+                error_console.print(f"[red]{escape(str(exc))}[/]")
                 raise typer.Exit(1)
             ahora = datetime.now().isoformat(timespec="seconds")
             with conexion:
@@ -197,14 +199,14 @@ def abrir(
 
         if fila["tipo"] == "enlace":
             webbrowser.open(fila["contenido"])
-            console.print(f"[green]Abriendo[/] {fila['contenido']}")
+            console.print(f"[green]Abriendo[/] {escape(fila['contenido'])}")
             return
 
-        etiquetas = fila["etiquetas"].replace(",", ", ") or "sin etiquetas"
+        etiquetas = escape(fila["etiquetas"].replace(",", ", ")) or "sin etiquetas"
         console.print(
             Panel(
-                fila["contenido"] or "[dim](vacía)[/]",
-                title=f"[bold]{fila['titulo']}[/] · {etiquetas}",
+                Text(fila["contenido"]) if fila["contenido"] else "[dim](vacía)[/]",
+                title=f"[bold]{escape(fila['titulo'])}[/] · {etiquetas}",
                 subtitle=f"id {fila['id']} · {fila['actualizado']}",
                 border_style="cyan",
             )
@@ -224,7 +226,7 @@ def borrar(
             error_console.print(f"[red]No existe la nota {nota_id}.[/]")
             raise typer.Exit(1)
         if not confirmar(
-            f"¿Borrar «{fila['titulo']}»?", saltar=si, por_defecto=False
+            f"¿Borrar «{escape(fila['titulo'])}»?", saltar=si, por_defecto=False
         ):
             console.print("[yellow]Cancelado.[/]")
             return
@@ -250,7 +252,7 @@ def etiquetas() -> None:
 
     tabla = crear_tabla(["Etiqueta", "Notas"])
     for etiqueta, cantidad in conteo.most_common():
-        tabla.add_row(etiqueta, str(cantidad))
+        tabla.add_row(escape(etiqueta), str(cantidad))
     console.print(tabla)
 
 

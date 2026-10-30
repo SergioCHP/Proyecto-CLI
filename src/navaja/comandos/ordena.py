@@ -9,6 +9,7 @@ from enum import Enum
 from pathlib import Path
 
 import typer
+from rich.markup import escape
 from rich.panel import Panel
 
 from ..comun import (
@@ -158,7 +159,9 @@ def _mostrar_plan(movimientos: list[dict], ruta: Path, limite: int = 100) -> Non
         except ValueError:
             destino_texto = str(destino)
         tabla.add_row(
-            NOMBRES[movimiento["categoria"]], origen_texto, destino_texto
+            NOMBRES[movimiento["categoria"]],
+            escape(origen_texto),
+            escape(destino_texto),
         )
     console.print(tabla)
 
@@ -170,7 +173,7 @@ def _mostrar_plan(movimientos: list[dict], ruta: Path, limite: int = 100) -> Non
 
 def _validar(ruta: Path) -> None:
     if not ruta.exists() or not ruta.is_dir():
-        error_console.print(f"[red]La carpeta no existe:[/] {ruta}")
+        error_console.print(f"[red]La carpeta no existe:[/] {escape(str(ruta))}")
         raise typer.Exit(1)
 
 
@@ -251,7 +254,7 @@ def aplicar(
             )
         except OSError as exc:
             errores += 1
-            error_console.print(f"[red]No se pudo mover[/] {origen}: {exc}")
+            error_console.print(f"[red]No se pudo mover[/] {escape(str(origen))}: {escape(str(exc))}")
 
     if realizados:
         guardar_acciones("ordena", realizados)
@@ -292,7 +295,7 @@ def deshacer(
             devueltos += 1
         except OSError as exc:
             errores += 1
-            error_console.print(f"[red]No se pudo devolver[/] {destino}: {exc}")
+            error_console.print(f"[red]No se pudo devolver[/] {escape(str(destino))}: {escape(str(exc))}")
 
     limpiar_acciones("ordena")
     console.print(f"[green]Devueltos {devueltos} archivos.[/]")
