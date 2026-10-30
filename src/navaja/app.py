@@ -5,14 +5,14 @@ from __future__ import annotations
 import typer
 
 from . import __version__
-from .comandos import notas, ocupa, ordena, renombra
+from .comandos import duplicados, notas, ocupa, ordena, renombra
 
 app = typer.Typer(
     name="navaja",
     help=(
         "Caja de herramientas de terminal con utilidades cotidianas.\n\n"
         "Comandos: [bold]ocupa[/], [bold]limpia[/], [bold]ordena[/], "
-        "[bold]renombra[/] y [bold]notas[/]."
+        "[bold]renombra[/], [bold]duplicados[/] y [bold]notas[/]."
     ),
     no_args_is_help=True,
     add_completion=False,
@@ -40,7 +40,7 @@ def principal(
     """Utilidades de terminal en castellano."""
 
 
-for modulo in (ocupa, ordena, renombra, notas):
+for modulo in (ocupa, ordena, renombra, duplicados, notas):
     modulo.registrar(app)
 
 
