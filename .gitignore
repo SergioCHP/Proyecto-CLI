@@ -8,3 +8,8 @@ dist/
 .coverage
 htmlcov/
 .DS_Store
+
+# Secretos: claves de API y configuración privada. NUNCA al repo.
+.env
+.env.*
+!.env.example
