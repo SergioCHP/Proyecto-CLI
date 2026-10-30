@@ -10,29 +10,24 @@ local y el estado se guarda en el directorio de datos del usuario.
 
 ## Puesta en marcha
 
-El entorno virtual ya existe en `.venv/`. En esta máquina el Python del sistema
-no trae `pip`, así que el entorno se creó con `--without-pip` y se instaló
-`pip` con `get-pip.py`. Para trabajo normal:
+El proyecto se gestiona con `uv` (funciona igual en Linux, macOS y Windows).
+`uv run` crea `.venv/` la primera vez e instala el paquete en modo editable:
 
 ```bash
-.venv/bin/pip install -e ".[dev]"   # dependencias + pytest
-.venv/bin/python -m pytest          # tests
-.venv/bin/navaja --help             # ejecutar la CLI instalada
-```
-
-Alternativa sin instalar el paquete:
-
-```bash
-PYTHONPATH=src .venv/bin/python -m navaja --help
+uv run navaja --help              # ejecutar la CLI con el código actual
+uv run --extra dev pytest         # tests
 ```
 
 No hay linter/formateador configurado. Antes de terminar un cambio, ejecuta al
 menos:
 
 ```bash
-.venv/bin/python -m pytest
-.venv/bin/python -m compileall -q src tests
+uv run --extra dev pytest
+uv run python -m compileall -q src tests
 ```
+
+Nunca ejecutes comandos destructivos (`aplicar`, `borrar`, `limpia`, `vaciar`)
+sobre carpetas reales del usuario: prueba en una carpeta temporal.
 
 ## Estructura
 
@@ -44,6 +39,7 @@ src/navaja/
     ├── ocupa.py        # ocupa (analizar) y limpia (borrar basura)
     ├── ordena.py       # sub-app: previsualizar / aplicar / deshacer / categorias
     ├── renombra.py     # sub-app: previsualizar / aplicar / deshacer
+    ├── duplicados.py   # sub-app: buscar / borrar (a papelera) / restaurar / vaciar
     └── notas.py        # sub-app SQLite: agregar / listar / buscar / abrir / borrar / etiquetas
 tests/                  # un archivo por módulo
 ```
@@ -76,6 +72,12 @@ subcomandos con `app.add_typer(sub, name="...")`.
   escribas en el directorio del proyecto.
 - **Salida:** usa `console` para información y `error_console` para errores
   (stderr). No uses `print()`.
+- **Texto del usuario en Rich:** todo nombre de archivo, ruta, título o mensaje
+  de excepción que vaya dentro de markup se pasa por `rich.markup.escape()`
+  (si no, `[borrador].pdf` se pierde). Para un bloque de texto suelto, usa
+  `rich.text.Text`.
+- **Secretos:** nunca escribas claves en el código ni las subas; van en `.env`,
+  que está en `.gitignore`.
 - **Python 3.10:** evita APIs de 3.11+ (por ejemplo `tomllib`). Usa
   `from __future__ import annotations`.
 - **Tests:** sin mocks de Rich/Typer; prueba la lógica pura con `tmp_path`.
@@ -84,6 +86,6 @@ subcomandos con `app.add_typer(sub, name="...")`.
 
 ## Estado actual
 
-Resumen y bitácora en [ESTADO.md](ESTADO.md). Última verificación conocida:
-17 tests pasando y CLI probada de punta a punta (ocupa, limpia, ordena,
-renombra y notas).
+Resumen y bitácora en [ESTADO.md](ESTADO.md). Última verificación conocida
+(2026-10-30): 31 tests pasando (Python 3.10 y 3.13) y CLI probada de punta a
+punta (ocupa, limpia, ordena, renombra, duplicados y notas).
