@@ -75,7 +75,7 @@ def _recolectar(ruta: Path, profundidad: int, nivel: int = 0) -> list[tuple]:
         with os.scandir(ruta) as entradas:
             ordenadas = sorted(entradas, key=lambda e: e.name.lower())
     except OSError as exc:
-        error_console.print(f"[yellow]No se pudo leer {escape(str(ruta))}: {escape(str(exc))}[/]")
+        error_console.print(f"[aviso]No se pudo leer {escape(str(ruta))}: {escape(str(exc))}[/]")
         return resultado
 
     for entrada in ordenadas:
@@ -99,7 +99,7 @@ def _recolectar(ruta: Path, profundidad: int, nivel: int = 0) -> list[tuple]:
 def _barra(porcentaje: float, ancho: int = 18) -> str:
     llenos = round(max(0.0, min(100.0, porcentaje)) / 100 * ancho)
     color = "green" if porcentaje < 60 else "yellow" if porcentaje < 85 else "red"
-    return f"[{color}]{'█' * llenos}[/][dim]{'░' * (ancho - llenos)}[/]"
+    return f"[{color}]{'█' * llenos}[/][pista]{'░' * (ancho - llenos)}[/]"
 
 
 def ocupa(
@@ -121,7 +121,7 @@ def ocupa(
     if profundidad < 1:
         raise typer.BadParameter("La profundidad debe ser como mínimo 1.")
     if not ruta.exists():
-        error_console.print(f"[red]La ruta no existe:[/] {escape(str(ruta))}")
+        error_console.print(f"[error]La ruta no existe:[/] {escape(str(ruta))}")
         raise typer.Exit(1)
 
     if ruta.is_file():
@@ -136,14 +136,14 @@ def ocupa(
 
     resumen = (
         f"[bold]{escape(str(ruta.resolve()))}[/]\n"
-        f"Tamaño: [bold cyan]{tamano_legible(total)}[/]  ·  "
+        f"Tamaño: [titulo]{tamano_legible(total)}[/]  ·  "
         f"Archivos: [bold]{num_archivos:,}[/]  ·  "
-        f"Libre en el disco: [bold green]{tamano_legible(libre)}[/]"
+        f"Libre en el disco: [logro]{tamano_legible(libre)}[/]"
     )
-    console.print(Panel(resumen, title="Uso de disco", border_style="cyan"))
+    console.print(Panel(resumen, title="Uso de disco", border_style="marco"))
 
     if not entradas:
-        console.print("[yellow]La carpeta está vacía.[/]")
+        console.print("[aviso]La carpeta está vacía.[/]")
         return
 
     entradas.sort(key=lambda item: item[1], reverse=True)
@@ -166,7 +166,7 @@ def ocupa(
 
     if len(entradas) > len(visibles):
         console.print(
-            f"[dim]Mostrando {len(visibles)} de {len(entradas)} entradas. "
+            f"[pista]Mostrando {len(visibles)} de {len(entradas)} entradas. "
             "Usa --mayores para ver más.[/]"
         )
 
@@ -214,12 +214,12 @@ def limpia(
 ) -> None:
     """Busca y elimina cachés y archivos temporales (node_modules, __pycache__…)."""
     if not ruta.exists() or not ruta.is_dir():
-        error_console.print(f"[red]La carpeta no existe:[/] {escape(str(ruta))}")
+        error_console.print(f"[error]La carpeta no existe:[/] {escape(str(ruta))}")
         raise typer.Exit(1)
 
     candidatos = _buscar_basura(ruta)
     if not candidatos:
-        console.print("[green]No se encontró basura.[/]")
+        console.print("[ok]No se encontró basura.[/]")
         return
 
     candidatos.sort(key=lambda item: item[1], reverse=True)
@@ -234,16 +234,16 @@ def limpia(
         )
     console.print(tabla)
     console.print(
-        f"Se liberarían [bold green]{tamano_legible(total)}[/] "
+        f"Se liberarían [logro]{tamano_legible(total)}[/] "
         f"en {len(candidatos)} entradas."
     )
 
     if seco:
-        console.print("[yellow]Modo seco: no se borró nada.[/]")
+        console.print("[aviso]Modo seco: no se borró nada.[/]")
         return
 
     if not confirmar("¿Borrar todo lo anterior?", saltar=si, por_defecto=False):
-        console.print("[yellow]Cancelado.[/]")
+        console.print("[aviso]Cancelado.[/]")
         return
 
     liberado = 0
@@ -257,11 +257,11 @@ def limpia(
             liberado += tam
         except OSError as exc:
             errores += 1
-            error_console.print(f"[red]No se pudo borrar[/] {escape(str(ruta_candidata))}: {escape(str(exc))}")
+            error_console.print(f"[error]No se pudo borrar[/] {escape(str(ruta_candidata))}: {escape(str(exc))}")
 
-    console.print(f"[green]Liberados {tamano_legible(liberado)}.[/]")
+    console.print(f"[ok]Liberados {tamano_legible(liberado)}.[/]")
     if errores:
-        console.print(f"[yellow]{errores} entradas no se pudieron borrar.[/]")
+        console.print(f"[aviso]{errores} entradas no se pudieron borrar.[/]")
 
 
 def registrar(app: typer.Typer) -> None:

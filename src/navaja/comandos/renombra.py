@@ -89,7 +89,7 @@ def _mostrar_plan(movimientos: list[dict], limite: int = 200) -> None:
         Panel(
             f"Archivos analizados: [bold]{len(movimientos)}[/]\n{resumen}",
             title="Plan de renombrado",
-            border_style="cyan",
+            border_style="marco",
         )
     )
 
@@ -104,17 +104,17 @@ def _mostrar_plan(movimientos: list[dict], limite: int = 200) -> None:
     console.print(tabla)
 
     if len(movimientos) > limite:
-        console.print(f"[dim]Mostrando {limite} de {len(movimientos)} archivos.[/]")
+        console.print(f"[pista]Mostrando {limite} de {len(movimientos)} archivos.[/]")
 
 
 def _validar(ruta: Path, patron: str) -> None:
     if not ruta.exists() or not ruta.is_dir():
-        error_console.print(f"[red]La carpeta no existe:[/] {escape(str(ruta))}")
+        error_console.print(f"[error]La carpeta no existe:[/] {escape(str(ruta))}")
         raise typer.Exit(1)
     try:
         re.compile(patron)
     except re.error as exc:
-        error_console.print(f"[red]Expresión regular inválida:[/] {escape(str(exc))}")
+        error_console.print(f"[error]Expresión regular inválida:[/] {escape(str(exc))}")
         raise typer.Exit(2)
 
 
@@ -148,7 +148,7 @@ def previsualizar(
         ruta, patron, reemplazo, incluir, recursivo, completo, ocultos
     )
     if not movimientos:
-        console.print("[green]No se encontraron archivos.[/]")
+        console.print("[ok]No se encontraron archivos.[/]")
         return
     _mostrar_plan(movimientos)
 
@@ -186,18 +186,18 @@ def aplicar(
         ruta, patron, reemplazo, incluir, recursivo, completo, ocultos
     )
     if not movimientos:
-        console.print("[green]No se encontraron archivos.[/]")
+        console.print("[ok]No se encontraron archivos.[/]")
         return
 
     _mostrar_plan(movimientos)
     aplicables = [m for m in movimientos if m["estado"] == "ok"]
     if not aplicables:
-        console.print("[yellow]No hay ningún cambio aplicable.[/]")
+        console.print("[aviso]No hay ningún cambio aplicable.[/]")
         return
     if not confirmar(
         f"¿Renombrar {len(aplicables)} archivos?", saltar=si, por_defecto=False
     ):
-        console.print("[yellow]Cancelado.[/]")
+        console.print("[aviso]Cancelado.[/]")
         return
 
     realizados: list[dict] = []
@@ -210,15 +210,15 @@ def aplicar(
             realizados.append({"origen": str(origen), "destino": str(destino)})
         except OSError as exc:
             errores += 1
-            error_console.print(f"[red]No se pudo renombrar[/] {escape(str(origen))}: {escape(str(exc))}")
+            error_console.print(f"[error]No se pudo renombrar[/] {escape(str(origen))}: {escape(str(exc))}")
 
     if realizados:
         guardar_acciones("renombra", realizados)
-    console.print(f"[green]Renombrados {len(realizados)} archivos.[/]")
+    console.print(f"[ok]Renombrados {len(realizados)} archivos.[/]")
     if errores:
-        console.print(f"[yellow]{errores} archivos no se pudieron renombrar.[/]")
+        console.print(f"[aviso]{errores} archivos no se pudieron renombrar.[/]")
     if realizados:
-        console.print("[dim]Puedes revertirlo con: navaja renombra deshacer[/]")
+        console.print("[pista]Puedes revertirlo con: navaja renombra deshacer[/]")
 
 
 def deshacer(
@@ -229,12 +229,12 @@ def deshacer(
     """Revierte el último renombrado realizado."""
     acciones = cargar_acciones("renombra")
     if not acciones:
-        console.print("[yellow]No hay ningún renombrado que deshacer.[/]")
+        console.print("[aviso]No hay ningún renombrado que deshacer.[/]")
         return
 
     console.print(f"Se devolverían [bold]{len(acciones)}[/] nombres.")
     if not confirmar("¿Deshacer el último renombrado?", saltar=si, por_defecto=False):
-        console.print("[yellow]Cancelado.[/]")
+        console.print("[aviso]Cancelado.[/]")
         return
 
     devueltos = 0
@@ -250,12 +250,12 @@ def deshacer(
             devueltos += 1
         except OSError as exc:
             errores += 1
-            error_console.print(f"[red]No se pudo devolver[/] {escape(str(destino))}: {escape(str(exc))}")
+            error_console.print(f"[error]No se pudo devolver[/] {escape(str(destino))}: {escape(str(exc))}")
 
     limpiar_acciones("renombra")
-    console.print(f"[green]Restaurados {devueltos} nombres.[/]")
+    console.print(f"[ok]Restaurados {devueltos} nombres.[/]")
     if errores:
-        console.print(f"[yellow]{errores} nombres no se pudieron restaurar.[/]")
+        console.print(f"[aviso]{errores} nombres no se pudieron restaurar.[/]")
 
 
 def registrar(app: typer.Typer) -> None:

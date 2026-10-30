@@ -12,6 +12,11 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
 | `navaja renombra` | Renombrado masivo con expresiones regulares, con deshacer. |
 | `navaja duplicados` | Encuentra archivos repetidos por contenido y los manda a una papelera recuperable. |
 | `navaja notas` | Notas y enlaces con etiquetas, guardados en SQLite. |
+| `navaja tema` | Elige los colores (clasico, morado, terminal, pastel). |
+| `navaja config` | Tu nombre para el saludo y el tema actual. |
+
+Escribe `navaja` sin nada más para ver el saludo y la lista de comandos.
+`nv` es un alias corto: `nv ocupa` es lo mismo que `navaja ocupa`.
 
 ## Instalación
 
@@ -64,6 +69,12 @@ navaja notas listar -e python
 navaja notas buscar generadores
 navaja notas abrir 1
 navaja notas etiquetas
+
+# Personalizar
+navaja tema listar              # muestra cada tema con sus colores
+navaja tema fijar morado
+navaja config nombre Sergio
+navaja config ver
 ```
 
 ## Seguridad
@@ -73,7 +84,8 @@ navaja notas etiquetas
 - `duplicados borrar` no borra: mueve las copias a la papelera de navaja. Compara el
   contenido completo (SHA-256), no solo el nombre o el tamaño, y nunca toca el archivo
   que se conserva. El espacio solo se libera con `duplicados vaciar`.
-- Las acciones para deshacer, la papelera y la base de datos de notas se guardan en:
+- Las acciones para deshacer, la papelera, la base de datos de notas y `config.json`
+  se guardan en (o en la carpeta que indique la variable `NAVAJA_DATOS`):
   - Linux: `~/.local/share/navaja/`
   - macOS: `~/Library/Application Support/navaja/`
   - Windows: `%LOCALAPPDATA%\navaja\`

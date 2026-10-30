@@ -19,6 +19,7 @@ dev = ["pytest>=8.0"]
 
 [project.scripts]
 navaja = "navaja.app:main"
+nv = "navaja.app:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

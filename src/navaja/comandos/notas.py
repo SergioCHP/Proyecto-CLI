@@ -55,7 +55,7 @@ def _normalizar_etiquetas(etiquetas: list[str]) -> list[str]:
 
 def _mostrar(filas: list[sqlite3.Row]) -> None:
     if not filas:
-        console.print("[yellow]No hay notas que mostrar.[/]")
+        console.print("[aviso]No hay notas que mostrar.[/]")
         return
     tabla = crear_tabla(["ID", "Tipo", "Título", "Etiquetas", "Actualizado"])
     for fila in filas:
@@ -64,7 +64,7 @@ def _mostrar(filas: list[sqlite3.Row]) -> None:
             contenido = contenido[:57] + "…"
         titulo = escape(fila["titulo"])
         if contenido and fila["tipo"] == "nota":
-            titulo = f"{titulo}\n[dim]{escape(contenido)}[/]"
+            titulo = f"{titulo}\n[pista]{escape(contenido)}[/]"
         tabla.add_row(
             str(fila["id"]),
             fila["tipo"],
@@ -103,10 +103,10 @@ def agregar(
             try:
                 contenido = editar_texto()
             except RuntimeError as exc:
-                error_console.print(f"[red]{escape(str(exc))}[/]")
+                error_console.print(f"[error]{escape(str(exc))}[/]")
                 raise typer.Exit(1)
         if not contenido.strip():
-            console.print("[yellow]La nota está vacía; no se guardó.[/]")
+            console.print("[aviso]La nota está vacía; no se guardó.[/]")
             raise typer.Exit(1)
 
     etiquetas = _normalizar_etiquetas(etiqueta)
@@ -122,7 +122,7 @@ def agregar(
         nota_id = cursor.lastrowid
 
     console.print(
-        f"[green]Guardad{'o' if tipo == 'enlace' else 'a'}[/] "
+        f"[ok]Guardad{'o' if tipo == 'enlace' else 'a'}[/] "
         f"{tipo} [bold]{nota_id}[/]: {escape(titulo)}"
     )
 
@@ -179,14 +179,14 @@ def abrir(
     with closing(_conectar()) as conexion:
         fila = _obtener(conexion, nota_id)
         if fila is None:
-            error_console.print(f"[red]No existe la nota {nota_id}.[/]")
+            error_console.print(f"[error]No existe la nota {nota_id}.[/]")
             raise typer.Exit(1)
 
         if editar:
             try:
                 nuevo = editar_texto(fila["contenido"])
             except RuntimeError as exc:
-                error_console.print(f"[red]{escape(str(exc))}[/]")
+                error_console.print(f"[error]{escape(str(exc))}[/]")
                 raise typer.Exit(1)
             ahora = datetime.now().isoformat(timespec="seconds")
             with conexion:
@@ -194,21 +194,21 @@ def abrir(
                     "UPDATE notas SET contenido = ?, actualizado = ? WHERE id = ?",
                     (nuevo, ahora, nota_id),
                 )
-            console.print(f"[green]Actualizada[/] la nota {nota_id}.")
+            console.print(f"[ok]Actualizada[/] la nota {nota_id}.")
             return
 
         if fila["tipo"] == "enlace":
             webbrowser.open(fila["contenido"])
-            console.print(f"[green]Abriendo[/] {escape(fila['contenido'])}")
+            console.print(f"[ok]Abriendo[/] {escape(fila['contenido'])}")
             return
 
         etiquetas = escape(fila["etiquetas"].replace(",", ", ")) or "sin etiquetas"
         console.print(
             Panel(
-                Text(fila["contenido"]) if fila["contenido"] else "[dim](vacía)[/]",
+                Text(fila["contenido"]) if fila["contenido"] else "[pista](vacía)[/]",
                 title=f"[bold]{escape(fila['titulo'])}[/] · {etiquetas}",
                 subtitle=f"id {fila['id']} · {fila['actualizado']}",
-                border_style="cyan",
+                border_style="marco",
             )
         )
 
@@ -223,16 +223,16 @@ def borrar(
     with closing(_conectar()) as conexion:
         fila = _obtener(conexion, nota_id)
         if fila is None:
-            error_console.print(f"[red]No existe la nota {nota_id}.[/]")
+            error_console.print(f"[error]No existe la nota {nota_id}.[/]")
             raise typer.Exit(1)
         if not confirmar(
             f"¿Borrar «{escape(fila['titulo'])}»?", saltar=si, por_defecto=False
         ):
-            console.print("[yellow]Cancelado.[/]")
+            console.print("[aviso]Cancelado.[/]")
             return
         with conexion:
             conexion.execute("DELETE FROM notas WHERE id = ?", (nota_id,))
-    console.print(f"[green]Borrada[/] la nota {nota_id}.")
+    console.print(f"[ok]Borrada[/] la nota {nota_id}.")
 
 
 def etiquetas() -> None:
@@ -247,7 +247,7 @@ def etiquetas() -> None:
                 conteo[etiqueta] += 1
 
     if not conteo:
-        console.print("[yellow]Todavía no hay etiquetas.[/]")
+        console.print("[aviso]Todavía no hay etiquetas.[/]")
         return
 
     tabla = crear_tabla(["Etiqueta", "Notas"])

@@ -40,7 +40,8 @@ src/navaja/
     ├── ordena.py       # sub-app: previsualizar / aplicar / deshacer / categorias
     ├── renombra.py     # sub-app: previsualizar / aplicar / deshacer
     ├── duplicados.py   # sub-app: buscar / borrar (a papelera) / restaurar / vaciar
-    └── notas.py        # sub-app SQLite: agregar / listar / buscar / abrir / borrar / etiquetas
+    ├── notas.py        # sub-app SQLite: agregar / listar / buscar / abrir / borrar / etiquetas
+    └── ajustes.py      # sub-apps tema (listar / fijar) y config (ver / nombre)
 tests/                  # un archivo por módulo
 ```
 
@@ -72,6 +73,10 @@ subcomandos con `app.add_typer(sub, name="...")`.
   escribas en el directorio del proyecto.
 - **Salida:** usa `console` para información y `error_console` para errores
   (stderr). No uses `print()`.
+- **Colores:** nunca escribas colores fijos (`[green]`, `"cyan"`). Usa los
+  estilos del tema: `ok`, `error`, `aviso`, `pista`, `acento`, `titulo`,
+  `logro`, `marco` (bordes de paneles) y `borde` (tablas). `[bold]` sí vale.
+  Un estilo nuevo se añade a todos los temas de `TEMAS` en `comun.py`.
 - **Texto del usuario en Rich:** todo nombre de archivo, ruta, título o mensaje
   de excepción que vaya dentro de markup se pasa por `rich.markup.escape()`
   (si no, `[borrador].pdf` se pierde). Para un bloque de texto suelto, usa
@@ -81,11 +86,12 @@ subcomandos con `app.add_typer(sub, name="...")`.
 - **Python 3.10:** evita APIs de 3.11+ (por ejemplo `tomllib`). Usa
   `from __future__ import annotations`.
 - **Tests:** sin mocks de Rich/Typer; prueba la lógica pura con `tmp_path`.
-  No toques el directorio de datos real en tests.
+  No toques el directorio de datos real en tests (`tests/conftest.py` ya
+  apunta `NAVAJA_DATOS` a una carpeta temporal en cada test).
 - **Estilo:** docstrings concisas en castellano; sin comentarios obvios.
 
 ## Estado actual
 
 Resumen y bitácora en [ESTADO.md](ESTADO.md). Última verificación conocida
-(2026-10-30): 31 tests pasando (Python 3.10 y 3.13) y CLI probada de punta a
-punta (ocupa, limpia, ordena, renombra, duplicados y notas).
+(2026-10-30): 39 tests pasando (Python 3.10 y 3.13) y CLI probada de punta a
+punta (ocupa, limpia, ordena, renombra, duplicados, notas, tema y config).

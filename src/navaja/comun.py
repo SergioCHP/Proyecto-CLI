@@ -16,9 +16,59 @@ from pathlib import Path
 from rich.console import Console
 from rich.prompt import Confirm
 from rich.table import Table
+from rich.theme import Theme
 
-console = Console()
-error_console = Console(stderr=True)
+TEMAS: dict[str, dict[str, str]] = {
+    "clasico": {
+        "ok": "green",
+        "error": "red",
+        "aviso": "yellow",
+        "pista": "dim",
+        "acento": "cyan",
+        "titulo": "bold cyan",
+        "logro": "bold green",
+        "marco": "cyan",
+        "borde": "dim",
+    },
+    "morado": {
+        "ok": "#98c379",
+        "error": "#e06c75",
+        "aviso": "#e5c07b",
+        "pista": "#7f848e",
+        "acento": "#c678dd",
+        "titulo": "bold #c678dd",
+        "logro": "bold #98c379",
+        "marco": "#c678dd",
+        "borde": "#5c4a72",
+    },
+    "terminal": {
+        "ok": "bright_green",
+        "error": "bold red",
+        "aviso": "yellow",
+        "pista": "green4",
+        "acento": "green",
+        "titulo": "bold bright_green",
+        "logro": "bold bright_green",
+        "marco": "green",
+        "borde": "dark_green",
+    },
+    "pastel": {
+        "ok": "#b5e8b0",
+        "error": "#f4a6a6",
+        "aviso": "#f6d6a8",
+        "pista": "#9a9aa8",
+        "acento": "#a8c8f0",
+        "titulo": "bold #c5b3e6",
+        "logro": "bold #b5e8b0",
+        "marco": "#c5b3e6",
+        "borde": "#9a9aa8",
+    },
+}
+TEMA_POR_DEFECTO = "clasico"
+CONFIG_POR_DEFECTO = {"nombre": "Sergio", "tema": TEMA_POR_DEFECTO}
+
+console = Console(theme=Theme(TEMAS[TEMA_POR_DEFECTO]))
+error_console = Console(stderr=True, theme=Theme(TEMAS[TEMA_POR_DEFECTO]))
 
 UNIDADES = ("B", "KB", "MB", "GB", "TB", "PB")
 
@@ -36,7 +86,15 @@ def tamano_legible(numero: float) -> str:
 
 
 def directorio_datos() -> Path:
-    """Carpeta donde Navaja guarda su estado (notas, deshacer, etc.)."""
+    """Carpeta donde Navaja guarda su estado (notas, deshacer, etc.).
+
+    La variable de entorno ``NAVAJA_DATOS`` la sustituye por otra carpeta.
+    """
+    propia = os.environ.get("NAVAJA_DATOS")
+    if propia:
+        destino = Path(propia)
+        destino.mkdir(parents=True, exist_ok=True)
+        return destino
     if os.name == "nt":
         base = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
     elif sys.platform == "darwin":
@@ -46,6 +104,35 @@ def directorio_datos() -> Path:
     destino = base / "navaja"
     destino.mkdir(parents=True, exist_ok=True)
     return destino
+
+
+def cargar_config(ruta: Path | None = None) -> dict[str, str]:
+    """Lee la configuración del usuario; lo que falte o sea inválido toma el valor por defecto."""
+    ruta = ruta or directorio_datos() / "config.json"
+    config = dict(CONFIG_POR_DEFECTO)
+    try:
+        datos = json.loads(ruta.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return config
+    if isinstance(datos, dict):
+        for clave in config:
+            if isinstance(datos.get(clave), str) and datos[clave].strip():
+                config[clave] = datos[clave].strip()
+    if config["tema"] not in TEMAS:
+        config["tema"] = TEMA_POR_DEFECTO
+    return config
+
+
+def guardar_config(config: dict[str, str], ruta: Path | None = None) -> None:
+    ruta = ruta or directorio_datos() / "config.json"
+    ruta.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def aplicar_tema(nombre: str) -> None:
+    """Cambia los colores de ``console`` y ``error_console``."""
+    estilos = TEMAS.get(nombre, TEMAS[TEMA_POR_DEFECTO])
+    for consola in (console, error_console):
+        consola.push_theme(Theme(estilos))
 
 
 def confirmar(mensaje: str, saltar: bool = False, por_defecto: bool = False) -> bool:
@@ -119,7 +206,7 @@ def iterar_archivos(
 
 
 def crear_tabla(columnas: list[str], titulo: str | None = None) -> Table:
-    tabla = Table(title=titulo, header_style="bold cyan", border_style="dim", expand=False)
+    tabla = Table(title=titulo, header_style="titulo", border_style="borde", expand=False)
     for columna in columnas:
         tabla.add_column(columna, overflow="fold")
     return tabla

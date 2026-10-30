@@ -69,6 +69,25 @@ Documentación y calidad:
 - Instalación y pruebas documentadas con `uv`.
 - 31 tests pasando (también con Python 3.10).
 
+### 2026-10-30 — Identidad visual
+
+- **Estilos con nombre:** los colores fijos (`[green]`, `[red]`…) pasan a ser
+  `ok`, `error`, `aviso`, `pista`, `acento`, `titulo`, `logro`, `marco` y
+  `borde`, definidos en `TEMAS` (`comun.py`).
+- **Temas:** `clasico`, `morado`, `terminal` y `pastel`.
+  `navaja tema listar|fijar`.
+- **Configuración:** `config.json` en el directorio de datos con `nombre` y
+  `tema`; `navaja config ver|nombre`. Valores inválidos vuelven al defecto.
+- **Bienvenida:** `navaja` sin argumentos saluda según la hora y lista los
+  comandos (se generan solos a partir de los registrados).
+- **Alias `nv`** en `pyproject.toml`.
+- `NAVAJA_DATOS` sustituye el directorio de datos; `tests/conftest.py` lo usa
+  para que ningún test toque el real.
+- 39 tests pasando en Python 3.10 y 3.13.
+- Ojo en Windows con Python 3.10: si la ruta del repo tiene tildes
+  (`Programación`), la instalación editable no se encuentra porque 3.10 lee
+  el `.pth` como cp1252. Se arregla con `PYTHONUTF8=1`; desde 3.13 no pasa.
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.
@@ -78,6 +97,9 @@ Documentación y calidad:
 - **Papelera propia para `duplicados`** en vez de borrar: es la única forma de
   poder deshacer un borrado sin añadir dependencias (como `send2trash`).
 - **Sin dependencias más allá de Typer/Rich**: la lógica usa stdlib.
+- **Temas de Rich con estilos semánticos**: los comandos dicen qué es cada
+  texto (`[ok]`, `[aviso]`) y el tema decide el color; cambiar paleta no toca
+  los comandos.
 - **Comandos en castellano** y opciones cortas coherentes (`-n`, `-p`, `-e`,
   `-r`, `-s`).
 

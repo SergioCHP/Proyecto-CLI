@@ -142,7 +142,7 @@ def _mostrar_plan(movimientos: list[dict], ruta: Path, limite: int = 100) -> Non
         Panel(
             f"Se moverían [bold]{len(movimientos)}[/] archivos.\n{resumen}",
             title="Plan de organización",
-            border_style="cyan",
+            border_style="marco",
         )
     )
 
@@ -167,13 +167,13 @@ def _mostrar_plan(movimientos: list[dict], ruta: Path, limite: int = 100) -> Non
 
     if len(movimientos) > limite:
         console.print(
-            f"[dim]Mostrando {limite} de {len(movimientos)} movimientos.[/]"
+            f"[pista]Mostrando {limite} de {len(movimientos)} movimientos.[/]"
         )
 
 
 def _validar(ruta: Path) -> None:
     if not ruta.exists() or not ruta.is_dir():
-        error_console.print(f"[red]La carpeta no existe:[/] {escape(str(ruta))}")
+        error_console.print(f"[error]La carpeta no existe:[/] {escape(str(ruta))}")
         raise typer.Exit(1)
 
 
@@ -201,7 +201,7 @@ def previsualizar(
     base = destino or ruta
     movimientos = _planificar(ruta, por, base, recursivo, ocultos)
     if not movimientos:
-        console.print("[green]No hay nada que organizar.[/]")
+        console.print("[ok]No hay nada que organizar.[/]")
         return
     _mostrar_plan(movimientos, ruta)
 
@@ -233,12 +233,12 @@ def aplicar(
     base = destino or ruta
     movimientos = _planificar(ruta, por, base, recursivo, ocultos)
     if not movimientos:
-        console.print("[green]No hay nada que organizar.[/]")
+        console.print("[ok]No hay nada que organizar.[/]")
         return
 
     _mostrar_plan(movimientos, ruta)
     if not confirmar("¿Mover los archivos?", saltar=si, por_defecto=False):
-        console.print("[yellow]Cancelado.[/]")
+        console.print("[aviso]Cancelado.[/]")
         return
 
     realizados: list[dict] = []
@@ -254,15 +254,15 @@ def aplicar(
             )
         except OSError as exc:
             errores += 1
-            error_console.print(f"[red]No se pudo mover[/] {escape(str(origen))}: {escape(str(exc))}")
+            error_console.print(f"[error]No se pudo mover[/] {escape(str(origen))}: {escape(str(exc))}")
 
     if realizados:
         guardar_acciones("ordena", realizados)
-    console.print(f"[green]Movidos {len(realizados)} archivos.[/]")
+    console.print(f"[ok]Movidos {len(realizados)} archivos.[/]")
     if errores:
-        console.print(f"[yellow]{errores} archivos no se pudieron mover.[/]")
+        console.print(f"[aviso]{errores} archivos no se pudieron mover.[/]")
     if realizados:
-        console.print("[dim]Puedes revertirlo con: navaja ordena deshacer[/]")
+        console.print("[pista]Puedes revertirlo con: navaja ordena deshacer[/]")
 
 
 def deshacer(
@@ -273,12 +273,12 @@ def deshacer(
     """Revierte la última organización realizada."""
     acciones = cargar_acciones("ordena")
     if not acciones:
-        console.print("[yellow]No hay ninguna organización que deshacer.[/]")
+        console.print("[aviso]No hay ninguna organización que deshacer.[/]")
         return
 
     console.print(f"Se devolverían [bold]{len(acciones)}[/] archivos a su sitio.")
     if not confirmar("¿Deshacer la última organización?", saltar=si, por_defecto=False):
-        console.print("[yellow]Cancelado.[/]")
+        console.print("[aviso]Cancelado.[/]")
         return
 
     devueltos = 0
@@ -295,12 +295,12 @@ def deshacer(
             devueltos += 1
         except OSError as exc:
             errores += 1
-            error_console.print(f"[red]No se pudo devolver[/] {escape(str(destino))}: {escape(str(exc))}")
+            error_console.print(f"[error]No se pudo devolver[/] {escape(str(destino))}: {escape(str(exc))}")
 
     limpiar_acciones("ordena")
-    console.print(f"[green]Devueltos {devueltos} archivos.[/]")
+    console.print(f"[ok]Devueltos {devueltos} archivos.[/]")
     if errores:
-        console.print(f"[yellow]{errores} archivos no se pudieron devolver.[/]")
+        console.print(f"[aviso]{errores} archivos no se pudieron devolver.[/]")
 
 
 def categorias() -> None:

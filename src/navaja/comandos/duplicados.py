@@ -189,7 +189,7 @@ def _escanear(
     conservar: Conservar,
 ) -> list[Grupo]:
     if not ruta.is_dir():
-        error_console.print(f"[red]La carpeta no existe:[/] {escape(str(ruta))}")
+        error_console.print(f"[error]La carpeta no existe:[/] {escape(str(ruta))}")
         raise typer.Exit(1)
     try:
         minimo_bytes = a_bytes(minimo)
@@ -208,7 +208,7 @@ def _escanear(
 
     if fallos:
         error_console.print(
-            f"[yellow]{len(fallos)} archivos no se pudieron leer y se han ignorado.[/]"
+            f"[aviso]{len(fallos)} archivos no se pudieron leer y se han ignorado.[/]"
         )
     for grupo in grupos:
         grupo.archivos = ordenar_grupo(grupo.archivos, conservar)
@@ -222,17 +222,17 @@ def _mostrar(grupos: list[Grupo], ruta: Path, limite: int) -> None:
         Panel(
             f"Grupos: [bold]{len(grupos)}[/]  ·  "
             f"Copias sobrantes: [bold]{sobrantes}[/]  ·  "
-            f"Recuperable: [bold green]{tamano_legible(recuperable)}[/]",
+            f"Recuperable: [logro]{tamano_legible(recuperable)}[/]",
             title="Duplicados",
-            border_style="cyan",
+            border_style="marco",
         )
     )
 
     tabla = crear_tabla(["#", "Tamaño", "Archivos"])
     for indice, grupo in enumerate(grupos[:limite], start=1):
-        lineas = [f"[green]✔ {escape(_relativa(grupo.original, ruta))}[/]"]
+        lineas = [f"[ok]✔ {escape(_relativa(grupo.original, ruta))}[/]"]
         lineas += [
-            f"[red]✘ {escape(_relativa(archivo, ruta))}[/]"
+            f"[error]✘ {escape(_relativa(archivo, ruta))}[/]"
             for archivo in grupo.sobrantes
         ]
         tabla.add_row(
@@ -243,17 +243,17 @@ def _mostrar(grupos: list[Grupo], ruta: Path, limite: int) -> None:
     console.print(tabla)
     if len(grupos) > limite:
         console.print(
-            f"[dim]Mostrando {limite} de {len(grupos)} grupos. "
+            f"[pista]Mostrando {limite} de {len(grupos)} grupos. "
             "Usa --mayores para ver más.[/]"
         )
-    console.print("[dim]✔ se conserva  ·  ✘ copia sobrante[/]")
+    console.print("[pista]✔ se conserva  ·  ✘ copia sobrante[/]")
 
 
 def _sin_duplicados(recursivo: bool) -> None:
-    console.print("[green]No hay archivos duplicados.[/]")
+    console.print("[ok]No hay archivos duplicados.[/]")
     if not recursivo:
         console.print(
-            "[dim]Solo he mirado esta carpeta; usa -r para incluir subcarpetas.[/]"
+            "[pista]Solo he mirado esta carpeta; usa -r para incluir subcarpetas.[/]"
         )
 
 
@@ -292,7 +292,7 @@ def buscar(
         _sin_duplicados(recursivo)
         return
     _mostrar(grupos, ruta, mayores)
-    console.print("[dim]Para quitar las copias: navaja duplicados borrar …[/]")
+    console.print("[pista]Para quitar las copias: navaja duplicados borrar …[/]")
 
 
 def borrar(
@@ -316,7 +316,7 @@ def borrar(
     if not confirmar(
         f"¿Mover {total} copias a la papelera de navaja?", saltar=si, por_defecto=False
     ):
-        console.print("[yellow]Cancelado.[/]")
+        console.print("[aviso]Cancelado.[/]")
         return
 
     carpeta = _papelera() / datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -326,7 +326,7 @@ def borrar(
     for grupo in grupos:
         if not grupo.original.exists():
             error_console.print(
-                f"[yellow]Me salto un grupo: ya no existe "
+                f"[aviso]Me salto un grupo: ya no existe "
                 f"{escape(str(grupo.original))}[/]"
             )
             continue
@@ -340,20 +340,20 @@ def borrar(
             except OSError as exc:
                 errores += 1
                 error_console.print(
-                    f"[red]No se pudo mover[/] {escape(str(copia))}: {escape(str(exc))}"
+                    f"[error]No se pudo mover[/] {escape(str(copia))}: {escape(str(exc))}"
                 )
 
     if realizados:
         guardar_acciones("duplicados", cargar_acciones("duplicados") + realizados)
     console.print(
-        f"[green]Movidas {len(realizados)} copias "
+        f"[ok]Movidas {len(realizados)} copias "
         f"({tamano_legible(liberado)}) a la papelera.[/]"
     )
     if errores:
-        console.print(f"[yellow]{errores} copias no se pudieron mover.[/]")
+        console.print(f"[aviso]{errores} copias no se pudieron mover.[/]")
     if realizados:
         console.print(
-            "[dim]Recuperarlas: navaja duplicados restaurar  ·  "
+            "[pista]Recuperarlas: navaja duplicados restaurar  ·  "
             "Liberar el espacio: navaja duplicados vaciar[/]"
         )
 
@@ -365,12 +365,12 @@ def restaurar(
     acciones = cargar_acciones("duplicados")
     pendientes = [a for a in acciones if Path(a["destino"]).exists()]
     if not pendientes:
-        console.print("[yellow]No hay nada en la papelera que restaurar.[/]")
+        console.print("[aviso]No hay nada en la papelera que restaurar.[/]")
         return
 
     console.print(f"Se devolverían [bold]{len(pendientes)}[/] archivos a su sitio.")
     if not confirmar("¿Restaurarlos?", saltar=si, por_defecto=False):
-        console.print("[yellow]Cancelado.[/]")
+        console.print("[aviso]Cancelado.[/]")
         return
 
     devueltos = 0
@@ -385,7 +385,7 @@ def restaurar(
         except OSError as exc:
             errores += 1
             error_console.print(
-                f"[red]No se pudo devolver[/] {escape(str(destino))}: {escape(str(exc))}"
+                f"[error]No se pudo devolver[/] {escape(str(destino))}: {escape(str(exc))}"
             )
 
     for carpeta in {Path(a["destino"]).parent for a in pendientes}:
@@ -395,10 +395,10 @@ def restaurar(
             pass
 
     if errores:
-        console.print(f"[yellow]{errores} archivos no se pudieron devolver.[/]")
+        console.print(f"[aviso]{errores} archivos no se pudieron devolver.[/]")
     else:
         limpiar_acciones("duplicados")
-    console.print(f"[green]Restaurados {devueltos} archivos.[/]")
+    console.print(f"[ok]Restaurados {devueltos} archivos.[/]")
 
 
 def vaciar(
@@ -408,7 +408,7 @@ def vaciar(
     papelera = _papelera()
     archivos = [f for f in papelera.rglob("*") if f.is_file()] if papelera.exists() else []
     if not archivos:
-        console.print("[green]La papelera de navaja está vacía.[/]")
+        console.print("[ok]La papelera de navaja está vacía.[/]")
         return
 
     total = sum(archivo.stat().st_size for archivo in archivos)
@@ -419,16 +419,16 @@ def vaciar(
     if not confirmar(
         "¿Borrarlos para siempre? No se podrá deshacer.", saltar=si, por_defecto=False
     ):
-        console.print("[yellow]Cancelado.[/]")
+        console.print("[aviso]Cancelado.[/]")
         return
 
     try:
         shutil.rmtree(papelera)
     except OSError as exc:
-        error_console.print(f"[red]No se pudo vaciar del todo:[/] {escape(str(exc))}")
+        error_console.print(f"[error]No se pudo vaciar del todo:[/] {escape(str(exc))}")
         raise typer.Exit(1)
     limpiar_acciones("duplicados")
-    console.print(f"[green]Liberados {tamano_legible(total)}.[/]")
+    console.print(f"[ok]Liberados {tamano_legible(total)}.[/]")
 
 
 def registrar(app: typer.Typer) -> None:
