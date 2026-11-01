@@ -124,6 +124,8 @@ def valor_de(param: Any) -> str:
             return "opcional · uno o varios"
         if valor_texto(defecto) == ".":
             return "opcional · por defecto: . (la carpeta actual)"
+        if valor_texto(defecto) == "":
+            return "opcional · si no lo pones, vacío"
         return f"opcional · por defecto: {valor_texto(defecto)}"
     if getattr(param, "is_flag", False):
         return "interruptor (sin valor)"
@@ -176,10 +178,33 @@ EXTRA: dict[str, str] = {
     ),
     "ordena categorias": "Enseña qué extensiones van a cada carpeta.",
     "renombra": (
-        "El patrón es una expresión regular de Python. Sin --completo solo cambia el "
-        "nombre y la extensión se queda igual. Ejemplo: IMG_(\\d+) → foto_\\1 convierte "
-        "IMG_1234.jpg en foto_1234.jpg. Si dos archivos acabarían con el mismo nombre, o "
-        "el nombre nuevo ya existe, lo marca como conflicto y no lo toca."
+        "Todas las opciones trabajan en la carpeta actual (o la de --carpeta), enseñan "
+        "«antes → después» y preguntan [s/n] antes de cambiar nada; con --simular solo "
+        "miran. Cambian el nombre y dejan la extensión como estaba (salvo arreglar y "
+        "plantilla). --solo jpg,png limita a esas extensiones y --contiene Gemini, a los "
+        "archivos cuyo nombre lleva ese texto. Si dos archivos acabarían "
+        "con el mismo nombre, el nombre ya existe o no vale en Windows, lo marca y no lo "
+        "toca. Para un texto con espacios, entre comillas: cambiar \" (1)\" \"\"."
+    ),
+    "renombra cambiar": "Cambia el texto tal cual (sin regex): «(1)» o «.» son texto normal.",
+    "renombra numerar": (
+        "Cuenta por separado en cada carpeta. Con --orden fecha, la más antigua es la 001."
+    ),
+    "renombra fecha": "Si un archivo ya empieza por su fecha, no la repite.",
+    "renombra arreglar": (
+        "Pasa a minúsculas, quita tildes y eñes (año → ano) y cambia espacios y símbolos "
+        "por guiones: «Foto Año (1).JPG» → «foto-ano-1.jpg»."
+    ),
+    "renombra plantilla": (
+        "Huecos: {nombre} (el nombre sin extensión), {ext} (la extensión con punto, en "
+        "minúsculas), {n} (contador; {n:03} → 001) y {fecha} (fecha de modificación; "
+        "{fecha:%Y-%m-%d} → 2026-10-26). Pon {ext} para no perder la extensión. Son los "
+        "mismos huecos que «plantilla» en acciones.json."
+    ),
+    "renombra avanzado": (
+        "El patrón es una expresión regular de Python. Ejemplo: IMG_(\\d+) → foto_\\1 "
+        "convierte IMG_1234.jpg en foto_1234.jpg. Sin --completo solo cambia el nombre, "
+        "no la extensión."
     ),
     "duplicados": (
         "Compara el contenido de los archivos (SHA-256), no el nombre: dos archivos son "
@@ -238,8 +263,9 @@ def tabla_dos(filas: list[tuple[str, str]]) -> Table:
 
 MODO_INTERACTIVO = [
     ("1, 2, 3…", "Elige una opción del menú. Si es un grupo (ordena, notas…) abre su "
-     "submenú; si no, lo ejecuta en la carpeta actual y solo pregunta lo obligatorio. "
-     "Debajo del resultado te dice qué opciones tiene."),
+     "submenú; si no, lo ejecuta en la carpeta actual y pregunta lo que hace falta y los "
+     "ajustes que importan (en renombra numerar: separador, cifras, orden y qué archivos), "
+     "con Intro para dejarlos como están. Debajo del resultado te dice qué más opciones tiene."),
     ("un comando", "Igual que en la terminal pero sin «navaja» delante: ocupa -n 5, "
      "ordena aplicar ~/Descargas. Si le falta algo obligatorio, lo pregunta."),
     ("ayuda · ?", "Explica lo que puedes hacer donde estás: en el menú principal, todas las "
@@ -334,7 +360,8 @@ def manual(raiz: Any) -> None:
             [
                 ("[s/n]", "Nada se borra ni se mueve sin enseñarte antes qué va a pasar y "
                  "preguntarte. Vale s, sí, n o no. Con --si no pregunta."),
-                ("previsualizar", "ordena y renombra lo tienen: enseñan el plan sin tocar nada."),
+                ("previsualizar · --simular", "ordena previsualizar y renombra --simular "
+                 "enseñan el plan sin tocar nada."),
                 ("deshacer", "ordena y renombra revierten su última operación."),
                 ("--seco", "limpia solo enseña lo que borraría."),
                 ("papelera", "duplicados borrar mueve las copias a la papelera de navaja; "

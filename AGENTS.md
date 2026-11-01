@@ -41,7 +41,7 @@ src/navaja/
     ├── ayuda.py        # «ayuda» (lo de aquí), «ayuda ocupa» y la orden manual
     ├── ocupa.py        # ocupa (analizar) y limpia (borrar basura)
     ├── ordena.py       # sub-app: previsualizar / aplicar / deshacer / categorias
-    ├── renombra.py     # sub-app: previsualizar / aplicar / deshacer
+    ├── renombra.py     # sub-app: cambiar / delante / detras / numerar / fecha / arreglar / plantilla / avanzado / deshacer
     ├── duplicados.py   # sub-app: buscar / borrar (a papelera) / restaurar / vaciar
     ├── notas.py        # sub-app SQLite: agregar / listar / buscar / abrir / borrar / etiquetas
     └── ajustes.py      # sub-apps tema (listar / fijar) y config (ver / nombre)
@@ -59,6 +59,13 @@ defecto). Por eso cada argumento debe tener un `help` claro. Las órdenes se
 ejecutan con `raiz.main(args, standalone_mode=True)` y se captura `SystemExit`,
 de modo que los errores salen igual que en la terminal y no cierran el bucle.
 Solo se abre si stdin y stdout son una terminal (`puede_iniciar()`).
+
+Al elegir un comando por número, el modo interactivo pregunta sus argumentos y,
+además, las opciones con `rich_help_panel=AJUSTE` (de `comun.py`), con Intro
+para dejar su valor por defecto. Marca así solo las que de verdad importan para
+ese comando (en `renombra`: `--contiene`, `--orden` y, en `numerar`,
+`--separador` y `--cifras`); las demás se escriben a mano. En `--help` salen en
+su propio panel «Ajustes».
 
 El manual (`navaja manual`) también se genera de los comandos registrados. Todo
 comando, argumento y opción necesita un `help` en castellano
@@ -112,5 +119,5 @@ considera basura `limpia`, cómo compara `duplicados`…) va en `EXTRA` de
 ## Estado actual
 
 Resumen y bitácora en [ESTADO.md](ESTADO.md). Última verificación conocida
-(2026-11-01): 79 tests pasando (Python 3.10 y 3.13) y modo interactivo probado
+(2026-11-01): 96 tests pasando (Python 3.10 y 3.13) y modo interactivo probado
 en una terminal real (menú, submenús, preguntas guiadas, cd, errores y salida).

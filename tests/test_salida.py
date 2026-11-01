@@ -12,7 +12,7 @@ runner = CliRunner()
         ["listar"],
         ["ocupa"],
         ["ordena", "previsualizar"],
-        ["renombra", "previsualizar", "{ruta}", "zzz", "y"],
+        ["renombra", "detras", "_v2", "--simular", "-c", "{ruta}"],
     ],
 )
 def test_nombres_con_corchetes_se_ven_enteros(tmp_path, argumentos):

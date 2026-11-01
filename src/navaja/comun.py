@@ -67,6 +67,10 @@ TEMAS: dict[str, dict[str, str]] = {
 TEMA_POR_DEFECTO = "clasico"
 CONFIG_POR_DEFECTO = {"nombre": "Sergio", "tema": TEMA_POR_DEFECTO}
 
+AJUSTE = "Ajustes"
+"""Panel de --help (``rich_help_panel``) de las opciones que el modo interactivo
+pregunta al elegir el comando por número, con Intro para dejar su valor."""
+
 console = Console(theme=Theme(TEMAS[TEMA_POR_DEFECTO]))
 error_console = Console(stderr=True, theme=Theme(TEMAS[TEMA_POR_DEFECTO]))
 

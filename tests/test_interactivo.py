@@ -120,12 +120,40 @@ def test_comando_del_menu_principal_desde_un_submenu(carpeta, capsys, linea):
     assert "No conozco" not in texto
 
 
-def test_comando_con_obligatorios_sin_argumentos_pregunta(carpeta, capsys):
-    interactivo.iniciar(app, lector("renombra previsualizar", "apuntes", "notas"))
+def test_comando_con_obligatorios_sin_argumentos_pregunta(carpeta, capsys, monkeypatch):
+    monkeypatch.setattr("builtins.input", lambda *_: "n")  # a «¿Renombrar…? [s/n]»
+    interactivo.iniciar(app, lector("renombra cambiar", "apuntes", "notas", ""))
     texto = salida(capsys)
-    assert "→ navaja renombra previsualizar . apuntes notas" in texto
+    assert "→ navaja renombra cambiar apuntes notas" in texto
     assert "notas.pdf" in texto
+    assert "Cancelado" in texto
     assert (carpeta / "apuntes.pdf").exists()
+
+
+def test_texto_opcional_se_pregunta_y_vacio_borra(carpeta, capsys, monkeypatch):
+    monkeypatch.setattr("builtins.input", lambda *_: "s")
+    (carpeta / "informe (1).pdf").write_text("x")
+    # renombra → 1 (cambiar) → buscar « (1)» (con comillas, para el espacio) → Intro (nada)
+    interactivo.iniciar(app, lector("renombra", "1", '" (1)"', "", ""))
+    salida(capsys)
+    assert (carpeta / "informe.pdf").exists()
+
+
+def test_renombrar_las_imagenes_de_gemini_desde_el_menu(carpeta, capsys, monkeypatch):
+    monkeypatch.setattr("builtins.input", lambda *_: "s")
+    for codigo in ("4ll5w74ll5w74ll5", "jx2wlfjx2wlfjx2w", "yz08iryz08iryz08"):
+        (carpeta / f"Gemini_Generated_Image_{codigo}.png").write_text("x")
+    # renombra → 4 (numerar) → nombre → separador (un espacio) → cifras → orden (mal y bien)
+    # → contiene
+    interactivo.iniciar(
+        app, lector("renombra", "4", "gemini", " ", "1", "por tamaño", "", "gemini")
+    )
+    texto = salida(capsys)
+    assert "Escribe nombre o fecha" in texto
+    assert '→ navaja renombra numerar gemini --separador " " --cifras 1 --contiene gemini' in texto
+    archivos = {p.name for p in carpeta.iterdir() if p.is_file()}
+    assert {"gemini 1.png", "gemini 2.png", "gemini 3.png", "apuntes.pdf"} <= archivos
+    assert not any(n.startswith("Gemini_") for n in archivos)
 
 
 @pytest.mark.parametrize("pedido", ["ayuda ocupa", "ocupa ?", "? 2"])

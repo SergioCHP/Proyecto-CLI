@@ -24,7 +24,7 @@ from .comandos.ayuda import (
     valor_texto,
 )
 from .comandos.ayuda import subcomandos as opciones_de
-from .comun import console, error_console
+from .comun import AJUSTE, console, error_console
 
 Lector = Callable[[str], str]
 
@@ -135,34 +135,80 @@ def ejecutar(raiz: Any, argumentos: list[str]) -> int:
     return 0
 
 
-def preguntar_obligatorios(comando: Any, leer: Lector) -> list[str]:
-    """Pregunta solo los argumentos obligatorios.
+def leer_texto(leer: Lector, prompt: str, defecto: str) -> str:
+    """Intro deja el valor por defecto; solo espacios valen como espacio («numerar» con « »)."""
+    crudo = leer(prompt)
+    if crudo == "":
+        return defecto
+    if not crudo.strip():
+        return crudo
+    return expandir(quitar_comillas(crudo.strip()))
 
-    Los opcionales (como la carpeta) se quedan con su valor por defecto; solo se
-    escriben si detrás va uno obligatorio, para no descolocar las posiciones.
+
+def preguntar_obligatorios(comando: Any, leer: Lector) -> list[str]:
+    """Pregunta los argumentos que hacen falta.
+
+    Los obligatorios, siempre. Los opcionales de texto (como el «por» de
+    renombra cambiar) también, con Intro para dejar su valor por defecto. Las
+    rutas opcionales (la carpeta) y las listas no se preguntan: se usa la
+    carpeta actual. Solo se escriben si detrás va otro valor, para no
+    descolocar las posiciones.
     """
     valores: list[str] = []
     pendientes: list[str] = []
     for param in comando.params:
         if param.param_type_name != "argument":
             continue
-        if not param.required:
-            if param.default is not None:
+        es_ruta = getattr(getattr(param, "type", None), "name", "") == "path"
+        es_lista = getattr(param, "nargs", 1) == -1
+        if not param.required and (es_ruta or es_lista):
+            if param.default is not None and not es_lista:
                 pendientes.append(valor_texto(param.default))
             continue
         texto = escape((getattr(param, "help", None) or param.name or "").rstrip("."))
-        while True:
-            valor = leer(f"  {texto}: ").strip()
-            if valor:
-                break
-            console.print("  [aviso]Hace falta un valor.[/]")
+        if param.required:
+            while True:
+                valor = leer_texto(leer, f"  {texto}: ", "")
+                if valor:
+                    break
+                console.print("  [aviso]Hace falta un valor.[/]")
+        else:
+            defecto = "" if param.default is None else valor_texto(param.default)
+            pista = "vacío" if defecto == "" else defecto
+            valor = leer_texto(leer, f"  {texto} [pista](Intro = {escape(pista)})[/]: ", defecto)
         valores += pendientes
         pendientes = []
-        if getattr(param, "nargs", 1) == -1:
-            valores += dividir(valor)
-        else:
-            valores.append(expandir(quitar_comillas(valor)))
+        valores += dividir(valor) if es_lista else [valor]
     return valores
+
+
+def preguntar_ajustes(comando: Any, leer: Lector) -> list[str]:
+    """Pregunta las opciones del panel «Ajustes»; solo añade las que cambian."""
+    extra: list[str] = []
+    for param in comando.params:
+        if param.param_type_name != "option" or getattr(param, "rich_help_panel", None) != AJUSTE:
+            continue
+        texto = escape((getattr(param, "help", None) or param.name or "").rstrip("."))
+        nombre = max(param.opts, key=len)
+        if getattr(param, "is_flag", False):
+            respuesta = leer(f"  {texto} [pista](s/n · Intro = no)[/]: ").strip().lower()
+            if respuesta in ("s", "si", "sí", "y"):
+                extra.append(nombre)
+            continue
+        defecto = "" if param.default is None else valor_texto(param.default)
+        elecciones = [valor_texto(c) for c in getattr(param.type, "choices", None) or []]
+        if elecciones:
+            pista = f"{' o '.join(elecciones)} · Intro = {defecto}"
+        else:
+            pista = f"Intro = {defecto}" if defecto else "Intro para saltar"
+        while True:
+            valor = leer_texto(leer, f"  {texto} [pista]({escape(pista)})[/]: ", defecto)
+            if not elecciones or valor in elecciones:
+                break
+            console.print(f"  [aviso]Escribe {' o '.join(elecciones)}.[/]")
+        if valor != defecto:
+            extra += [nombre, valor]
+    return extra
 
 
 def pista_opciones(nombres: list[str], comando: Any) -> None:
@@ -177,10 +223,13 @@ def pista_opciones(nombres: list[str], comando: Any) -> None:
     )
 
 
-def guiado(raiz: Any, camino: list[str], comando: Any, leer: Lector) -> None:
+def guiado(
+    raiz: Any, camino: list[str], comando: Any, leer: Lector, escribir: list[str] | None = None
+) -> None:
     """Pregunta solo lo obligatorio, ejecuta en la carpeta actual y dice qué más se puede ajustar."""
     try:
         valores = preguntar_obligatorios(comando, leer)
+        valores += preguntar_ajustes(comando, leer)
     except (KeyboardInterrupt, EOFError):
         console.print("\n[aviso]Cancelado.[/]")
         return
@@ -189,7 +238,7 @@ def guiado(raiz: Any, camino: list[str], comando: Any, leer: Lector) -> None:
         orden = " ".join(citar(a) for a in argumentos)
         console.print(f"[pista]→ navaja {escape(orden)}[/]", soft_wrap=True)
     ejecutar(raiz, argumentos)
-    pista_opciones(camino, comando)
+    pista_opciones(escribir or camino, comando)
 
 
 def cambiar_carpeta(destino: str) -> None:
@@ -314,7 +363,7 @@ def bucle(raiz: Any, grupo: Any, camino: list[str], leer: Lector) -> None:
             if es_grupo(comando):
                 reenviada = submenu(raiz, comando, camino + [nombre], leer)
             else:
-                guiado(raiz, camino + [nombre], comando, leer)
+                guiado(raiz, camino + [nombre], comando, leer, escribir=[nombre])
                 console.print()
         else:
             try:
@@ -342,7 +391,7 @@ def bucle(raiz: Any, grupo: Any, camino: list[str], leer: Lector) -> None:
                 elif es_grupo(comando):
                     reenviada = submenu(raiz, comando, camino + nombres, leer)
                 elif requiere_algo(comando):
-                    guiado(raiz, camino + nombres, comando, leer)
+                    guiado(raiz, camino + nombres, comando, leer, escribir=nombres)
                 else:
                     ejecutar(raiz, camino + palabras)
             else:

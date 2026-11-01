@@ -137,6 +137,38 @@ Documentación y calidad:
   una línea fina en vez de bloques, que en Windows Terminal formaban una mancha.
 - 79 tests pasando en Python 3.10 y 3.13.
 
+### 2026-11-01 — renombra fácil
+
+- `renombra` deja de exigir expresiones regulares: una opción por tarea, y en
+  el menú interactivo cada una pregunta solo lo que necesita.
+  - `cambiar BUSCAR [POR]`: texto tal cual (vacío borra). `delante TEXTO`,
+    `detras TEXTO`. `numerar NOMBRE` (`--desde`, `--cifras`, `--separador`,
+    `--orden nombre|fecha`; cuenta por carpeta). `fecha` (`--formato`; no la
+    repite). `arreglar` (minúsculas, sin tildes ni eñes, guiones). `plantilla
+    "{fecha:%Y-%m-%d}_{n:03}{ext}"` con los mismos huecos que acciones.json.
+    `avanzado PATRON REEMPLAZO` es lo de antes (regex, `--completo`). `deshacer`.
+  - Un solo paso: enseña «antes → después» (solo lo que cambia y los problemas)
+    y pregunta [s/n]; `--simular` solo mira. Sustituye a previsualizar/aplicar.
+  - Comunes: `--carpeta/-c`, `--solo jpg,png`, `--contiene TEXTO` (solo los
+    archivos cuyo nombre lo lleva, sin mirar mayúsculas), `-r`, `--ocultos`,
+    `--simular`, `--si`.
+  - Seguridad: no toca un archivo si dos acabarían igual, si el nombre ya
+    existe o si no vale en Windows (`: * ? " < > |`). Cambiar solo mayúsculas
+    (FOTO.JPG → foto.jpg) sí se permite.
+  - Motor común en `renombrar()`; cada opción es una función
+    `(archivo, n) -> nombre nuevo`.
+- Modo interactivo: también pregunta los argumentos opcionales de texto (como
+  el «por» de cambiar, con «Intro = vacío»); la carpeta sigue sin preguntarse.
+  «Más opciones» dice la ayuda tal como se escribe donde estás.
+- Al elegir por número también se preguntan los «ajustes» que importan (opciones
+  con `rich_help_panel=AJUSTE`): en renombra, `--contiene` y `--orden`, y en
+  numerar además `--separador` y `--cifras`. Intro deja el valor por defecto,
+  un espacio vale como espacio y las opciones con valores fijos se validan
+  («Escribe nombre o fecha»). Así se puede hacer todo desde el menú, por
+  ejemplo `Gemini_Generated_Image_….png → gemini 1.png` con 4 → gemini → espacio
+  → 1 → Intro → gemini.
+- 96 tests pasando en Python 3.10 y 3.13.
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.

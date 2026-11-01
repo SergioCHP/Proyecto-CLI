@@ -10,7 +10,7 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
 | `navaja ocupa [ruta]` | Muestra qué archivos y carpetas ocupan más espacio. |
 | `navaja limpia [ruta]` | Busca y borra cachés y temporales (`node_modules`, `__pycache__`, `dist`…). |
 | `navaja ordena` | Organiza archivos por extensión o fecha, con deshacer. |
-| `navaja renombra` | Renombrado masivo con expresiones regulares, con deshacer. |
+| `navaja renombra` | Renombrado masivo sin saber regex: cambiar texto, añadir delante o detrás, numerar, poner la fecha, arreglar nombres o una plantilla. Con deshacer. |
 | `navaja duplicados` | Encuentra archivos repetidos por contenido y los manda a una papelera recuperable. |
 | `navaja notas` | Notas y enlaces con etiquetas, guardados en SQLite. |
 | `navaja tema` | Elige los colores (clasico, morado, terminal, pastel). |
@@ -40,10 +40,10 @@ Descargas> 2                       ← un número: lo ejecuta aquí mismo
 …
 Más opciones: --mayores --profundidad · ayuda ocupa explica cada una
 Descargas> ocupa -n 5              ← o escribe el comando con sus opciones
-Descargas> renombra previsualizar  ← si falta algo obligatorio, lo pregunta
-  Expresión regular a buscar: IMG_
-  Texto de reemplazo. Usa \1, \2… para los grupos: foto_
-→ navaja renombra previsualizar . IMG_ foto_
+Descargas> renombra cambiar        ← si falta algo, lo pregunta
+  Texto que buscas en el nombre (sin contar la extensión): IMG_
+  Texto nuevo. Vacío para borrar el que buscas (Intro = vacío): foto_
+→ navaja renombra cambiar IMG_ foto_
 Descargas> cd ..
 sergi> salir
 PS C:\Users\sergi\Descargas>
@@ -108,8 +108,18 @@ navaja ordena aplicar ~/Descargas
 navaja ordena deshacer
 
 # Renombrar IMG_1234.jpg -> foto_1234.jpg
-navaja renombra previsualizar ~/Fotos 'IMG_(\d+)' 'foto_\1' --incluir '*.jpg'
-navaja renombra aplicar ~/Fotos 'IMG_(\d+)' 'foto_\1' --incluir '*.jpg'
+# Renombrar: enseña «antes → después» y pregunta [s/n] (--simular solo mira)
+navaja renombra cambiar IMG_ foto_                   # IMG_1234.jpg → foto_1234.jpg
+navaja renombra cambiar " (1)" ""                    # informe (1).pdf → informe.pdf
+navaja renombra delante 2026_ --solo pdf             # informe.pdf → 2026_informe.pdf
+navaja renombra detras _v2                           # informe.pdf → informe_v2.pdf
+navaja renombra numerar playa --solo jpg,png --orden fecha   # playa_001.jpg, playa_002.png…
+navaja renombra numerar gemini --separador " " --cifras 1 --contiene gemini
+                                                     # Gemini_Generated_Image_….png → gemini 1.png…
+navaja renombra fecha -c ~/Fotos                     # IMG_1.jpg → 2026-10-26_IMG_1.jpg
+navaja renombra arreglar                             # Foto Año (1).JPG → foto-ano-1.jpg
+navaja renombra plantilla "{fecha:%Y-%m-%d}_{n:03}{ext}" --simular
+navaja renombra avanzado 'IMG_(\d+)' 'foto_\1'       # con expresiones regulares
 navaja renombra deshacer
 
 # Duplicados: mirar, quitar las copias y, si te arrepientes, recuperarlas
@@ -136,7 +146,8 @@ navaja config ver
 
 ## Seguridad
 
-- `ordena` y `renombra` siempre tienen `previsualizar` (no toca nada) y `deshacer`.
+- `ordena` tiene `previsualizar` y `renombra` tiene `--simular` (no tocan nada); los dos tienen `deshacer`.
+- `renombra` enseña siempre «antes → después» y pregunta `[s/n]` antes de cambiar nada.
 - `limpia` muestra los candidatos y pide confirmación; usa `--seco` para solo mirar y `--si` para no preguntar.
 - `duplicados borrar` no borra: mueve las copias a la papelera de navaja. Compara el
   contenido completo (SHA-256), no solo el nombre o el tamaño, y nunca toca el archivo
