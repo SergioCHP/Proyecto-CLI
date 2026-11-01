@@ -123,6 +123,8 @@ def valor_de(param: Any) -> str:
             return "obligatorio"
         if getattr(param, "nargs", 1) == -1:
             return "opcional · uno o varios"
+        if defecto is None:
+            return "opcional"
         if valor_texto(defecto) == ".":
             return "opcional · por defecto: . (la carpeta actual)"
         if valor_texto(defecto) == "":
@@ -252,6 +254,29 @@ EXTRA: dict[str, str] = {
     "config": (
         "La primera vez que abres navaja te pregunta cómo quieres que te llame (Intro = tu "
         "usuario de Windows). Lo que pongas en «config nombre» se guarda y te llama así siempre."
+    ),
+    "acciones": (
+        "Una acción es una tarea que repites, guardada con un nombre en acciones.json "
+        "(ordenar-descargas, imagenes-ia…): la escribes una vez y la haces cuando quieras. "
+        "navaja usa el acciones.json de la carpeta actual y, si no hay, el de tus datos (o el "
+        "que digas con --config). Antes de hacer nada comprueba el archivo entero; si algo está "
+        "mal, dice qué acción y qué campo y sale con el código 3. Cómo se escribe el archivo: "
+        "«manual acciones»."
+    ),
+    "acciones ejecutar": (
+        "Enseña «archivo → dónde va» y pregunta [s/n]; con --simular solo mira. Nunca "
+        "sobrescribe: si el nombre ya existe, añade (1), (2)… Una rutina hace sus pasos en "
+        "orden y pregunta en cada uno; si dices que no, no hace los que quedan. Prueba "
+        "primero en una carpeta de pruebas: acciones ejecutar ordenar-descargas "
+        "~/pruebas --simular."
+    ),
+    "acciones deshacer": (
+        "Devuelve a su sitio lo movido, renombrado u ordenado, saca de la papelera lo borrado "
+        "y quita las copias (solo si el original sigue ahí). En una rutina, la deshace entera."
+    ),
+    "acciones editar": (
+        "Usa el Bloc de notas en Windows (o el editor de la variable EDITOR). Si no tienes "
+        "acciones.json, lo crea en tus datos con una acción de ejemplo."
     ),
     "manual": "Sin nada, este manual entero. Con un comando, solo su parte.",
 }
@@ -404,24 +429,28 @@ def manual(raiz: Any) -> None:
     for nombre, comando in subcomandos(raiz):
         describir([nombre], comando)
 
-    seccion("4. Seguridad")
+    manual_acciones()
+
+    seccion("5. Seguridad")
     console.print(
         tabla_dos(
             [
                 ("[s/n]", "Nada se borra ni se mueve sin enseñarte antes qué va a pasar y "
                  "preguntarte. Vale s, sí, n o no. Con --si no pregunta."),
-                ("--simular", "En ordena, renombra y limpia enseña lo que haría sin tocar nada."),
-                ("deshacer", "ordena y renombra revierten su última operación."),
+                ("--simular", "En ordena, renombra, limpia y acciones ejecutar enseña lo que "
+                 "haría sin tocar nada."),
+                ("deshacer", "ordena, renombra y acciones revierten su última operación."),
 
-                ("papelera", "duplicados borrar mueve las copias a la papelera de navaja; "
-                 "duplicados restaurar las devuelve; duplicados vaciar las borra para siempre."),
-                ("sin sobrescribir", "ordena y duplicados añaden (1), (2)… si el nombre ya "
-                 "existe; renombra marca esos casos como conflicto y no los toca."),
+                ("papelera", "duplicados borrar y las acciones de tipo borrar mueven los archivos "
+                 "a la papelera de navaja; duplicados restaurar y acciones deshacer los "
+                 "devuelven; duplicados vaciar la borra para siempre."),
+                ("sin sobrescribir", "ordena, duplicados y acciones añaden (1), (2)… si el nombre "
+                 "ya existe; renombra marca esos casos como conflicto y no los toca."),
             ]
         )
     )
 
-    seccion("5. Dónde guarda sus datos")
+    seccion("6. Dónde guarda sus datos")
     console.print(
         f"En [acento]{escape(str(directorio_datos()))}[/]. Se puede cambiar con la "
         "variable de entorno [acento]NAVAJA_DATOS[/]. navaja nunca guarda nada en tus "
@@ -436,12 +465,15 @@ def manual(raiz: Any) -> None:
                 ("renombra_deshacer.json", "El último renombrado, para deshacerlo."),
                 ("duplicados_deshacer.json", "De dónde salió cada copia de la papelera, "
                  "para restaurarla."),
-                ("papelera/", "Las copias que quita duplicados borrar."),
+                ("acciones.json", "Tus acciones, si no hay uno en la carpeta en la que estás "
+                 "(lo crea «acciones editar»)."),
+                ("acciones_deshacer.json", "La última acción que hiciste, para deshacerla."),
+                ("papelera/", "Lo que quitan duplicados borrar y las acciones de tipo borrar."),
             ]
         )
     )
 
-    seccion("6. Para scripts")
+    seccion("7. Para scripts")
     console.print(
         tabla_dos(
             [
@@ -449,6 +481,8 @@ def manual(raiz: Any) -> None:
                 ("código 1", "Algo ha fallado: una ruta que no existe, un tema que no existe…"),
                 ("código 2", "Uso incorrecto: falta un argumento, una opción no existe o la "
                  "expresión regular no es válida."),
+                ("código 3", "acciones.json no existe o está mal escrito (el mensaje dice qué "
+                 "acción y qué campo)."),
                 ("-v · --version", "Muestra la versión: navaja --version."),
                 ("-h · --help", "En cualquier comando, su ayuda: navaja ocupa --help (lo mismo "
                  "que «manual ocupa»)."),
@@ -460,6 +494,50 @@ def manual(raiz: Any) -> None:
         "\n[pista]Ayuda corta de un comando dentro de navaja: [/][acento]ayuda ocupa[/][pista]. "
         "Su parte de este manual: [/][acento]manual ocupa[/][pista] "
         "(o [/][acento]navaja manual ocupa[/][pista] desde la terminal).[/]"
+    )
+
+
+EJEMPLO_ACCIONES = """{
+  "version": 1,
+  "acciones": [
+    {
+      "nombre": "instaladores-viejos",
+      "descripcion": "Manda a la papelera los instaladores de hace más de un mes",
+      "tipo": "borrar",
+      "carpeta": "~/Downloads",
+      "filtro": { "solo": "ejecutables", "hasta": "hace 30 días" }
+    }
+  ]
+}"""
+
+
+def manual_acciones() -> None:
+    """La sección del manual que explica cómo se escribe acciones.json."""
+    from ..acciones import Accion
+    from ..esquema import DOC_CAMPOS, DOC_FILTRO
+
+    seccion("4. acciones.json")
+    console.print(
+        "Tus acciones se escriben en un archivo de texto, acciones.json. Así añades una nueva "
+        "sin tocar el programa: [acento]acciones editar[/] lo abre y lo comprueba al cerrar, y "
+        "[acento]acciones validar[/] lo comprueba sin hacer nada. Por ejemplo:\n"
+    )
+    console.print(Padding(escape(EJEMPLO_ACCIONES), (0, 0, 0, 2)), highlight=False)
+    console.print("\nCampos de cada acción:\n")
+    tabla = Table.grid(padding=(0, 2))
+    tabla.add_column(style="acento", no_wrap=True)
+    tabla.add_column(style="pista", no_wrap=True)
+    tabla.add_column()
+    for campo, cuando, texto in DOC_CAMPOS:
+        tabla.add_row(escape(campo), escape(cuando), escape(texto))
+    console.print(tabla)
+    console.print("\nTipos:\n")
+    console.print(tabla_dos([(tipo, clase.explicacion) for tipo, clase in Accion.tipos().items()]))
+    console.print("\nFiltro (si pones varios, el archivo tiene que cumplirlos todos):\n")
+    console.print(tabla_dos(DOC_FILTRO))
+    console.print(
+        "\n[pista]Rutas: ~ es tu carpeta personal y en Windows se escriben con / "
+        "(~/Downloads, C:/Users/…). Una ruta relativa se cuenta desde la carpeta de la acción.[/]"
     )
 
 
@@ -618,6 +696,8 @@ def manual_cmd(
         )
         raise typer.Exit(1)
     describir(nombres, encontrado)
+    if nombres == ["acciones"]:  # y cómo se escribe acciones.json
+        manual_acciones()
 
 
 def registrar(app: typer.Typer) -> None:

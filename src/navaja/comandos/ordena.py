@@ -25,6 +25,7 @@ from ..comun import (
     cuantos,
     console,
     crear_tabla,
+    destino_libre,
     error_console,
     guardar_acciones,
     limpiar_acciones,
@@ -73,16 +74,6 @@ OPCION_DESTINO = typer.Option(
 # ── Planificar ─────────────────────────────────────────────────────────────
 
 
-def _destino_libre(destino: Path, reservados: set[str]) -> Path:
-    """Nunca sobrescribe: si ya existe (o ya lo va a ocupar otro), «nombre (1).ext»…"""
-    candidato, indice = destino, 1
-    while candidato.exists() or str(candidato).lower() in reservados:
-        candidato = destino.with_name(f"{destino.stem} ({indice}){destino.suffix}")
-        indice += 1
-    reservados.add(str(candidato).lower())
-    return candidato
-
-
 def planificar(archivos: list[Path], base: Path, carpeta_de: Carpeta) -> list[dict]:
     movimientos: list[dict] = []
     reservados: set[str] = set()
@@ -94,7 +85,7 @@ def planificar(archivos: list[Path], base: Path, carpeta_de: Carpeta) -> list[di
         movimientos.append(
             {
                 "origen": str(origen),
-                "destino": str(_destino_libre(deseado, reservados)),
+                "destino": str(destino_libre(deseado, reservados)),
                 "carpeta": subcarpeta,
             }
         )

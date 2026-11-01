@@ -215,6 +215,22 @@ def ruta_libre(destino: Path) -> Path:
         indice += 1
 
 
+def destino_libre(destino: Path, reservados: set[str]) -> Path:
+    """Como ``ruta_libre``, pero recuerda los nombres ya repartidos en el mismo plan:
+    si dos archivos van al mismo sitio, el segundo es «nombre (1).ext»."""
+    candidato, indice = destino, 1
+    while candidato.exists() or str(candidato).lower() in reservados:
+        candidato = destino.with_name(f"{destino.stem} ({indice}){destino.suffix}")
+        indice += 1
+    reservados.add(str(candidato).lower())
+    return candidato
+
+
+def carpeta_papelera() -> Path:
+    """La papelera de navaja: lo que se quita aquí se puede devolver a su sitio."""
+    return directorio_datos() / "papelera"
+
+
 ARCHIVOS_DE_SISTEMA = {"desktop.ini", "thumbs.db", ".ds_store"}
 
 
@@ -308,16 +324,29 @@ def limpiar_acciones(nombre: str) -> None:
     ruta.unlink(missing_ok=True)
 
 
-def editar_texto(texto_inicial: str = "") -> str:
-    """Abre el editor del usuario con un texto temporal y devuelve el resultado."""
+def _editor() -> list[str]:
+    """El editor del usuario (variable EDITOR) o, si no hay, el Bloc de notas / nano."""
     editor = os.environ.get("VISUAL") or os.environ.get("EDITOR")
     if not editor:
         editor = "notepad" if os.name == "nt" else "nano"
     partes = shlex.split(editor)
-    if not shutil.which(partes[0]):
+    if not partes or not shutil.which(partes[0]):
         raise RuntimeError(
-            f"No se encontró el editor '{partes[0]}'. Define la variable EDITOR."
+            f"No se encontró el editor '{partes[0] if partes else editor}'. Define la variable EDITOR."
         )
+    return partes
+
+
+def abrir_en_editor(ruta: Path) -> None:
+    """Abre un archivo en el editor y espera a que se cierre."""
+    resultado = subprocess.run([*_editor(), str(ruta)])
+    if resultado.returncode != 0:
+        raise RuntimeError("El editor terminó con un error.")
+
+
+def editar_texto(texto_inicial: str = "") -> str:
+    """Abre el editor del usuario con un texto temporal y devuelve el resultado."""
+    partes = _editor()
 
     with tempfile.NamedTemporaryFile(
         "w+", suffix=".md", delete=False, encoding="utf-8"

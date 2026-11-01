@@ -19,6 +19,7 @@ from rich.panel import Panel
 from ..comun import (
     AJUSTE,
     cargar_acciones,
+    carpeta_papelera,
     confirmar,
     console,
     crear_tabla,
@@ -174,7 +175,7 @@ def ordenar_grupo(archivos: list[Path], criterio: Conservar) -> list[Path]:
 
 
 def _papelera() -> Path:
-    return directorio_datos() / "papelera"
+    return carpeta_papelera()
 
 
 def _relativa(ruta: Path, base: Path) -> str:

@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "_ayuda": "Cómo se escribe: navaja manual acciones (o el README). Lo que empieza por _ es una nota: navaja no lo lee.",
+  "acciones": [
+    {
+      "nombre": "ordenar-descargas",
+      "descripcion": "Mete cada archivo de Descargas en su carpeta: Imagenes, Documentos, Videos…",
+      "tipo": "ordenar",
+      "carpeta": "~/Downloads",
+      "por": "tipo"
+    },
+    {
+      "nombre": "imagenes-ia",
+      "descripcion": "Saca de Descargas las imágenes que hago con Gemini y las junta en Imágenes",
+      "tipo": "mover",
+      "carpeta": "~/Downloads",
+      "filtro": { "solo": "imagenes", "contiene": "gemini" },
+      "destino": "~/Pictures/Imagenes IA"
+    },
+    {
+      "nombre": "instaladores-viejos",
+      "descripcion": "Manda a la papelera de navaja los instaladores (.exe, .msi…) de hace más de un mes",
+      "tipo": "borrar",
+      "carpeta": "~/Downloads",
+      "filtro": { "solo": "ejecutables", "hasta": "hace 30 días" }
+    },
+    {
+      "nombre": "fotos-con-fecha",
+      "descripcion": "Pone la fecha delante a las fotos del móvil: IMG_1234.jpg → 2026-10-26_IMG_1234.jpg",
+      "tipo": "renombrar",
+      "carpeta": "~/Pictures",
+      "filtro": { "solo": "imagenes", "patron": "^(IMG|PXL)_" },
+      "plantilla": "{fecha:%Y-%m-%d}_{nombre}{ext}",
+      "_nota": "El patrón solo coge las que empiezan por IMG_ o PXL_, así que las ya renombradas no se vuelven a tocar."
+    },
+    {
+      "nombre": "limpieza-semanal",
+      "descripcion": "Lo de cada domingo: quita instaladores viejos, aparta las imágenes de IA y ordena Descargas",
+      "tipo": "rutina",
+      "pasos": ["instaladores-viejos", "imagenes-ia", "ordenar-descargas"]
+    }
+  ]
+}

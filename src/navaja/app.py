@@ -10,7 +10,17 @@ from rich.panel import Panel
 from rich.table import Table
 
 from . import __version__, interactivo
-from .comandos import ajustes, ayuda, duplicados, listar, notas, ocupa, ordena, renombra
+from .comandos import (
+    ajustes,
+    ayuda,
+    duplicados,
+    listar,
+    mis_acciones,
+    notas,
+    ocupa,
+    ordena,
+    renombra,
+)
 from .comun import aplicar_tema, cargar_config, console, nombre_para_saludar
 
 app = typer.Typer(
@@ -18,7 +28,7 @@ app = typer.Typer(
     help=(
         "Caja de herramientas de terminal con utilidades cotidianas.\n\n"
         "Comandos: [bold]listar[/], [bold]ocupa[/], [bold]limpia[/], [bold]ordena[/], "
-        "[bold]renombra[/], [bold]duplicados[/], [bold]notas[/], "
+        "[bold]renombra[/], [bold]duplicados[/], [bold]notas[/], [bold]acciones[/], "
         "[bold]tema[/], [bold]config[/] y [bold]manual[/] (explica todo)."
     ),
     add_completion=False,
@@ -97,7 +107,7 @@ def principal(
             _mostrar_bienvenida(config)
 
 
-for modulo in (listar, ocupa, ordena, renombra, duplicados, notas, ajustes, ayuda):
+for modulo in (listar, ocupa, ordena, renombra, duplicados, notas, mis_acciones, ajustes, ayuda):
     modulo.registrar(app)
 
 

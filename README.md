@@ -13,6 +13,7 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
 | `navaja renombra` | Renombrado masivo sin saber regex: cambiar texto, añadir delante o detrás, numerar, poner la fecha, arreglar nombres o una plantilla. Con deshacer. |
 | `navaja duplicados` | Encuentra archivos repetidos por contenido y los manda a una papelera recuperable. |
 | `navaja notas` | Notas y enlaces con etiquetas, guardados en SQLite. Lo que empieza por `https://` o `www.` es un enlace. |
+| `navaja acciones` | Tus tareas de siempre guardadas con un nombre en `acciones.json` (ordenar Descargas, copiar apuntes, quitar instaladores viejos…) para hacerlas con una orden. Con simulación, confirmación y deshacer. |
 | `navaja tema` | `ver` los temas y `elegir` uno (clasico, morado, terminal, pastel). |
 | `navaja config` | Tu nombre para el saludo y dónde guarda navaja tus datos. La primera vez que abres navaja te pregunta cómo llamarte (Intro = tu usuario de Windows); con `config nombre` lo cambias para siempre. |
 | `navaja manual [comando]` | El manual completo: cómo se usa, todos los comandos con sus opciones, atajos, seguridad y datos. Con un comando, solo su parte. |
@@ -74,6 +75,125 @@ Un error enseña el mensaje y sigues dentro. Las confirmaciones son `[s/n]`. Si 
 terminal (por ejemplo, en un script), no abre el menú: solo enseña el saludo y
 la lista de comandos. Fuera del modo interactivo todo funciona como siempre:
 `navaja ocupa ~/Descargas` desde la terminal normal.
+
+## Acciones: `acciones.json`
+
+Una acción es una tarea que repites, escrita una sola vez en un archivo de texto con un
+nombre: `ordenar-descargas`, `imagenes-ia`… Luego la haces con una orden. El archivo
+dice **qué** hacer; el código de navaja sabe **cómo**. Para añadir una acción nueva se
+edita el JSON, no el programa.
+
+```bash
+navaja acciones ver                                  # mis acciones, con su número
+navaja acciones ejecutar ordenar-descargas --simular # qué haría, sin tocar nada
+navaja acciones ejecutar ordenar-descargas           # enseña el plan y pregunta [s/n]
+navaja acciones ejecutar 2                           # también por su número
+navaja acciones ejecutar imagenes-ia ~/pruebas-navaja/Descargas   # en otra carpeta
+navaja acciones deshacer                             # deja todo como estaba
+navaja acciones validar                              # comprueba el archivo sin hacer nada
+navaja acciones editar                               # lo abre en el Bloc de notas y lo comprueba al cerrar
+```
+
+navaja usa el `acciones.json` de la carpeta en la que estás y, si no hay, el de tus datos
+(`%LOCALAPPDATA%\navaja\acciones.json` en Windows). Con `--config RUTA` usa otro.
+
+Antes de hacer nada comprueba el archivo **entero**. Si algo está mal, dice qué acción y
+qué campo fallan y sale con el código 3, sin trazas de Python:
+
+```text
+✘ Acción «imagenes-ia», campo «tipo»: «mober» no existe; usa uno de: mover, copiar, ordenar, renombrar, borrar, rutina. ¿Querías decir «mover»?
+✘ acciones.json no es JSON válido: línea 9, columna 21: hay una barra invertida \ suelta: en JSON se escribe doble (C:\\Users) o, mejor, usa / (C:/Users o ~/Downloads).
+```
+
+### Mis acciones
+
+Están en [acciones.json](acciones.json):
+
+| Nombre | Tipo | Qué hace |
+| --- | --- | --- |
+| `ordenar-descargas` | ordenar | Mete cada archivo de Descargas en su carpeta (Imagenes, Documentos…). |
+| `imagenes-ia` | mover | Saca de Descargas las imágenes de Gemini a `~/Pictures/Imagenes IA`. |
+| `instaladores-viejos` | borrar | Manda a la papelera de navaja los instaladores de hace más de un mes. |
+| `fotos-con-fecha` | renombrar | `IMG_1234.jpg` → `2026-10-26_IMG_1234.jpg`; solo las que empiezan por `IMG_` o `PXL_`, así que no se renombran dos veces. |
+| `limpieza-semanal` | rutina | `instaladores-viejos` → `imagenes-ia` → `ordenar-descargas`, en ese orden. |
+
+### Esquema
+
+```json
+{
+  "version": 1,
+  "acciones": [
+    {
+      "nombre": "instaladores-viejos",
+      "descripcion": "Manda a la papelera los instaladores de hace más de un mes",
+      "tipo": "borrar",
+      "carpeta": "~/Downloads",
+      "filtro": { "solo": "ejecutables", "hasta": "hace 30 días" }
+    }
+  ]
+}
+```
+
+| Campo | Cuándo | Qué es |
+| --- | --- | --- |
+| `version` | obligatorio | Siempre `1`. Si un día cambia el formato, sube a `2` y navaja sabe qué está leyendo. |
+| `acciones` | obligatorio | La lista de acciones. Vacía es un error. |
+| `nombre` | obligatorio | Con el que la ejecutas: minúsculas, números y guiones, sin espacios. Único. |
+| `descripcion` | obligatorio | Qué hace, en una frase. Sale en `acciones ver`. |
+| `tipo` | obligatorio | `mover`, `copiar`, `ordenar`, `renombrar`, `borrar` o `rutina`. |
+| `carpeta` | opcional | Dónde trabaja (`~/Downloads`). Sin ella, en la carpeta actual. Al ejecutar puedes darle otra. |
+| `filtro` | opcional | Qué archivos se tocan (tabla de abajo). Sin filtro, todos. |
+| `destino` | mover, copiar (en ordenar, opcional) | A qué carpeta van. Si no existe, se crea. Una ruta relativa se cuenta desde la carpeta de la acción. |
+| `por` | ordenar | `tipo`, `mes`, `año`, `día` o `letra`. |
+| `plantilla` | renombrar | El nombre nuevo con huecos: `{fecha:%Y-%m-%d}`, `{n:03}`, `{nombre}` y `{ext}`. |
+| `orden` | renombrar | En qué orden se cuenta `{n}`: `nombre` (por defecto) o `fecha`. |
+| `pasos` | rutina | Las acciones que hace, en orden. No puede tener otra rutina dentro. |
+| `_lo-que-sea` | opcional | Lo que empieza por `_` es una nota para ti: navaja no lo lee. |
+
+| Tipo | Qué le pasa a cada archivo |
+| --- | --- |
+| `mover` | Va a `destino`. Con `recursivo`, conserva las subcarpetas. |
+| `copiar` | Se copia a `destino` y el original se queda. Si la copia ya está igual (mismo tamaño y fecha), no se repite. |
+| `ordenar` | Va a una subcarpeta según `por`, como `navaja ordena`. |
+| `renombrar` | Cambia de nombre según `plantilla`, como `navaja renombra plantilla`. |
+| `borrar` | Va a la papelera de navaja (se recupera con `acciones deshacer`). Necesita un filtro: sin él mandaría la carpeta entera. |
+| `rutina` | No toca archivos: hace sus `pasos` uno detrás de otro y pregunta en cada uno. |
+
+| Filtro | Ejemplo | Qué elige |
+| --- | --- | --- |
+| `solo` | `"imagenes"`, `"jpg,png"`, `["pdf", "docx"]` | Un tipo (imagenes, documentos, videos, audio, comprimidos, codigo, ejecutables) o extensiones. `FOTO.JPG` cuenta como jpg. |
+| `contiene` | `"gemini"` | Los que llevan ese texto en el nombre, sin mirar mayúsculas. |
+| `patron` | `"^(IMG\|PXL)_"` | Expresión regular sobre el nombre, sin mirar mayúsculas. En JSON la barra invertida va doble (`"\\d"`). |
+| `desde` · `hasta` | `"hace 30 días"`, `"septiembre 2026"` | Fecha de modificación. `"hasta": "hace 30 días"` = los de hace más de un mes. |
+| `mayor_que` | `"100MB"` | Los que ocupan al menos eso. |
+| `recursivo` | `true` | Mirar también en las subcarpetas. |
+| `ocultos` | `true` | Incluir ocultos y de sistema (`desktop.ini`…). |
+
+Si pones varios filtros, el archivo tiene que cumplirlos todos. En Windows las rutas se
+escriben con `/` (`C:/Users/sergi/Downloads` o `~/Downloads`): con `\` sueltas el JSON no
+vale, y `\n` o `\t` dentro de una ruta se leerían como salto de línea o tabulador.
+
+### Probar sin riesgo
+
+[pruebas/acciones-prueba.json](pruebas/acciones-prueba.json) tiene las mismas acciones,
+pero todo (origen y destino) dentro de `~/pruebas-navaja`. Para crear esa carpeta con
+archivos de mentira en PowerShell:
+
+```powershell
+$p = "$HOME\pruebas-navaja"
+New-Item -ItemType Directory -Force "$p\Descargas", "$p\Fotos" | Out-Null
+"factura.pdf", "apuntes de redes.docx", "FOTO1.JPG", "cumpleaños 2.png", "Gemini_Generated_Image_1.png", "[borrador].pdf", "setup.exe", "viejo.msi" |
+  ForEach-Object { New-Item -ItemType File -Force "$p\Descargas\$_" | Out-Null }
+(Get-Item "$p\Descargas\viejo.msi").LastWriteTime = (Get-Date).AddDays(-40)
+New-Item -ItemType File -Force "$p\Fotos\IMG_0001.jpg", "$p\Fotos\playa.jpg" | Out-Null
+
+navaja acciones ejecutar limpieza-semanal --simular --config pruebas/acciones-prueba.json
+navaja acciones ejecutar limpieza-semanal --config pruebas/acciones-prueba.json
+navaja acciones deshacer
+```
+
+Siempre primero con `--simular`, y en tus carpetas de verdad solo cuando la simulación
+diga exactamente lo que esperas.
 
 ## Instalación
 
@@ -162,6 +282,7 @@ navaja config ver
 ## Seguridad
 
 - `ordena` y `renombra` enseñan siempre el plan y preguntan `[s/n]` antes de tocar nada; con `--simular` solo miran. Los dos tienen `deshacer`.
+- `acciones` comprueba `acciones.json` entero antes de tocar un solo archivo, enseña el plan y pregunta `[s/n]`; `--simular` solo mira y `acciones deshacer` lo revierte (una rutina, entera). Lo que borra va a la papelera de navaja.
 - Nunca se sobrescribe un archivo, y se saltan los ocultos y los de sistema de Windows (`desktop.ini`, `Thumbs.db`), salvo con `--ocultos`.
 - Fechas fáciles en `--desde`, `--hasta` y `ordena tramo`: `1/9/2026`, `septiembre 2026`, `2026`, `hoy`, `hace 30 días`. Un mes o un año valen enteros.
 - `limpia` dice qué es cada cosa que borraría y pide confirmación; `--simular` solo mira y `--si` no pregunta. Solo borra lo que se vuelve a crear solo: `build`, `dist`, `target` y `coverage` únicamente dentro de un proyecto de programación (fuera pueden ser tuyas), y nunca `desktop.ini`. Lo que borra no va a la papelera.

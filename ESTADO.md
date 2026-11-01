@@ -314,6 +314,38 @@ Más claro:
   tuyo guardado o tu usuario del sistema.
 - 192 tests pasando en Python 3.10 y 3.13.
 
+### 2026-11-01 — Acciones en acciones.json
+
+- **Nuevo:** `navaja acciones ver|ejecutar|validar|editar|deshacer`. Una acción es una
+  tarea con nombre escrita en `acciones.json`; el archivo dice qué hacer y el motor lo
+  hace. Añadir una acción no toca el código.
+- **Tipos:** `mover`, `copiar`, `ordenar` (reutiliza `ordena`), `renombrar` (reutiliza
+  `renombra plantilla`), `borrar` (a la papelera de navaja, necesita filtro) y `rutina`
+  (varias acciones seguidas, sin rutinas dentro).
+- **Filtro:** `solo`, `contiene`, `patron`, `desde`/`hasta` (fechas fáciles),
+  `mayor_que`, `recursivo` y `ocultos`.
+- **Dónde:** el `acciones.json` de la carpeta actual o, si no hay, el de los datos;
+  `--config RUTA` para otro. `acciones editar` lo crea si no existe y lo comprueba al cerrar.
+- **Validación antes de ejecutar** (`esquema.py`): todo el archivo, con mensajes «Acción
+  «x», campo «y»: motivo» en castellano y sugerencias («¿Querías decir «mover»?»). JSON
+  roto con línea, columna y qué pasa (coma de más, `\` suelta de una ruta de Windows,
+  BOM del Bloc de notas, archivo que no es UTF-8). Campos desconocidos o de otro tipo
+  son error (un `fitro` mal escrito no puede convertirse en «todos los archivos»).
+- **Excepciones propias** (`errores.py`): `NavajaError` (código 1), `ConfigError`
+  (código 3) y `AccionNoValida(accion, campo, motivo)`. La CLI las captura una vez.
+- **Clases** (`acciones.py`): `Accion` con registro de tipos (`__init_subclass__`) y
+  fábrica `desde_config`; `AccionDeArchivos` con `planificar` (no toca el disco) y
+  `ejecutar`; una subclase por tipo. `Motor` (`motor.py`) elige carpeta y archivos.
+- **Seguridad:** plan y `[s/n]` siempre; `--simular` no crea ni carpetas; nunca
+  sobrescribe («(1)»); copiar no repite lo ya copiado; `acciones deshacer` revierte la
+  última (una rutina, entera) y quita las carpetas que quedan vacías.
+- `acciones.json` del repo con 5 acciones (ordenar-descargas, imagenes-ia,
+  instaladores-viejos, fotos-con-fecha y la rutina limpieza-semanal) y
+  `pruebas/acciones-prueba.json` con las mismas dentro de `~/pruebas-navaja`.
+- Manual: sección «acciones.json» con el esquema (`manual acciones` también la enseña)
+  y código de salida 3.
+- 262 tests pasando en Python 3.10 y 3.13.
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.
@@ -332,6 +364,9 @@ Más claro:
   salida, scripts, tests).
 - **Comandos en castellano** y opciones cortas coherentes (`-n`, `-p`, `-e`,
   `-r`, `-s`).
+- **Acciones en un archivo externo (acciones.json)** y no en código: añadir o
+  cambiar una acción no exige programar ni reinstalar. Pendiente de explicar en
+  `docs/adr/0001-configuracion-externa.md`.
 
 ## Pendientes / ideas
 
@@ -341,6 +376,9 @@ Más claro:
 - [ ] Exportar notas a Markdown o HTML.
 - [ ] Comando `tarea` (tareas pendientes) reutilizando la base de notas.
 - [ ] Historial de deshacer (varias operaciones, no solo la última).
+- [ ] ADR-0001 (por qué acciones.json) y `docs/prompts.md`.
+- [ ] En una rutina simulada, cada paso se calcula con la carpeta como está ahora (no
+  con lo que habrían cambiado los pasos de antes).
 - [ ] Autocompletado de shell.
 - [ ] Linter/formateador (ruff) y CI (GitHub Actions).
 - [ ] Empaquetado y publicación (pipx / PyPI).

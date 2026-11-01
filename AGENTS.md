@@ -37,6 +37,10 @@ src/navaja/
 ├── interactivo.py      # `navaja` sin argumentos: menú, cd, preguntas guiadas
 ├── comun.py            # console Rich, tamaños, rutas, undo, editor, iteradores
 ├── filtros.py          # qué archivos: tipos, texto, fechas fáciles (ordena y renombra)
+├── errores.py          # NavajaError (1), ConfigError (3), AccionNoValida(accion, campo, motivo)
+├── esquema.py          # acciones.json: dónde está, leerlo y comprobarlo entero
+├── acciones.py         # clases Accion (registro + fábrica desde_config) y una por tipo
+├── motor.py            # Motor: elige carpeta y archivos, pide el plan a la acción
 └── comandos/
     ├── listar.py       # listar (contenido de una carpeta en tabla)
     ├── ayuda.py        # «ayuda» (lo de aquí), «ayuda ocupa» y la orden manual
@@ -45,8 +49,10 @@ src/navaja/
     ├── renombra.py     # sub-app: cambiar / delante / detras / numerar / fecha / arreglar / plantilla / avanzado / deshacer
     ├── duplicados.py   # sub-app: buscar / borrar (a papelera) / restaurar / vaciar
     ├── notas.py        # sub-app SQLite: agregar / listar / buscar / abrir / borrar / etiquetas
+    ├── mis_acciones.py # sub-app acciones: ver / ejecutar / validar / editar / deshacer
     └── ajustes.py      # sub-apps tema (ver / elegir) y config (ver / nombre)
 tests/                  # un archivo por módulo
+acciones.json           # las acciones de Sergio; pruebas/acciones-prueba.json, las mismas en ~/pruebas-navaja
 ```
 
 Cada módulo de `comandos/` expone `registrar(app)` y se registra en el bucle de
@@ -119,6 +125,28 @@ considera basura `limpia`, cómo compara `duplicados`…) va en `EXTRA` de
    opción: así salen en el menú, en las preguntas guiadas, en `ayuda` y en `navaja manual`.
 5. Documenta el comando en `README.md` y actualiza `ESTADO.md`.
 
+## acciones.json
+
+El esquema está en el README («Acciones: acciones.json») y en `esquema.DOC_CAMPOS` /
+`DOC_FILTRO`, que pinta el manual. El reparto: `esquema.py` comprueba el archivo
+entero antes de tocar nada (campos comunes, filtro, nombres repetidos, pasos de
+rutinas); cada clase de `acciones.py` comprueba lo suyo en `comprobar_valores`; `Motor`
+elige la carpeta y los archivos; la acción hace el plan (`planificar`, sin tocar el
+disco) y lo ejecuta (`aplicar` por archivo). `mis_acciones.py` solo pinta y pregunta.
+
+Para añadir un **tipo** nuevo: una subclase de `AccionDeArchivos` en `acciones.py` con
+`tipo`, `explicacion`, `campos` (campo → obligatorio), `planificar` y `aplicar`. Se
+apunta sola en el registro: ni el motor ni `esquema.py` tienen `if tipo == …`.
+Documenta sus campos en `DOC_CAMPOS` y en el README. Si el formato del archivo cambia
+de forma incompatible, sube `esquema.VERSION`.
+
+Errores: lanza `NavajaError` (o `ConfigError` / `AccionNoValida`) con un mensaje en
+castellano que diga qué acción y qué campo; la orden lo captura y sale con
+`error.codigo_salida`. Nunca una traza ante algo previsible.
+
+Nunca ejecutes acciones sobre las carpetas reales del usuario: usa
+`--config pruebas/acciones-prueba.json` (todo en `~/pruebas-navaja`) y `--simular`.
+
 ## Convenciones
 
 - **Idioma:** comandos, opciones, ayuda y mensajes en castellano. Los
@@ -155,5 +183,5 @@ considera basura `limpia`, cómo compara `duplicados`…) va en `EXTRA` de
 ## Estado actual
 
 Resumen y bitácora en [ESTADO.md](ESTADO.md). Última verificación conocida
-(2026-11-01): 192 tests pasando (Python 3.10 y 3.13) y modo interactivo probado
+(2026-11-01): 262 tests pasando (Python 3.10 y 3.13) y modo interactivo probado
 en una terminal real (menú, submenús, preguntas guiadas, cd, errores y salida).

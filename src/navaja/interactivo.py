@@ -53,8 +53,10 @@ AYUDA_DE = re.compile(r"^(?:ayuda|help|\?)\s+(.+)$|^(.+?)\s+\?$", re.IGNORECASE)
 ANTES_DE_PREGUNTAR = {
     "notas abrir": ["notas", "listar"],
     "notas borrar": ["notas", "listar"],
+    "acciones ejecutar": ["acciones", "ver"],
 }
-"""Lo que se enseña antes de las preguntas: para elegir una nota hay que ver sus números."""
+"""Lo que se enseña antes de las preguntas: para elegir una nota (o una acción) hay que
+ver sus números."""
 
 EL_TEXTO_YA_ELIGE = {"renombra cambiar", "renombra avanzado", "ordena nombre"}
 """Aquí el texto (o el patrón) ya dice qué archivos se tocan: no se pregunta «¿Con qué
