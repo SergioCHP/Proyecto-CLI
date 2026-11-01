@@ -38,6 +38,7 @@ src/navaja/
 ├── comun.py            # console Rich, tamaños, rutas, undo, editor, iteradores
 └── comandos/
     ├── listar.py       # listar (contenido de una carpeta en tabla)
+    ├── ayuda.py        # «ayuda» (lo de aquí), «ayuda ocupa» y la orden manual
     ├── ocupa.py        # ocupa (analizar) y limpia (borrar basura)
     ├── ordena.py       # sub-app: previsualizar / aplicar / deshacer / categorias
     ├── renombra.py     # sub-app: previsualizar / aplicar / deshacer
@@ -59,13 +60,21 @@ ejecutan con `raiz.main(args, standalone_mode=True)` y se captura `SystemExit`,
 de modo que los errores salen igual que en la terminal y no cierran el bucle.
 Solo se abre si stdin y stdout son una terminal (`puede_iniciar()`).
 
+El manual (`navaja manual`) también se genera de los comandos registrados. Todo
+comando, argumento y opción necesita un `help` en castellano
+(`tests/test_ayuda.py` falla si falta). Lo que no se deduce del código (qué
+considera basura `limpia`, cómo compara `duplicados`…) va en `EXTRA` de
+`comandos/ayuda.py`; si añades un atajo al modo interactivo, añádelo también a
+`MODO_INTERACTIVO` en ese archivo.
+
 ## Cómo añadir una utilidad nueva
 
 1. Crea `src/navaja/comandos/<nombre>.py` con funciones puras para la lógica
    (planificar, calcular) y comandos Typer finos encima.
 2. Añade `registrar(app)` al final del módulo.
 3. Importa el módulo y añádelo al bucle de `app.py`.
-4. Añade tests en `tests/test_<nombre>.py`.
+4. Añade tests en `tests/test_<nombre>.py`. Pon `help` a cada argumento y
+   opción: así salen en el menú, en las preguntas guiadas, en `ayuda` y en `navaja manual`.
 5. Documenta el comando en `README.md` y actualiza `ESTADO.md`.
 
 ## Convenciones
@@ -103,5 +112,5 @@ Solo se abre si stdin y stdout son una terminal (`puede_iniciar()`).
 ## Estado actual
 
 Resumen y bitácora en [ESTADO.md](ESTADO.md). Última verificación conocida
-(2026-11-01): 64 tests pasando (Python 3.10 y 3.13) y modo interactivo probado
+(2026-11-01): 79 tests pasando (Python 3.10 y 3.13) y modo interactivo probado
 en una terminal real (menú, submenús, preguntas guiadas, cd, errores y salida).

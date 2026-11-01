@@ -15,8 +15,10 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
 | `navaja notas` | Notas y enlaces con etiquetas, guardados en SQLite. |
 | `navaja tema` | Elige los colores (clasico, morado, terminal, pastel). |
 | `navaja config` | Tu nombre para el saludo y el tema actual. |
+| `navaja manual [comando]` | El manual completo: cómo se usa, todos los comandos con sus opciones, atajos, seguridad y datos. Con un comando, solo su parte. |
 
-`nv` es un alias corto: `nv ocupa` es lo mismo que `navaja ocupa`.
+`nav` es un alias corto: `nav ocupa` es lo mismo que `navaja ocupa`. (No es `nv` porque en
+PowerShell `nv` ya es un atajo de `New-Variable` y se adelantaría a navaja.)
 
 ## Modo interactivo
 
@@ -51,10 +53,12 @@ PS C:\Users\sergi\Descargas>
 | --- | --- |
 | un número | Elige esa opción. Si es un grupo (`ordena`, `notas`…) abre su submenú; si no, lo ejecuta en la carpeta actual y solo pregunta lo obligatorio. Debajo te dice qué opciones tiene. |
 | un comando | Igual que en la terminal, sin escribir `navaja` delante: `ocupa -n 5`, `ordena aplicar ~/Descargas`. Si le falta algo obligatorio, lo pregunta. |
-| `ayuda ocupa` · `ocupa ?` · `? 2` | Qué hace un comando, cómo se escribe y sus opciones con su valor por defecto. |
+| `ayuda` · `?` | Explica lo que puedes hacer donde estás: en el menú principal, todas las opciones; dentro de una opción (`config`, `ordena`…), esa opción con las suyas, su uso y sus parámetros. |
+| `menu` | Vuelve a enseñar el menú (en un submenú, el de ese grupo). |
+| `ayuda ocupa` · `ocupa ?` · `? 2` | Ayuda corta: qué hace un comando, cómo se escribe y sus opciones con su valor por defecto. |
+| `manual` | El manual completo de navaja. `manual ocupa` enseña solo la parte de ese comando. |
 | `cd RUTA` · `cd ..` · `cd` | Cambia de carpeta (`cd` solo enseña dónde estás). Al salir vuelves a la carpeta de antes. |
 | `ls` · `dir` | Atajos de `listar`. |
-| `menu` · `?` | Vuelve a enseñar las opciones. |
 | `cls` | Limpia la pantalla. |
 | `salir` · `exit` · `0` · Ctrl+C | Vuelve a la terminal normal. Un submenú sigue abierto hasta que pulsas Intro o `0`; desde él también puedes escribir un comando del menú principal. |
 
@@ -83,6 +87,11 @@ uv run navaja --help
 ## Ejemplos
 
 ```bash
+# El manual completo, o solo la parte de un comando
+navaja manual
+navaja manual ordena aplicar
+navaja manual > manual.txt     # guardarlo en un archivo
+
 # Ver qué hay en una carpeta (carpetas primero)
 navaja listar ~/Descargas
 

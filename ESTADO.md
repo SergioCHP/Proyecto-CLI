@@ -100,6 +100,10 @@ Documentación y calidad:
     delante. Un comando con argumentos obligatorios escrito solo los pregunta.
   - `ayuda ocupa`, `ocupa ?` o `? 2`: uso del comando y sus opciones con el
     valor por defecto, en castellano.
+  - `menu` vuelve a enseñar el menú. `ayuda` (o `?`) explica lo que se puede
+    hacer donde estás: en el menú principal, todas las opciones y qué hay
+    dentro de cada una; dentro de una opción, esa opción con cada subopción,
+    su uso (tal como se escribe ahí) y sus parámetros.
   - Un submenú (`config`, `ordena`…) sigue abierto después de ejecutar algo,
     hasta Intro, `0` o `volver`. Si desde él se escribe un comando del menú
     principal (`listar`), se ejecuta y se vuelve al menú principal.
@@ -110,13 +114,28 @@ Documentación y calidad:
   - Las rutas de Windows (`C:\Users\...`) y las regex conservan las barras
     invertidas; `~` se expande.
   - Si no hay terminal (scripts, tests), sigue saliendo la bienvenida de antes.
+- **Manual completo:** `navaja manual` (o `manual` dentro del modo interactivo)
+  explica cómo se usa navaja, el modo interactivo con todos sus atajos, todos
+  los comandos y subcomandos con sus argumentos y opciones (tipo y valor por
+  defecto), la seguridad, dónde se guardan los datos y los códigos de salida.
+  La parte de los comandos se genera de los propios comandos de Typer, así que
+  no se desfasa; `tests/test_ayuda.py` comprueba que salen todos los comandos,
+  opciones y atajos y que ninguna opción se queda sin explicación.
+  `navaja manual ordena aplicar` da solo ese comando. Va el último del menú
+  para no cambiar los números del resto. Es una orden aparte de `ayuda`, que dentro
+  del modo interactivo explica solo lo que puedes hacer donde estás, y de
+  `ayuda ocupa`, la ayuda corta de un comando.
 - **Confirmaciones en castellano:** `[s/n]` en vez de `[y/n]` (acepta también
   «sí», «no» e «y»), en todos los comandos.
+- **Alias `nav` en vez de `nv`:** en PowerShell `nv` ya es un atajo de
+  `New-Variable` y tiene prioridad sobre los programas, así que `nv ocupa`
+  creaba en silencio una variable `$ocupa` en vez de abrir navaja. Hay que
+  reinstalar la herramienta para que cambie el comando.
 - **Nuevo:** `navaja listar [ruta] [--ocultos]`: tabla con nombre, tipo,
   tamaño y fecha; carpetas primero; carpeta inexistente → código 1.
 - **`ocupa`:** la barra de uso usa los colores del tema (antes eran fijos) y
   una línea fina en vez de bloques, que en Windows Terminal formaban una mancha.
-- 64 tests pasando en Python 3.10 y 3.13.
+- 79 tests pasando en Python 3.10 y 3.13.
 
 ## Decisiones técnicas
 

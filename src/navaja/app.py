@@ -10,7 +10,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from . import __version__, interactivo
-from .comandos import ajustes, duplicados, listar, notas, ocupa, ordena, renombra
+from .comandos import ajustes, ayuda, duplicados, listar, notas, ocupa, ordena, renombra
 from .comun import aplicar_tema, cargar_config, console
 
 app = typer.Typer(
@@ -19,7 +19,7 @@ app = typer.Typer(
         "Caja de herramientas de terminal con utilidades cotidianas.\n\n"
         "Comandos: [bold]listar[/], [bold]ocupa[/], [bold]limpia[/], [bold]ordena[/], "
         "[bold]renombra[/], [bold]duplicados[/], [bold]notas[/], "
-        "[bold]tema[/] y [bold]config[/]."
+        "[bold]tema[/], [bold]config[/] y [bold]manual[/] (explica todo)."
     ),
     add_completion=False,
     rich_markup_mode="rich",
@@ -59,8 +59,8 @@ def _mostrar_bienvenida(config: dict[str, str]) -> None:
     tabla = Table.grid(padding=(0, 2))
     tabla.add_column(style="acento", no_wrap=True)
     tabla.add_column()
-    for nombre, ayuda in resumen_comandos(app):
-        tabla.add_row(nombre, ayuda)
+    for nombre, texto in resumen_comandos(app):
+        tabla.add_row(nombre, texto)
     console.print(tabla)
     console.print("\n[pista]navaja <comando> --help para más detalles[/]")
 
@@ -94,7 +94,7 @@ def principal(
             _mostrar_bienvenida(config)
 
 
-for modulo in (listar, ocupa, ordena, renombra, duplicados, notas, ajustes):
+for modulo in (listar, ocupa, ordena, renombra, duplicados, notas, ajustes, ayuda):
     modulo.registrar(app)
 
 

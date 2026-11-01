@@ -8,7 +8,6 @@ import re
 import shlex
 import sys
 from collections.abc import Callable
-from enum import Enum
 from pathlib import Path
 from typing import Any
 
@@ -16,22 +15,32 @@ import typer
 from rich.markup import escape
 from rich.table import Table
 
+from .comandos.ayuda import (
+    ayuda_aqui,
+    ayuda_corta,
+    es_grupo,
+    opciones_visibles,
+    resolver,
+    valor_texto,
+)
+from .comandos.ayuda import subcomandos as opciones_de
 from .comun import console, error_console
 
 Lector = Callable[[str], str]
 
 SALIR = {"salir", "exit", "quit"}
-MENU = {"menu", "menú", "ayuda", "help", "?"}
+MENU = {"menu", "menú"}
+AYUDA_SOLA = {"ayuda", "help", "?"}
 LIMPIAR_PANTALLA = {"cls", "clear"}
 VOLVER = {"", "0", "volver"}
 ALIAS = {"ls": "listar", "dir": "listar"}
-PREFIJOS = {"navaja", "nv"}
+PREFIJOS = {"navaja", "nav"}
 CD = re.compile(r"^cd(?=$|[\s./\\])(.*)$", re.IGNORECASE)
 AYUDA_DE = re.compile(r"^(?:ayuda|help|\?)\s+(.+)$|^(.+?)\s+\?$", re.IGNORECASE)
 
 AYUDA = (
-    "[pista]Elige un número o escribe un comando · [/][acento]ayuda ocupa[/][pista] "
-    "explica uno · [/][acento]cd[/][pista] carpeta · [/][acento]salir[/]"
+    "[pista]Elige un número o escribe un comando · [/][acento]ayuda[/][pista] te explica "
+    "lo que puedes hacer aquí · [/][acento]salir[/]"
 )
 
 activo = False
@@ -89,19 +98,6 @@ def texto_prompt(camino: list[str]) -> str:
     return f"[acento]{escape(carpeta)}[/]{sub}[pista]>[/] "
 
 
-def es_grupo(comando: Any) -> bool:
-    return hasattr(comando, "commands")
-
-
-def opciones_de(grupo: Any) -> list[tuple[str, Any]]:
-    """Subcomandos visibles en el orden en que se registraron."""
-    return [
-        (nombre, grupo.commands[nombre])
-        for nombre in grupo.list_commands(None)
-        if not getattr(grupo.commands[nombre], "hidden", False)
-    ]
-
-
 def mostrar_menu(grupo: Any, camino: list[str]) -> None:
     tabla = Table.grid(padding=(0, 2))
     tabla.add_column(style="acento", justify="right")
@@ -111,6 +107,13 @@ def mostrar_menu(grupo: Any, camino: list[str]) -> None:
         tabla.add_row(str(numero), nombre, escape(comando.get_short_help_str(70)))
     tabla.add_row("0", "volver" if camino else "salir", "")
     console.print(tabla)
+    if camino:
+        console.print(
+            "[acento]ayuda[/][pista] explica estas opciones · Intro o [/][acento]0[/]"
+            "[pista] para volver[/]"
+        )
+    else:
+        console.print(f"\n{AYUDA}\n")
 
 
 def ejecutar(raiz: Any, argumentos: list[str]) -> int:
@@ -130,18 +133,6 @@ def ejecutar(raiz: Any, argumentos: list[str]) -> int:
         )
         return 1
     return 0
-
-
-def valor_texto(valor: Any) -> str:
-    return str(valor.value if isinstance(valor, Enum) else valor)
-
-
-def opciones_visibles(comando: Any) -> list[Any]:
-    return [
-        p
-        for p in comando.params
-        if p.param_type_name == "option" and not getattr(p, "hidden", False)
-    ]
 
 
 def preguntar_obligatorios(comando: Any, leer: Lector) -> list[str]:
@@ -172,40 +163,6 @@ def preguntar_obligatorios(comando: Any, leer: Lector) -> list[str]:
         else:
             valores.append(expandir(quitar_comillas(valor)))
     return valores
-
-
-def mostrar_opciones(opciones: list[Any]) -> None:
-    tabla = Table.grid(padding=(0, 2))
-    tabla.add_column(style="acento", no_wrap=True)
-    tabla.add_column()
-    for opcion in opciones:
-        nombres = ", ".join(sorted(opcion.opts, key=len))
-        ayuda = escape(getattr(opcion, "help", None) or "")
-        defecto = opcion.default
-        if not getattr(opcion, "is_flag", False) and defecto not in (None, ""):
-            ayuda += f" [pista](por defecto: {escape(valor_texto(defecto))})[/]"
-        tabla.add_row(nombres, ayuda)
-    console.print(tabla)
-
-
-def mostrar_ayuda(nombres: list[str], comando: Any) -> None:
-    """Qué hace un comando, cómo se escribe y sus opciones, en castellano."""
-    console.print(
-        f"[titulo]{escape(' '.join(nombres))}[/]  "
-        f"[pista]{escape(comando.get_short_help_str(80))}[/]",
-        soft_wrap=True,
-    )
-    partes = list(nombres)
-    for param in comando.params:
-        if param.param_type_name == "argument":
-            nombre = (param.name or "").upper()
-            partes.append(f"<{nombre}>" if param.required else f"[{nombre}]")
-    opciones = opciones_visibles(comando)
-    if opciones:
-        partes.append("[opciones]")
-    console.print(f"Uso: [acento]{escape(' '.join(partes))}[/]", soft_wrap=True)
-    if opciones:
-        mostrar_opciones(opciones)
 
 
 def pista_opciones(nombres: list[str], comando: Any) -> None:
@@ -255,26 +212,12 @@ def requiere_algo(comando: Any) -> bool:
     return any(p.required for p in comando.params)
 
 
-def resolver(grupo: Any, palabras: list[str]) -> tuple[Any, list[str]]:
-    """Baja por los grupos mientras las palabras sean nombres de comando.
-
-    ``["ordena", "aplicar", "~/X"]`` → (comando aplicar, ["ordena", "aplicar"]).
-    """
-    comando, nombres = grupo, []
-    for palabra in palabras:
-        if not es_grupo(comando) or palabra not in comando.commands:
-            break
-        comando = comando.commands[palabra]
-        nombres.append(palabra)
-    return comando, nombres
-
-
 def ayuda_de(grupo: Any, camino: list[str], texto: str, opciones: list[tuple[str, Any]]) -> None:
-    """``ayuda ocupa``, ``ayuda 2`` u ``ocupa ?``."""
+    """``ayuda ocupa``, ``ayuda 2`` u ``ocupa ?``: la ayuda corta de ese comando."""
     texto = texto.strip()
     if texto.isdigit() and 1 <= int(texto) <= len(opciones):
         nombre, comando = opciones[int(texto) - 1]
-        comando, nombres = comando, [nombre]
+        nombres = [nombre]
     else:
         try:
             palabras = dividir(texto)
@@ -291,7 +234,7 @@ def ayuda_de(grupo: Any, camino: list[str], texto: str, opciones: list[tuple[str
     elif es_grupo(comando):
         mostrar_menu(comando, camino + nombres)
     else:
-        mostrar_ayuda(camino + nombres, comando)
+        ayuda_corta(camino + nombres, comando, escribir=nombres)
 
 
 class Reenviar(Exception):
@@ -336,6 +279,9 @@ def bucle(raiz: Any, grupo: Any, camino: list[str], leer: Lector) -> None:
             raise Salir
         if palabra in MENU:
             mostrar_menu(grupo, camino)
+            continue
+        if palabra in AYUDA_SOLA:
+            ayuda_aqui(grupo, camino)
             continue
         if palabra in LIMPIAR_PANTALLA:
             console.clear()
@@ -435,7 +381,6 @@ def iniciar(app: typer.Typer, leer: Lector | None = None) -> None:
     activo = True
     _activar_historial()
     mostrar_menu(raiz, [])
-    console.print(f"\n{AYUDA}\n")
     try:
         bucle(raiz, raiz, [], leer)
     except Salir:

@@ -6,6 +6,7 @@ import typer
 
 from navaja import interactivo
 from navaja.app import app
+from navaja.comandos.ayuda import subcomandos
 from navaja.comun import cargar_config
 
 
@@ -37,7 +38,8 @@ def salida(capsys):
 
 
 def numero_de(nombre):
-    nombres = typer.main.get_command(app).list_commands(None)
+    """Número con el que sale en el menú (el mismo orden que ve la persona)."""
+    nombres = [n for n, _ in subcomandos(typer.main.get_command(app))]
     return str(nombres.index(nombre) + 1)
 
 
@@ -142,6 +144,50 @@ def test_ayuda_de_un_grupo_muestra_sus_opciones(carpeta, capsys):
     assert "previsualizar" in texto
     assert "Uso: ordena aplicar [RUTA] [opciones]" in texto
     assert "extension" in texto  # valor por defecto de --por, sin «ModoOrden.»
+
+
+def test_menu_vuelve_a_ensenar_el_menu(carpeta, capsys):
+    interactivo.iniciar(app, lector("menu"))
+    texto = salida(capsys)
+    assert texto.count("Muestra qué hay en una carpeta") == 2  # al entrar y al pedirlo
+    assert "Aquí puedes" not in texto
+
+    interactivo.iniciar(app, lector("ordena", "menu"))
+    texto = salida(capsys)
+    assert texto.count("Muestra el plan sin mover nada") == 2
+
+
+@pytest.mark.parametrize("pedido", ["ayuda", "?", "help"])
+def test_ayuda_en_el_menu_principal_explica_todas_las_opciones(carpeta, capsys, pedido):
+    interactivo.iniciar(app, lector(pedido))
+    texto = salida(capsys)
+    assert "Menú principal" in texto and str(carpeta) in texto
+    assert "Aquí puedes" in texto
+    assert "Dentro: previsualizar · aplicar · deshacer · categorias" in texto
+    assert "Manual de navaja" not in texto
+
+
+def test_ayuda_dentro_de_una_opcion_explica_esa_opcion(carpeta, capsys):
+    interactivo.iniciar(app, lector(numero_de("config"), "ayuda"))
+    texto = salida(capsys)
+    assert "Menú principal" not in texto
+    assert "Uso: nombre <NUEVO>" in texto
+    assert "Cómo quieres que te salude navaja" in texto
+    assert "Vuelve al menú principal" in texto
+
+    interactivo.iniciar(app, lector("ordena", "ayuda", "aplicar ?"))
+    texto = salida(capsys)
+    # dentro del submenú se escribe «aplicar», no «ordena aplicar»: en las dos ayudas
+    assert texto.count("Uso: aplicar [RUTA] [opciones]") == 2
+    assert "Uso: ordena aplicar" not in texto
+
+
+def test_manual_es_otra_orden(carpeta, capsys):
+    interactivo.iniciar(app, lector("manual"))
+    assert "Manual de navaja" in salida(capsys)
+
+    interactivo.iniciar(app, lector(numero_de("manual")))
+    assert "Manual de navaja" in salida(capsys)
 
 
 def test_comando_desconocido_sugiere(carpeta, capsys):
