@@ -114,6 +114,14 @@ def test_simular_y_contestar_que_no_no_mueven_nada(descargas):
     assert relativos(descargas) == antes
 
 
+def test_fuera_del_modo_interactivo_volver_no_vale(descargas):
+    antes = relativos(descargas)
+    resultado = ordena("tipo", "-c", str(descargas), entrada="volver\nn\n")
+    assert "[s/n]" in resultado.output and "volver]" not in resultado.output
+    assert "Responde s o n." in resultado.output
+    assert relativos(descargas) == antes
+
+
 def test_deshacer_devuelve_y_quita_las_carpetas_vacias(descargas):
     antes = relativos(descargas)
     ordena("fecha", "-c", str(descargas))

@@ -304,6 +304,11 @@ MODO_INTERACTIVO = [
     ("navaja … · nav …", "También valen: «navaja ocupa» es lo mismo que «ocupa»."),
     ("cls · clear", "Limpia la pantalla."),
     ("Intro · 0 · volver", "En un submenú, vuelve al menú principal."),
+    ("volver · atrás", "En medio de las preguntas de una opción, repite la anterior; en la "
+     "primera, vuelve al menú sin hacer nada. En las listas numeradas («¿Con qué "
+     "archivos?», «¿Qué tipo?») también vale 0. Al confirmar, [s/n/volver] vuelve a la "
+     "última pregunta para cambiarla. Atrás vale con o sin tilde (atras). Entre comillas "
+     "(«\"volver\"») es el texto volver."),
     ("salir · exit · quit · 0", "Termina y vuelve a la terminal normal (0 solo en el menú principal)."),
     ("Ctrl+C", "Cancela la pregunta o la orden en curso; en el menú principal, sale."),
     ("↑ ↓", "Recuperan lo que escribiste antes."),
@@ -478,7 +483,7 @@ def ayuda_corta(nombres: list[str], comando: Any, escribir: list[str] | None = N
 
 AQUI_PRINCIPAL = [
     ("1, 2, 3…", "Elige una opción. Si tiene submenú lo abre; si no, la ejecuta aquí mismo "
-     "y solo pregunta lo obligatorio."),
+     "y solo pregunta lo obligatorio. En las preguntas, «volver» va a la anterior."),
     ("ocupa -n 5", "Escribe un comando con sus opciones, como en la terminal pero sin «navaja»."),
     ("ayuda ocupa · ocupa ? · ? 2", "La ayuda de una opción concreta."),
     ("menu", "Vuelve a enseñar el menú."),
@@ -493,6 +498,8 @@ def aqui_submenu(grupo: Any) -> list[tuple[str, str]]:
     return [
         ("1, 2…", "Ejecuta esa opción aquí mismo; si le falta algo obligatorio, lo pregunta. "
          "Sigues en este submenú hasta que vuelvas."),
+        ("volver", "En medio de las preguntas, repite la anterior; en la primera, vuelves "
+         "aquí. Al confirmar, [s/n/volver] vuelve a la última pregunta."),
         (f"{ejemplo} …", "Escribe la opción con sus argumentos y opciones."),
         (f"ayuda {ejemplo} · ? 1", "La ayuda de una opción concreta."),
         ("menu", "Vuelve a enseñar este submenú."),

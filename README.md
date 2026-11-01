@@ -55,6 +55,7 @@ PS C:\Users\sergi\Descargas>
 | un comando | Igual que en la terminal, sin escribir `navaja` delante: `ocupa -n 5`, `ordena tipo --solo imagenes`. Si le falta algo obligatorio, lo pregunta. |
 | `ayuda` · `?` | Explica lo que puedes hacer donde estás: en el menú principal, todas las opciones; dentro de una opción (`config`, `ordena`…), esa opción con las suyas, su uso y sus parámetros. |
 | `menu` | Vuelve a enseñar el menú (en un submenú, el de ese grupo). |
+| `volver` · `atrás` | En medio de las preguntas, repite la anterior; en la primera, vuelves al menú sin hacer nada. En las listas numeradas también vale `0`. Al confirmar, `[s/n/volver]` vuelve a la última pregunta para cambiarla. |
 | `ayuda ocupa` · `ocupa ?` · `? 2` | Ayuda corta: qué hace un comando, cómo se escribe y sus opciones con su valor por defecto. |
 | `manual` | El manual completo de navaja. `manual ocupa` enseña solo la parte de ese comando. |
 | `cd RUTA` · `cd ..` · `cd` | Cambia de carpeta (`cd` solo enseña dónde estás). Al salir vuelves a la carpeta de antes. |

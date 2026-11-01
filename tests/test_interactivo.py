@@ -11,11 +11,16 @@ from navaja.comandos.ayuda import subcomandos
 from navaja.comun import cargar_config
 
 
-def lector(*lineas):
-    """Simula lo que escribe la persona; al acabarse, es como pulsar Ctrl+D."""
+def lector(*lineas, eco=False):
+    """Simula lo que escribe la persona; al acabarse, es como pulsar Ctrl+D.
+
+    Con ``eco`` enseña también las preguntas (para contar cuántas veces se hacen).
+    """
     pendientes = iter(lineas)
 
-    def leer(_prompt):
+    def leer(prompt):
+        if eco:
+            print(prompt)
         try:
             return next(pendientes)
         except StopIteration:
@@ -210,6 +215,89 @@ def test_ordenar_por_letra_desde_el_menu(carpeta, capsys, monkeypatch):
     assert (carpeta / "A" / "apuntes.pdf").exists()
     assert (carpeta / "B" / "boletin.pdf").exists()
     assert (carpeta / "sub" / "dentro.txt").exists()
+
+
+def respuestas(*lineas):
+    """Lo que se contesta a las confirmaciones [s/n] (que usan input())."""
+    pendientes = iter(lineas)
+    return lambda *_: next(pendientes)
+
+
+@pytest.mark.parametrize("volver", ["0", "volver", "atrás"])
+def test_volver_en_la_primera_pregunta_vuelve_al_menu(carpeta, capsys, volver):
+    # ordena → 1 (tipo) → ¿con qué archivos? volver → seguimos en el submenú de ordena
+    interactivo.iniciar(app, lector("ordena", "1", volver, "ayuda"))
+    texto = salida(capsys)
+    assert "volver: a la pregunta anterior" in texto
+    assert "Vuelves al menú." in texto
+    assert "Ordenar" not in texto
+    assert "Uso: tipo [opciones]" in texto  # la «ayuda» de después es la del submenú
+    assert (carpeta / "apuntes.pdf").exists()
+
+
+def test_volver_repite_la_pregunta_anterior(carpeta, capsys, monkeypatch):
+    monkeypatch.setattr("builtins.input", lambda *_: "n")
+    # renombra → 4 (numerar) → nombre → separador → volver (al separador) → volver (al nombre)
+    # → otro nombre → separador → cifras → orden → todos
+    interactivo.iniciar(
+        app,
+        lector("renombra", "4", "gemini", " ", "volver", "volver", "foto", "-", "1", "", "", eco=True),
+    )
+    texto = salida(capsys)
+    assert texto.count("Nombre común") == 2
+    assert "→ navaja renombra numerar foto --separador - --cifras 1" in texto
+    assert "foto-1.pdf" in texto
+
+
+def test_volver_dentro_de_con_que_archivos(carpeta, capsys):
+    # ordena → 1 (tipo) → 4 (fechas) → desde → volver (otra vez desde) → volver (a la lista)
+    # → 2 (de un tipo) → volver (a la lista) → 0 (al menú)
+    interactivo.iniciar(
+        app,
+        lector("ordena", "1", "4", "1/9/2026", "volver", "volver", "2", "volver", "0", eco=True),
+    )
+    texto = salida(capsys)
+    assert texto.count("Desde qué fecha") == 2
+    assert texto.count("¿Con qué archivos?") == 3
+    assert "Vuelves al menú." in texto
+    assert "Ordenar" not in texto
+
+
+def test_volver_en_la_confirmacion_vuelve_a_la_ultima_pregunta(carpeta, capsys, monkeypatch):
+    (carpeta / "foto.jpg").write_text("x")
+    monkeypatch.setattr("builtins.input", respuestas("volver", "s"))
+    # ordena → 1 (tipo) → todos → [s/n/volver] volver → ¿con qué archivos? 2 (tipo) → 1 (imágenes)
+    interactivo.iniciar(app, lector("ordena", "1", "", "2", "1"))
+    texto = salida(capsys)
+    assert "[s/n/volver]" in texto
+    assert texto.count("¿Con qué archivos?") == 2
+    assert (carpeta / "Imagenes" / "foto.jpg").exists()
+    assert (carpeta / "apuntes.pdf").exists()  # el primer plan (todos) no se hizo
+
+
+def test_volver_en_la_confirmacion_sin_preguntas_vuelve_al_menu(carpeta, capsys, monkeypatch):
+    (carpeta / "foto.jpg").write_text("x")
+    monkeypatch.setattr("builtins.input", respuestas("volver"))
+    interactivo.iniciar(app, lector("ordena tipo --si", "ordena", numero_de_ordena("deshacer")))
+    texto = salida(capsys)
+    assert "Vuelves al menú." in texto
+    assert (carpeta / "Imagenes" / "foto.jpg").exists()  # no se ha deshecho
+
+
+def numero_de_ordena(nombre):
+    grupo = typer.main.get_command(app).commands["ordena"]
+    return str([n for n, _ in subcomandos(grupo)].index(nombre) + 1)
+
+
+def test_volver_entre_comillas_es_el_texto_volver(carpeta, capsys, monkeypatch):
+    monkeypatch.setattr("builtins.input", lambda *_: "n")
+    interactivo.iniciar(app, lector("renombra cambiar", '"volver"', "x", ""))
+    assert "→ navaja renombra cambiar volver x" in salida(capsys)
+
+
+def test_volver_en_el_menu_principal(carpeta, capsys):
+    interactivo.iniciar(app, lector("volver"))
+    assert "Ya estás en el menú principal" in salida(capsys)
 
 
 @pytest.mark.parametrize("pedido", ["ayuda ocupa", "ocupa ?", "? 2"])

@@ -3,6 +3,7 @@ from typer.testing import CliRunner
 
 from navaja import interactivo
 from navaja.app import app
+from navaja.comun import PALABRAS_VOLVER
 from navaja.comandos.ayuda import argumentos, opciones_visibles, subcomandos, todos
 
 runner = CliRunner()
@@ -42,11 +43,12 @@ def test_el_manual_explica_el_modo_interactivo_y_los_alias():
         | interactivo.LIMPIAR_PANTALLA
         | interactivo.PREFIJOS
         | set(interactivo.ALIAS)
+        | PALABRAS_VOLVER
         | {"cd", "pwd", "volver", "Ctrl+C", "nav", "manual", "ocupa ?"}
     )
     for palabra in palabras:
         assert palabra in texto, palabra
-    for cosa in ("NAVAJA_DATOS", "[s/n]", "--version", "notas.db", "papelera", "código 2"):
+    for cosa in ("NAVAJA_DATOS", "[s/n]", "[s/n/volver]", "--version", "notas.db", "papelera", "código 2"):
         assert cosa in texto, cosa
 
 

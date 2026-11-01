@@ -210,6 +210,21 @@ Documentación y calidad:
   el submenú. Notas en el manual y en la ayuda.
 - 146 tests pasando en Python 3.10 y 3.13.
 
+### 2026-11-01 — Volver a la pregunta anterior
+
+- En el modo interactivo, en cualquier pregunta de cualquier opción, `volver`
+  (o `atrás`) repite la anterior; en la primera, vuelves al menú sin hacer nada.
+  Al empezar las preguntas se recuerda: «volver: a la pregunta anterior · Ctrl+C:
+  cancelar».
+- En «¿Con qué archivos?» y «¿Qué tipo?» sale `0 volver`; dentro (el texto, las
+  fechas), `volver` lleva a la lista y, en «hasta», a «desde».
+- Al confirmar una orden hecha desde el menú, `[s/n/volver]`: `volver` vuelve a
+  la última pregunta (por ejemplo, para elegir otros archivos) sin cambiar nada.
+  Fuera del modo interactivo sigue siendo `[s/n]`.
+- `"volver"` entre comillas es el texto volver (por si hace falta buscarlo).
+- Las preguntas guiadas pasan a ser pasos (`Paso`) en `interactivo.py`.
+- 156 tests pasando en Python 3.10 y 3.13.
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.

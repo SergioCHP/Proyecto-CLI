@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import difflib
+import functools
 import os
 import re
 import shlex
@@ -24,7 +25,8 @@ from .comandos.ayuda import (
     valor_texto,
 )
 from .comandos.ayuda import subcomandos as opciones_de
-from .comun import AJUSTE, console, error_console
+from . import comun
+from .comun import AJUSTE, PALABRAS_VOLVER, Volver, console, error_console
 from .filtros import (
     CATEGORIAS,
     EJEMPLOS_FECHA,
@@ -36,12 +38,14 @@ from .filtros import (
 )
 
 Lector = Callable[[str], str]
+Paso = Callable[[], list[str]]
+"""Una pregunta del modo guiado: devuelve lo que añade a la orden."""
 
 SALIR = {"salir", "exit", "quit"}
 MENU = {"menu", "menú"}
 AYUDA_SOLA = {"ayuda", "help", "?"}
 LIMPIAR_PANTALLA = {"cls", "clear"}
-VOLVER = {"", "0", "volver"}
+VOLVER = {"", "0"} | PALABRAS_VOLVER
 ALIAS = {"ls": "listar", "dir": "listar"}
 PREFIJOS = {"navaja", "nav"}
 CD = re.compile(r"^cd(?=$|[\s./\\])(.*)$", re.IGNORECASE)
@@ -58,6 +62,14 @@ activo = False
 
 class Salir(Exception):
     """El usuario quiere cerrar el modo interactivo."""
+
+
+class Atras(Exception):
+    """En una pregunta se ha escrito «volver»: hay que repetir la anterior."""
+
+
+def es_volver(crudo: str) -> bool:
+    return crudo.strip().lower() in PALABRAS_VOLVER
 
 
 def puede_iniciar() -> bool:
@@ -125,10 +137,16 @@ def mostrar_menu(grupo: Any, camino: list[str]) -> None:
         console.print(f"\n{AYUDA}\n")
 
 
-def ejecutar(raiz: Any, argumentos: list[str]) -> int:
-    """Ejecuta una orden como si se escribiera en la terminal y devuelve su código."""
+def ejecutar(raiz: Any, argumentos: list[str], volver: bool = False) -> int:
+    """Ejecuta una orden como si se escribiera en la terminal y devuelve su código.
+
+    Con ``volver``, sus confirmaciones aceptan «volver» y lanzan ``Volver``.
+    """
+    comun.se_puede_volver = volver
     try:
         raiz.main(args=argumentos, prog_name="navaja", standalone_mode=True)
+    except Volver:
+        raise
     except SystemExit as salida:
         codigo = salida.code
         return codigo if isinstance(codigo, int) else (0 if codigo is None else 1)
@@ -141,12 +159,19 @@ def ejecutar(raiz: Any, argumentos: list[str]) -> int:
             soft_wrap=True,
         )
         return 1
+    finally:
+        comun.se_puede_volver = False
     return 0
 
 
 def leer_texto(leer: Lector, prompt: str, defecto: str) -> str:
-    """Intro deja el valor por defecto; solo espacios valen como espacio («numerar» con « »)."""
+    """Intro deja el valor por defecto; solo espacios valen como espacio («numerar» con « »).
+
+    «volver» lanza ``Atras``; entre comillas («"volver"») es el texto volver.
+    """
     crudo = leer(prompt)
+    if es_volver(crudo):
+        raise Atras
     if crudo == "":
         return defecto
     if not crudo.strip():
@@ -154,8 +179,8 @@ def leer_texto(leer: Lector, prompt: str, defecto: str) -> str:
     return expandir(quitar_comillas(crudo.strip()))
 
 
-def preguntar_obligatorios(comando: Any, leer: Lector) -> list[str]:
-    """Pregunta los argumentos que hacen falta.
+def pasos_obligatorios(comando: Any, leer: Lector) -> list[Paso]:
+    """Una pregunta por cada argumento que hace falta.
 
     Los obligatorios, siempre. Los opcionales de texto (como el «por» de
     renombra cambiar) también, con Intro para dejar su valor por defecto. Las
@@ -163,7 +188,7 @@ def preguntar_obligatorios(comando: Any, leer: Lector) -> list[str]:
     carpeta actual. Solo se escriben si detrás va otro valor, para no
     descolocar las posiciones.
     """
-    valores: list[str] = []
+    pasos: list[Paso] = []
     pendientes: list[str] = []
     for param in comando.params:
         if param.param_type_name != "argument":
@@ -174,66 +199,73 @@ def preguntar_obligatorios(comando: Any, leer: Lector) -> list[str]:
             if param.default is not None and not es_lista:
                 pendientes.append(valor_texto(param.default))
             continue
-        texto = escape((getattr(param, "help", None) or param.name or "").rstrip("."))
-        es_fecha = param.name in ("desde", "hasta")
-        if param.required:
-            while True:
-                valor = leer_texto(leer, f"  {texto}: ", "")
-                if not valor:
-                    console.print("  [aviso]Hace falta un valor.[/]")
-                    continue
-                if es_fecha:
-                    try:
-                        periodo(valor)
-                    except ValueError as exc:
-                        console.print(f"  [aviso]{escape(str(exc))}[/]")
-                        continue
-                break
-        elif es_fecha:
-            defecto = "" if param.default is None else valor_texto(param.default)
-            valor = preguntar_fecha(leer, f"  {texto} [pista](Intro = {escape(defecto)})[/]: ") or defecto
-        else:
-            defecto = "" if param.default is None else valor_texto(param.default)
-            pista = "vacío" if defecto == "" else defecto
-            valor = leer_texto(leer, f"  {texto} [pista](Intro = {escape(pista)})[/]: ", defecto)
-        valores += pendientes
+        pasos.append(functools.partial(preguntar_argumento, param, leer, pendientes))
         pendientes = []
-        valores += dividir(valor) if es_lista else [valor]
-    return valores
+    return pasos
 
 
-def preguntar_ajustes(comando: Any, leer: Lector) -> list[str]:
-    """Pregunta las opciones del panel «Ajustes»; solo añade las que cambian."""
-    extra: list[str] = []
-    for param in comando.params:
-        if param.param_type_name != "option" or getattr(param, "rich_help_panel", None) != AJUSTE:
-            continue
-        texto = escape((getattr(param, "help", None) or param.name or "").rstrip("."))
-        nombre = max(param.opts, key=len)
-        if getattr(param, "is_flag", False):
-            respuesta = leer(f"  {texto} [pista](s/n · Intro = no)[/]: ").strip().lower()
-            if respuesta in ("s", "si", "sí", "y"):
-                extra.append(nombre)
-            continue
-        defecto = "" if param.default is None else valor_texto(param.default)
-        elecciones = [valor_texto(c) for c in getattr(param.type, "choices", None) or []]
-        if elecciones:
-            pista = f"{', '.join(elecciones[:-1])} o {elecciones[-1]} · Intro = {defecto}"
-        else:
-            pista = f"Intro = {defecto}" if defecto else "Intro para saltar"
+def preguntar_argumento(param: Any, leer: Lector, delante: list[str]) -> list[str]:
+    texto = escape((getattr(param, "help", None) or param.name or "").rstrip("."))
+    es_fecha = param.name in ("desde", "hasta")
+    es_lista = getattr(param, "nargs", 1) == -1
+    if param.required:
         while True:
-            valor = leer_texto(leer, f"  {texto} [pista]({escape(pista)})[/]: ", defecto)
-            if not elecciones:
-                break
-            # «dia» vale por «día» y «Mes» por «mes»
-            parecida = [e for e in elecciones if sin_tildes(e.lower()) == sin_tildes(valor.lower())]
-            if parecida:
-                valor = parecida[0]
-                break
-            console.print(f"  [aviso]Escribe {', '.join(elecciones[:-1])} o {elecciones[-1]}.[/]")
-        if valor != defecto:
-            extra += [nombre, valor]
-    return extra
+            valor = leer_texto(leer, f"  {texto}: ", "")
+            if not valor:
+                console.print("  [aviso]Hace falta un valor.[/]")
+                continue
+            if es_fecha:
+                try:
+                    periodo(valor)
+                except ValueError as exc:
+                    console.print(f"  [aviso]{escape(str(exc))}[/]")
+                    continue
+            break
+    elif es_fecha:
+        defecto = "" if param.default is None else valor_texto(param.default)
+        valor = preguntar_fecha(leer, f"  {texto} [pista](Intro = {escape(defecto)})[/]: ") or defecto
+    else:
+        defecto = "" if param.default is None else valor_texto(param.default)
+        pista = "vacío" if defecto == "" else defecto
+        valor = leer_texto(leer, f"  {texto} [pista](Intro = {escape(pista)})[/]: ", defecto)
+    return delante + (dividir(valor) if es_lista else [valor])
+
+
+def pasos_ajustes(comando: Any, leer: Lector) -> list[Paso]:
+    """Una pregunta por cada opción del panel «Ajustes»."""
+    return [
+        functools.partial(preguntar_ajuste, param, leer)
+        for param in comando.params
+        if param.param_type_name == "option" and getattr(param, "rich_help_panel", None) == AJUSTE
+    ]
+
+
+def preguntar_ajuste(param: Any, leer: Lector) -> list[str]:
+    """Solo añade la opción si cambia algo."""
+    texto = escape((getattr(param, "help", None) or param.name or "").rstrip("."))
+    nombre = max(param.opts, key=len)
+    if getattr(param, "is_flag", False):
+        respuesta = leer(f"  {texto} [pista](s/n · Intro = no)[/]: ")
+        if es_volver(respuesta):
+            raise Atras
+        return [nombre] if respuesta.strip().lower() in ("s", "si", "sí", "y") else []
+    defecto = "" if param.default is None else valor_texto(param.default)
+    elecciones = [valor_texto(c) for c in getattr(param.type, "choices", None) or []]
+    if elecciones:
+        pista = f"{', '.join(elecciones[:-1])} o {elecciones[-1]} · Intro = {defecto}"
+    else:
+        pista = f"Intro = {defecto}" if defecto else "Intro para saltar"
+    while True:
+        valor = leer_texto(leer, f"  {texto} [pista]({escape(pista)})[/]: ", defecto)
+        if not elecciones:
+            break
+        # «dia» vale por «día» y «Mes» por «mes»
+        parecida = [e for e in elecciones if sin_tildes(e.lower()) == sin_tildes(valor.lower())]
+        if parecida:
+            valor = parecida[0]
+            break
+        console.print(f"  [aviso]Escribe {', '.join(elecciones[:-1])} o {elecciones[-1]}.[/]")
+    return [nombre, valor] if valor != defecto else []
 
 
 def preguntar_fecha(leer: Lector, prompt: str) -> str:
@@ -249,15 +281,30 @@ def preguntar_fecha(leer: Lector, prompt: str) -> str:
             console.print(f"  [aviso]{escape(str(exc))}[/]")
 
 
-def preguntar_filtro(comando: Any, leer: Lector) -> list[str]:
+def pasos_filtro(comando: Any, leer: Lector) -> list[Paso]:
     """Una sola pregunta, «¿Con qué archivos?», en vez de un filtro tras otro."""
     filtros = {
-        max(p.opts, key=len): p
+        max(p.opts, key=len)
         for p in comando.params
         if p.param_type_name == "option" and getattr(p, "rich_help_panel", None) == FILTRO
     }
-    if not filtros:
-        return []
+    return [functools.partial(preguntar_filtro, filtros, leer)] if filtros else []
+
+
+def elegir_numero(leer: Lector, prompt: str, cuantas: int, intro: int | None = None) -> int:
+    """Pide un número de una lista. 0 o «volver» lanzan ``Atras``; Intro elige ``intro``."""
+    while True:
+        respuesta = leer(prompt).strip()
+        if respuesta == "0" or es_volver(respuesta):
+            raise Atras
+        if not respuesta and intro is not None:
+            return intro
+        if respuesta.isdigit() and 1 <= int(respuesta) <= cuantas:
+            return int(respuesta)
+        console.print(f"  [aviso]Elige un número del 1 al {cuantas} (0 para volver).[/]")
+
+
+def preguntar_filtro(filtros: set[str], leer: Lector) -> list[str]:
     opciones = [("todos", "Todos los de la carpeta")]
     if "--solo" in filtros:
         opciones.append(("tipo", "Solo de un tipo (imágenes, documentos, vídeos…)"))
@@ -266,51 +313,67 @@ def preguntar_filtro(comando: Any, leer: Lector) -> list[str]:
     if "--desde" in filtros:
         opciones.append(("fechas", "Los de unas fechas (de una a otra)"))
 
-    console.print("  [bold]¿Con qué archivos?[/]")
-    for numero, (_, texto) in enumerate(opciones, start=1):
-        console.print(f"    [acento]{numero}[/]  {texto}")
-    while True:
-        respuesta = leer("  Elige [pista](Intro = 1, todos)[/]: ").strip()
-        if not respuesta:
+    while True:  # «volver» en el detalle trae aquí; aquí, a la pregunta anterior
+        console.print("  [bold]¿Con qué archivos?[/]")
+        for numero, (_, texto) in enumerate(opciones, start=1):
+            console.print(f"    [acento]{numero}[/]  {texto}")
+        console.print("    [acento]0[/]  [pista]volver[/]")
+        numero = elegir_numero(leer, "  Elige [pista](Intro = 1, todos)[/]: ", len(opciones), intro=1)
+        clave = opciones[numero - 1][0]
+        try:
+            if clave == "tipo":
+                return preguntar_tipo(leer)
+            if clave == "texto":
+                return preguntar_contiene(leer)
+            if clave == "fechas":
+                return preguntar_fechas(leer)
             return []
-        if respuesta.isdigit() and 1 <= int(respuesta) <= len(opciones):
-            clave = opciones[int(respuesta) - 1][0]
-            break
-        console.print(f"  [aviso]Elige un número del 1 al {len(opciones)}.[/]")
+        except Atras:
+            continue
 
-    if clave == "tipo":
-        tipos = [c for c in CATEGORIAS]
-        for numero, categoria in enumerate(tipos, start=1):
-            console.print(f"    [acento]{numero}[/]  {ETIQUETAS[categoria]}")
-        while True:
-            respuesta = leer_texto(
-                leer, "  ¿Qué tipo? [pista](un número, o extensiones: jpg,png)[/]: ", ""
-            )
-            if respuesta.isdigit() and 1 <= int(respuesta) <= len(tipos):
-                return ["--solo", tipos[int(respuesta) - 1]]
-            if respuesta and not respuesta.isdigit():
-                return ["--solo", respuesta]
-            console.print(f"  [aviso]Elige un número del 1 al {len(tipos)} o escribe extensiones.[/]")
-    if clave == "texto":
-        while True:
-            texto = leer_texto(leer, "  Texto que tiene que llevar el nombre: ", "")
-            if texto:
-                return ["--contiene", texto]
-            console.print("  [aviso]Hace falta un texto.[/]")
-    if clave == "fechas":
-        ejemplos = escape(EJEMPLOS_FECHA)
-        while True:
-            desde = preguntar_fecha(
-                leer, f"  Desde qué fecha [pista](ej.: {ejemplos} · Intro = desde siempre)[/]: "
-            )
+
+def preguntar_tipo(leer: Lector) -> list[str]:
+    tipos = list(CATEGORIAS)
+    for numero, categoria in enumerate(tipos, start=1):
+        console.print(f"    [acento]{numero}[/]  {ETIQUETAS[categoria]}")
+    console.print("    [acento]0[/]  [pista]volver[/]")
+    while True:
+        respuesta = leer_texto(
+            leer, "  ¿Qué tipo? [pista](un número, o extensiones: jpg,png)[/]: ", ""
+        )
+        if respuesta == "0":
+            raise Atras
+        if respuesta.isdigit() and 1 <= int(respuesta) <= len(tipos):
+            return ["--solo", tipos[int(respuesta) - 1]]
+        if respuesta and not respuesta.isdigit():
+            return ["--solo", respuesta]
+        console.print(f"  [aviso]Elige un número del 1 al {len(tipos)} o escribe extensiones.[/]")
+
+
+def preguntar_contiene(leer: Lector) -> list[str]:
+    while True:
+        texto = leer_texto(leer, "  Texto que tiene que llevar el nombre: ", "")
+        if texto:
+            return ["--contiene", texto]
+        console.print("  [aviso]Hace falta un texto.[/]")
+
+
+def preguntar_fechas(leer: Lector) -> list[str]:
+    ejemplos = escape(EJEMPLOS_FECHA)
+    while True:
+        desde = preguntar_fecha(
+            leer, f"  Desde qué fecha [pista](ej.: {ejemplos} · Intro = desde siempre)[/]: "
+        )
+        try:
             hasta = preguntar_fecha(leer, "  Hasta qué fecha, incluida [pista](Intro = hoy)[/]: ")
-            try:
-                rango(desde, hasta)
-                break
-            except ValueError as exc:
-                console.print(f"  [aviso]{escape(str(exc))}[/]")
+        except Atras:
+            continue  # otra vez «desde»
+        try:
+            rango(desde, hasta)
+        except ValueError as exc:
+            console.print(f"  [aviso]{escape(str(exc))}[/]")
+            continue
         return (["--desde", desde] if desde else []) + (["--hasta", hasta] if hasta else [])
-    return []
 
 
 def pista_opciones(nombres: list[str], comando: Any) -> None:
@@ -328,19 +391,46 @@ def pista_opciones(nombres: list[str], comando: Any) -> None:
 def guiado(
     raiz: Any, camino: list[str], comando: Any, leer: Lector, escribir: list[str] | None = None
 ) -> None:
-    """Pregunta solo lo obligatorio, ejecuta en la carpeta actual y dice qué más se puede ajustar."""
-    try:
-        valores = preguntar_obligatorios(comando, leer)
-        valores += preguntar_ajustes(comando, leer)
-        valores += preguntar_filtro(comando, leer)
-    except (KeyboardInterrupt, EOFError):
-        console.print("\n[aviso]Cancelado.[/]")
-        return
-    argumentos = camino + valores
-    if valores:
-        orden = " ".join(citar(a) for a in argumentos)
-        console.print(f"[pista]→ navaja {escape(orden)}[/]", soft_wrap=True)
-    ejecutar(raiz, argumentos)
+    """Pregunta solo lo necesario, ejecuta en la carpeta actual y dice qué más se puede ajustar.
+
+    «volver» repite la pregunta anterior; en la primera, vuelve al menú. En la
+    confirmación de la orden ([s/n/volver]) vuelve a la última pregunta.
+    """
+    pasos = (
+        pasos_obligatorios(comando, leer)
+        + pasos_ajustes(comando, leer)
+        + pasos_filtro(comando, leer)
+    )
+    if pasos:
+        console.print("  [pista]volver: a la pregunta anterior · Ctrl+C: cancelar[/]")
+    respuestas: list[list[str]] = []
+    while True:
+        try:
+            while len(respuestas) < len(pasos):
+                try:
+                    respuestas.append(pasos[len(respuestas)]())
+                except Atras:
+                    if not respuestas:
+                        console.print("[pista]Vuelves al menú.[/]")
+                        return
+                    respuestas.pop()
+        except (KeyboardInterrupt, EOFError):
+            console.print("\n[aviso]Cancelado.[/]")
+            return
+        valores = [valor for respuesta in respuestas for valor in respuesta]
+        argumentos = camino + valores
+        if valores:
+            orden = " ".join(citar(a) for a in argumentos)
+            console.print(f"[pista]→ navaja {escape(orden)}[/]", soft_wrap=True)
+        try:
+            ejecutar(raiz, argumentos, volver=True)
+        except Volver:
+            if not respuestas:
+                console.print("[pista]Vuelves al menú.[/]")
+                return
+            respuestas.pop()
+            continue
+        break
     pista_opciones(escribir or camino, comando)
 
 
@@ -425,6 +515,9 @@ def bucle(raiz: Any, grupo: Any, camino: list[str], leer: Lector) -> None:
         palabra = linea.lower()
         if camino and palabra in VOLVER:
             return
+        if palabra in PALABRAS_VOLVER:
+            console.print("[pista]Ya estás en el menú principal. Para cerrar navaja: salir.[/]")
+            continue
         if not linea:
             continue
         if palabra in SALIR or (palabra == "0" and not camino):

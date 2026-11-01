@@ -74,6 +74,14 @@ uno a uno, sino con una sola pregunta, «¿Con qué archivos?» (todos / de un t
 con un texto / de unas fechas). Las fechas se leen con `filtros.periodo()`; un
 argumento que se llame `desde` o `hasta` se valida igual al preguntarlo.
 
+Cada pregunta del modo guiado es un paso (`Paso` en `interactivo.py`):
+`guiado()` los hace en orden y, si en uno se escribe «volver» (o `0` en una
+lista numerada), el paso lanza `Atras` y se repite el anterior; en el primero,
+se vuelve al menú. Mientras ejecuta la orden, `comun.se_puede_volver` hace que
+`confirmar()` acepte `[s/n/volver]` y lance `Volver` (antes de cambiar nada),
+que devuelve a la última pregunta. Una pregunta nueva debe leer con
+`leer_texto()` o `elegir_numero()`, que ya saben volver.
+
 El manual (`navaja manual`) también se genera de los comandos registrados. Todo
 comando, argumento y opción necesita un `help` en castellano
 (`tests/test_ayuda.py` falla si falta). Lo que no se deduce del código (qué
@@ -126,5 +134,5 @@ considera basura `limpia`, cómo compara `duplicados`…) va en `EXTRA` de
 ## Estado actual
 
 Resumen y bitácora en [ESTADO.md](ESTADO.md). Última verificación conocida
-(2026-11-01): 146 tests pasando (Python 3.10 y 3.13) y modo interactivo probado
+(2026-11-01): 156 tests pasando (Python 3.10 y 3.13) y modo interactivo probado
 en una terminal real (menú, submenús, preguntas guiadas, cd, errores y salida).

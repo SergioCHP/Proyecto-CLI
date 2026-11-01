@@ -17,6 +17,7 @@ from pathlib import Path
 from rich.console import Console
 from rich.prompt import Confirm, InvalidResponse
 from rich.table import Table
+from rich.text import Text
 from rich.theme import Theme
 
 TEMAS: dict[str, dict[str, str]] = {
@@ -145,11 +146,27 @@ def aplicar_tema(nombre: str) -> None:
         consola.push_theme(Theme(estilos))
 
 
+PALABRAS_VOLVER = {"volver", "atrás", "atras"}
+"""En el modo interactivo, a la pregunta anterior."""
+
+se_puede_volver = False
+"""Lo activa el modo interactivo mientras ejecuta una orden que ha preguntado
+(o elegido) desde el menú: entonces las confirmaciones son ``[s/n/volver]``."""
+
+
+class Volver(Exception):
+    """En una confirmación se ha contestado «volver»: el modo interactivo vuelve a
+    la última pregunta (o al menú). Se lanza antes de cambiar nada."""
+
+
 class Confirmar(Confirm):
     """Pregunta de sí o no en castellano: ``[s/n]``; también acepta «sí», «no» e «y»."""
 
     choices = ["s", "n"]
     validate_error_message = "[aviso]Responde s o n.[/]"
+
+    def render_default(self, default: object) -> Text:
+        return Text("(s)" if default else "(n)", style="prompt.default")
 
     def process_response(self, value: str) -> bool:
         respuesta = value.strip().lower()
@@ -157,6 +174,8 @@ class Confirmar(Confirm):
             return True
         if respuesta in ("n", "no"):
             return False
+        if se_puede_volver and respuesta in PALABRAS_VOLVER:
+            raise Volver
         raise InvalidResponse(self.validate_error_message)
 
 
@@ -164,7 +183,11 @@ def confirmar(mensaje: str, saltar: bool = False, por_defecto: bool = False) -> 
     """Pide confirmación salvo que se haya pasado ``--si``."""
     if saltar:
         return True
-    return Confirmar.ask(mensaje, default=por_defecto, console=console)
+    pregunta = Confirmar(mensaje, console=console)
+    if se_puede_volver:
+        pregunta.choices = ["s", "n", "volver"]
+        pregunta.validate_error_message = "[aviso]Responde s, n o volver.[/]"
+    return pregunta(default=por_defecto)
 
 
 def ruta_libre(destino: Path) -> Path:
