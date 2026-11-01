@@ -169,6 +169,47 @@ Documentación y calidad:
   → 1 → Intro → gemini.
 - 96 tests pasando en Python 3.10 y 3.13.
 
+### 2026-11-01 — ordena fácil y por fechas
+
+- `ordena` rehecho como `renombra`: una opción por tarea y un solo paso
+  (tabla «archivo → carpeta» y [s/n]; `--simular` solo mira).
+  - `tipo`: Imagenes/, Documentos/, Videos/… `fecha --por mes|año|día`:
+    «2026/10 octubre», «2026» o «2026-10-26». `tramo DESDE [HASTA]`: los
+    archivos de unas fechas a una carpeta («del 2026-09-01 al 2026-09-30», o
+    `--nombre`). `tipos` (antes categorias). `deshacer`, que ahora además quita
+    las carpetas que quedan vacías. Sustituye a previsualizar/aplicar.
+  - Comunes: `--carpeta/-c`, `--destino/-d`, `-r`, `--ocultos`, `--simular`, `--si`.
+- Filtros comunes en `filtros.py` para ordena y renombra: `--solo` (tipos por
+  nombre: imagenes, documentos, fotos…, o extensiones), `--contiene`, `--desde`,
+  `--hasta`.
+- Fechas como las escribe cualquiera: `1/9/2026`, `1/9`, `01-09-26`,
+  `2026-09-15`, `septiembre 2026`, `9/2026`, `2026`, `hoy`, `ayer`,
+  `hace 30 días` (o semanas, meses, años). Un mes o un año valen enteros. Si no
+  se entiende, lo dice con ejemplos.
+- Modo interactivo: en ordena y renombra, una sola pregunta «¿Con qué
+  archivos?» (todos / de un tipo, con la lista de tipos / con un texto / de unas
+  fechas, validadas en el momento) en vez de un filtro tras otro. «día» y «dia»
+  valen igual.
+- renombra numerar: `--desde` (primer número) pasa a `--empieza`, porque
+  `--desde` es ahora el filtro de fecha.
+- Archivos ocultos y de sistema: además de los que empiezan por punto, se saltan
+  `desktop.ini`, `Thumbs.db` y los que Windows marca ocultos o de sistema
+  (listar, ordena, renombra, duplicados). `--ocultos` los incluye.
+- 128 tests pasando en Python 3.10 y 3.13.
+
+### 2026-11-01 — ordena por nombre y por letra
+
+- `ordena nombre TEXTO`: los que llevan ese texto en el nombre (sin mirar
+  mayúsculas) van juntos a una carpeta que se llama como el texto, o como diga
+  `--nombre`. Los demás no se tocan. Avisa si el nombre no vale como carpeta en
+  Windows.
+- `ordena letra`: una carpeta por inicial (A/, B/…, Ñ/), 0-9/ para los que
+  empiezan por número y Otros/ si no hay letras ni números. Las tildes y los
+  signos del principio no cuentan (`Álbum` → A, `_borrador` → B).
+- Van detrás de `tramo` para no cambiar los números de tipo, fecha y tramo en
+  el submenú. Notas en el manual y en la ayuda.
+- 146 tests pasando en Python 3.10 y 3.13.
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.

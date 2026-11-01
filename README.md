@@ -9,7 +9,7 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
 | `navaja listar [ruta]` | Muestra qué hay en una carpeta: nombre, tipo, tamaño y fecha. |
 | `navaja ocupa [ruta]` | Muestra qué archivos y carpetas ocupan más espacio. |
 | `navaja limpia [ruta]` | Busca y borra cachés y temporales (`node_modules`, `__pycache__`, `dist`…). |
-| `navaja ordena` | Organiza archivos por extensión o fecha, con deshacer. |
+| `navaja ordena` | Ordena una carpeta: por tipo, por fecha (mes, año o día), los archivos de unas fechas a una carpeta, por un texto del nombre o por letra. Con deshacer. |
 | `navaja renombra` | Renombrado masivo sin saber regex: cambiar texto, añadir delante o detrás, numerar, poner la fecha, arreglar nombres o una plantilla. Con deshacer. |
 | `navaja duplicados` | Encuentra archivos repetidos por contenido y los manda a una papelera recuperable. |
 | `navaja notas` | Notas y enlaces con etiquetas, guardados en SQLite. |
@@ -51,8 +51,8 @@ PS C:\Users\sergi\Descargas>
 
 | Dentro de navaja | Qué hace |
 | --- | --- |
-| un número | Elige esa opción. Si es un grupo (`ordena`, `notas`…) abre su submenú; si no, lo ejecuta en la carpeta actual y solo pregunta lo obligatorio. Debajo te dice qué opciones tiene. |
-| un comando | Igual que en la terminal, sin escribir `navaja` delante: `ocupa -n 5`, `ordena aplicar ~/Descargas`. Si le falta algo obligatorio, lo pregunta. |
+| un número | Elige esa opción. Si es un grupo (`ordena`, `notas`…) abre su submenú; si no, lo ejecuta en la carpeta actual y pregunta solo lo necesario. En `ordena` y `renombra` pregunta también «¿Con qué archivos?» (todos, de un tipo, los que llevan un texto o los de unas fechas). Debajo te dice qué opciones tiene. |
+| un comando | Igual que en la terminal, sin escribir `navaja` delante: `ocupa -n 5`, `ordena tipo --solo imagenes`. Si le falta algo obligatorio, lo pregunta. |
 | `ayuda` · `?` | Explica lo que puedes hacer donde estás: en el menú principal, todas las opciones; dentro de una opción (`config`, `ordena`…), esa opción con las suyas, su uso y sus parámetros. |
 | `menu` | Vuelve a enseñar el menú (en un submenú, el de ese grupo). |
 | `ayuda ocupa` · `ocupa ?` · `? 2` | Ayuda corta: qué hace un comando, cómo se escribe y sus opciones con su valor por defecto. |
@@ -89,7 +89,7 @@ uv run navaja --help
 ```bash
 # El manual completo, o solo la parte de un comando
 navaja manual
-navaja manual ordena aplicar
+navaja manual ordena tramo
 navaja manual > manual.txt     # guardarlo en un archivo
 
 # Ver qué hay en una carpeta (carpetas primero)
@@ -102,12 +102,18 @@ navaja ocupa ~/Descargas -n 20 -p 2
 navaja limpia ~/Proyectos --seco
 navaja limpia ~/Proyectos
 
-# Organizar Descargas por tipo de archivo
-navaja ordena previsualizar ~/Descargas
-navaja ordena aplicar ~/Descargas
+# Ordenar: enseña «archivo → carpeta» y pregunta [s/n] (--simular solo mira)
+navaja ordena tipo -c ~/Downloads                    # Imagenes/, Documentos/, Videos/…
+navaja ordena fecha                                  # 2026/10 octubre/…
+navaja ordena fecha --por año --solo imagenes        # solo las imágenes, en 2026/, 2025/…
+navaja ordena tramo 1/9/2026 31/10/2026              # a «del 2026-09-01 al 2026-10-31»
+navaja ordena tramo "septiembre 2026" --nombre Curso # de septiembre a hoy, en «Curso»
+navaja ordena tipo --desde "hace 30 días"            # solo lo de los últimos 30 días
+navaja ordena nombre factura                         # los que llevan «factura», a factura/
+navaja ordena nombre gemini --nombre "Imagenes IA"   # los de Gemini, a «Imagenes IA»
+navaja ordena letra                                  # A/, B/, C/… y 0-9/ para los números
 navaja ordena deshacer
 
-# Renombrar IMG_1234.jpg -> foto_1234.jpg
 # Renombrar: enseña «antes → después» y pregunta [s/n] (--simular solo mira)
 navaja renombra cambiar IMG_ foto_                   # IMG_1234.jpg → foto_1234.jpg
 navaja renombra cambiar " (1)" ""                    # informe (1).pdf → informe.pdf
@@ -146,8 +152,9 @@ navaja config ver
 
 ## Seguridad
 
-- `ordena` tiene `previsualizar` y `renombra` tiene `--simular` (no tocan nada); los dos tienen `deshacer`.
-- `renombra` enseña siempre «antes → después» y pregunta `[s/n]` antes de cambiar nada.
+- `ordena` y `renombra` enseñan siempre el plan y preguntan `[s/n]` antes de tocar nada; con `--simular` solo miran. Los dos tienen `deshacer`.
+- Nunca se sobrescribe un archivo, y se saltan los ocultos y los de sistema de Windows (`desktop.ini`, `Thumbs.db`), salvo con `--ocultos`.
+- Fechas fáciles en `--desde`, `--hasta` y `ordena tramo`: `1/9/2026`, `septiembre 2026`, `2026`, `hoy`, `hace 30 días`. Un mes o un año valen enteros.
 - `limpia` muestra los candidatos y pide confirmación; usa `--seco` para solo mirar y `--si` para no preguntar.
 - `duplicados borrar` no borra: mueve las copias a la papelera de navaja. Compara el
   contenido completo (SHA-256), no solo el nombre o el tamaño, y nunca toca el archivo

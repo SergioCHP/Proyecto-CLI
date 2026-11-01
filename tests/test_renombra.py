@@ -60,7 +60,7 @@ def test_delante_y_detras(fotos):
 
 
 def test_numerar_por_carpeta_y_con_cifras(fotos):
-    resultado = renombra("numerar", "playa", "-c", str(fotos), "--solo", "jpg", "--desde", "8", "--cifras", "2")
+    resultado = renombra("numerar", "playa", "-c", str(fotos), "--solo", "jpg", "--empieza", "8", "--cifras", "2")
     assert resultado.exit_code == 0, resultado.output
     assert nombres(fotos) == {"playa_08.jpg", "playa_09.jpg", "notas.txt"}
 
@@ -180,7 +180,7 @@ def test_contiene_solo_coge_esos_archivos(tmp_path):
     assert nombres(tmp_path) == {"gemini 1.png", "gemini 2.png", "gemini 3.png", "captura.png"}
 
     resultado = renombra("delante", "x", "--contiene", "nada", "-c", str(tmp_path))
-    assert "que contengan «nada»" in resultado.output
+    assert "No hay archivos (con «nada» en el nombre)" in resultado.output
 
 
 def test_solo_acepta_extensiones_de_varias_formas():
@@ -195,4 +195,4 @@ def test_carpeta_que_no_existe(tmp_path):
 
 def test_sin_archivos_con_esas_extensiones(fotos):
     resultado = renombra("delante", "x", "-c", str(fotos), "--solo", "pdf")
-    assert "No hay archivos con extensión .pdf" in resultado.output
+    assert "No hay archivos (tipo pdf)" in resultado.output

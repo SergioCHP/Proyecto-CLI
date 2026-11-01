@@ -21,7 +21,7 @@ from rich.table import Table
 from .. import __version__
 from ..comun import TEMAS, console, directorio_datos, error_console
 from .ocupa import BASURA_ARCHIVOS, BASURA_DIRS, BASURA_PATRONES
-from .ordena import NOMBRES
+from ..filtros import EJEMPLOS_FECHA, NOMBRES
 
 # ── Lectura de los comandos ────────────────────────────────────────────────
 
@@ -71,7 +71,7 @@ def resolver(grupo: Any, palabras: list[str]) -> tuple[Any, list[str]]:
 
 
 def todos(grupo: Any, camino: list[str] | None = None) -> list[tuple[list[str], Any]]:
-    """Todos los comandos y subcomandos, en orden, con su camino (``["ordena", "aplicar"]``)."""
+    """Todos los comandos y subcomandos, en orden, con su camino (``["ordena", "fecha"]``)."""
     camino = camino or []
     lista: list[tuple[list[str], Any]] = []
     for nombre, comando in subcomandos(grupo):
@@ -171,18 +171,38 @@ EXTRA: dict[str, str] = {
         + "."
     ),
     "ordena": (
-        "Por extensión, cada archivo va a una carpeta según su tipo: "
-        + ", ".join(NOMBRES.values())
-        + ". Por fecha, a AÑO/MES (por ejemplo 2026/10). Si ya hay un archivo con ese "
-        "nombre, añade (1), (2)… Solo se puede deshacer la última organización."
+        "Todas las opciones trabajan en la carpeta actual (o la de --carpeta), enseñan "
+        "«archivo → carpeta» y preguntan [s/n] antes de mover nada; con --simular solo "
+        "miran. Las carpetas se crean dentro de la misma carpeta (o en --destino). Nunca "
+        "se sobrescribe: si ya hay un archivo con ese nombre, añade (1), (2)… La fecha es "
+        "la de modificación, la que ves en el explorador. Se saltan los archivos ocultos "
+        "y de sistema (desktop.ini…). Filtros: --solo imagenes (o jpg,png), --contiene "
+        "texto, --desde y --hasta."
     ),
-    "ordena categorias": "Enseña qué extensiones van a cada carpeta.",
+    "ordena tipo": "Carpetas: " + ", ".join(NOMBRES.values()) + ". «ordena tipos» dice qué va en cada una.",
+    "ordena fecha": "Por mes: «2026/10 octubre». Por año: «2026». Por día: «2026-10-26».",
+    "ordena tramo": (
+        f"Fechas: {EJEMPLOS_FECHA}. Un mes o un año valen enteros: «septiembre 2026» "
+        "como desde es el 1 de septiembre y como hasta, el 30. La carpeta se llama «del "
+        "2026-09-01 al 2026-09-30» salvo que le pongas --nombre."
+    ),
+    "ordena nombre": (
+        "Sin mirar mayúsculas: «factura» junta factura_enero.pdf y Factura luz.pdf en la "
+        "carpeta «factura» (o la que digas con --nombre). Los demás no se tocan. Para un "
+        "texto con espacios, entre comillas: nombre \"mi viaje\"."
+    ),
+    "ordena letra": (
+        "Activitat.pdf → A · Boletin.pdf → B · Ñandú.jpg → Ñ · 2024 notas.txt → 0-9. Las "
+        "tildes no cuentan (Álbum va a A) ni los signos del principio (_borrador va a B); "
+        "sin letras ni números, a Otros."
+    ),
+    "ordena tipos": "Los nombres de tipo también valen en --solo: --solo imagenes.",
     "renombra": (
         "Todas las opciones trabajan en la carpeta actual (o la de --carpeta), enseñan "
         "«antes → después» y preguntan [s/n] antes de cambiar nada; con --simular solo "
         "miran. Cambian el nombre y dejan la extensión como estaba (salvo arreglar y "
-        "plantilla). --solo jpg,png limita a esas extensiones y --contiene Gemini, a los "
-        "archivos cuyo nombre lleva ese texto. Si dos archivos acabarían "
+        "plantilla). Filtros: --solo imagenes (o jpg,png), --contiene Gemini, --desde y "
+        "--hasta (fechas como en ordena). Si dos archivos acabarían "
         "con el mismo nombre, el nombre ya existe o no vale en Windows, lo marca y no lo "
         "toca. Para un texto con espacios, entre comillas: cambiar \" (1)\" \"\"."
     ),
@@ -264,16 +284,18 @@ def tabla_dos(filas: list[tuple[str, str]]) -> Table:
 MODO_INTERACTIVO = [
     ("1, 2, 3…", "Elige una opción del menú. Si es un grupo (ordena, notas…) abre su "
      "submenú; si no, lo ejecuta en la carpeta actual y pregunta lo que hace falta y los "
-     "ajustes que importan (en renombra numerar: separador, cifras, orden y qué archivos), "
-     "con Intro para dejarlos como están. Debajo del resultado te dice qué más opciones tiene."),
+     "ajustes que importan (en renombra numerar: separador, cifras y orden), con Intro para "
+     "dejarlos como están. En ordena y renombra pregunta además «¿Con qué archivos?»: "
+     "todos, de un tipo, los que llevan un texto o los de unas fechas. Debajo del "
+     "resultado te dice qué más opciones tiene."),
     ("un comando", "Igual que en la terminal pero sin «navaja» delante: ocupa -n 5, "
-     "ordena aplicar ~/Descargas. Si le falta algo obligatorio, lo pregunta."),
+     "ordena tipo --solo imagenes. Si le falta algo obligatorio, lo pregunta."),
     ("ayuda · ?", "Explica lo que puedes hacer donde estás: en el menú principal, todas las "
      "opciones; dentro de una opción (config, ordena…), esa opción con las suyas. "
      "También vale help."),
     ("menu · menú", "Vuelve a enseñar el menú (dentro de un submenú, el de ese grupo)."),
     ("ayuda ocupa · ocupa ? · ? 2", "Ayuda corta de un comando: qué hace, cómo se escribe y "
-     "sus opciones (también «ayuda ordena aplicar»)."),
+     "sus opciones (también «ayuda ordena fecha»)."),
     ("manual", "Este manual entero. «manual ocupa» enseña solo la parte de ese comando."),
     ("cd RUTA · cd .. · cd", "Cambia de carpeta; «cd» solo dice dónde estás. Al salir vuelves "
      "a la carpeta desde la que entraste."),
@@ -360,8 +382,7 @@ def manual(raiz: Any) -> None:
             [
                 ("[s/n]", "Nada se borra ni se mueve sin enseñarte antes qué va a pasar y "
                  "preguntarte. Vale s, sí, n o no. Con --si no pregunta."),
-                ("previsualizar · --simular", "ordena previsualizar y renombra --simular "
-                 "enseñan el plan sin tocar nada."),
+                ("--simular", "En ordena y renombra enseña el plan sin tocar nada."),
                 ("deshacer", "ordena y renombra revierten su última operación."),
                 ("--seco", "limpia solo enseña lo que borraría."),
                 ("papelera", "duplicados borrar mueve las copias a la papelera de navaja; "
@@ -438,7 +459,7 @@ def ayuda_corta(nombres: list[str], comando: Any, escribir: list[str] | None = N
     """Qué hace un comando, cómo se escribe y sus opciones.
 
     ``escribir`` es lo que se teclea donde estás: dentro del submenú de ordena,
-    «aplicar» y no «ordena aplicar».
+    «fecha» y no «ordena fecha».
     """
     console.print(
         f"[titulo]{escape(' '.join(nombres))}[/]  "
@@ -526,7 +547,7 @@ def ayuda_aqui(grupo: Any, camino: list[str]) -> None:
             f"{escape((comando.help or '').strip())}",
             soft_wrap=True,
         )
-        # dentro del submenú se escribe sin el nombre del grupo: «aplicar», no «ordena aplicar»
+        # dentro del submenú se escribe sin el nombre del grupo: «fecha», no «ordena fecha»
         console.print(Padding(f"Uso: [acento]{escape(uso([nombre], comando))}[/]", (0, 0, 0, 6)))
         tabla = tabla_parametros(comando)
         if tabla is not None:
@@ -544,7 +565,7 @@ def manual_cmd(
     ctx: typer.Context,
     comando: list[str] | None = typer.Argument(
         None,
-        help="Comando del que quieres solo su parte (ocupa, ordena aplicar…). "
+        help="Comando del que quieres solo su parte (ocupa, ordena fecha…). "
         "Sin nada, el manual entero.",
         show_default=False,
     ),

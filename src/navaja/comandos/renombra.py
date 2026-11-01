@@ -8,7 +8,6 @@ llama cada archivo nuevo: es una función ``(archivo, n) -> nombre nuevo``.
 from __future__ import annotations
 
 import re
-import unicodedata
 from collections.abc import Callable
 from datetime import datetime
 from enum import Enum
@@ -22,14 +21,29 @@ from ..comun import (
     AJUSTE,
     cargar_acciones,
     confirmar,
+    cuantos,
     console,
     crear_tabla,
     error_console,
     guardar_acciones,
-    iterar_archivos,
     limpiar_acciones,
     ruta_libre,
 )
+from ..filtros import (
+    OPCION_CARPETA,
+    OPCION_CONTIENE,
+    OPCION_DESDE,
+    OPCION_HASTA,
+    OPCION_OCULTOS,
+    OPCION_RECURSIVO,
+    OPCION_SI,
+    OPCION_SIMULAR,
+    OPCION_SOLO,
+    Filtro,
+    extensiones,  # noqa: F401  (se reexporta: los tests y otros módulos la usan desde aquí)
+    sin_tildes,
+)
+from ..filtros import seleccionar as seleccionar_filtro
 
 Transformar = Callable[[Path, int], str]
 """Recibe el archivo y su número (1, 2, 3… dentro de su carpeta) y devuelve el nombre nuevo."""
@@ -43,46 +57,14 @@ class Orden(str, Enum):
     fecha = "fecha"
 
 
-# ── Opciones comunes ───────────────────────────────────────────────────────
+# ── Opciones y elegir archivos ─────────────────────────────────────────────
 
-OPCION_CARPETA = typer.Option(
-    Path("."), "--carpeta", "-c", help="Carpeta con los archivos (por defecto, la actual)."
-)
-OPCION_SOLO = typer.Option(
-    "", "--solo", help="Solo estas extensiones, separadas por comas: jpg,png.", show_default=False
-)
-OPCION_CONTIENE = typer.Option(
-    "",
-    "--contiene",
-    help="Solo los archivos cuyo nombre lleva este texto (sin mirar mayúsculas).",
-    show_default=False,
-    rich_help_panel=AJUSTE,
-)
-OPCION_RECURSIVO = typer.Option(False, "--recursivo", "-r", help="Incluir subcarpetas.")
-OPCION_OCULTOS = typer.Option(False, "--ocultos", help="Incluir archivos ocultos.")
-OPCION_SIMULAR = typer.Option(
-    False, "--simular", help="Solo enseña cómo quedarían los nombres, sin cambiar nada."
-)
-OPCION_SI = typer.Option(False, "--si", "-s", help="No pide confirmación.")
 OPCION_ORDEN = typer.Option(
     Orden.nombre,
     "--orden",
     help="En qué orden se cuentan: por nombre o por fecha.",
     rich_help_panel=AJUSTE,
 )
-
-
-# ── Elegir archivos ────────────────────────────────────────────────────────
-
-
-def extensiones(solo: str) -> set[str]:
-    """``"jpg, .PNG,*.gif"`` → ``{".jpg", ".png", ".gif"}``."""
-    resultado = set()
-    for parte in solo.replace(";", ",").split(","):
-        parte = parte.strip().lower().lstrip("*")
-        if parte:
-            resultado.add(parte if parte.startswith(".") else f".{parte}")
-    return resultado
 
 
 def seleccionar(
@@ -92,14 +74,14 @@ def seleccionar(
     ocultos: bool,
     orden: Orden = Orden.nombre,
     contiene: str = "",
+    desde: str = "",
+    hasta: str = "",
 ) -> list[Path]:
-    exts = extensiones(solo)
-    texto = contiene.lower()
-    archivos = [
-        a
-        for a in iterar_archivos(carpeta, recursivo, ocultos)
-        if (not exts or a.suffix.lower() in exts) and texto in a.name.lower()
-    ]
+    filtro = Filtro(solo, contiene, desde, hasta, recursivo, ocultos)
+    return ordenados(seleccionar_filtro(carpeta, filtro), orden)
+
+
+def ordenados(archivos: list[Path], orden: Orden) -> list[Path]:
     if orden is Orden.fecha:
         return sorted(archivos, key=lambda a: (str(a.parent), a.stat().st_mtime, a.name.lower()))
     return sorted(archivos, key=lambda a: (str(a.parent), a.name.lower()))
@@ -192,23 +174,24 @@ def mostrar_plan(movimientos: list[dict], carpeta: Path, limite: int = 200) -> N
 def renombrar(
     transformar: Transformar,
     carpeta: Path,
-    solo: str,
-    recursivo: bool,
-    ocultos: bool,
+    filtro: Filtro,
     simular: bool,
     si: bool,
     orden: Orden = Orden.nombre,
-    contiene: str = "",
 ) -> None:
     """El camino común: elegir → plan → confirmar → renombrar → guardar para deshacer."""
     if not carpeta.is_dir():
         error_console.print(f"[error]La carpeta no existe:[/] {escape(str(carpeta))}", soft_wrap=True)
         raise typer.Exit(1)
 
-    archivos = seleccionar(carpeta, solo, recursivo, ocultos, orden, contiene)
+    try:
+        archivos = ordenados(seleccionar_filtro(carpeta, filtro), orden)
+    except ValueError as exc:
+        error_console.print(f"[error]{escape(str(exc))}[/]", soft_wrap=True)
+        raise typer.Exit(2)
     if not archivos:
-        extra = f" con extensión {', '.join(sorted(extensiones(solo)))}" if solo else ""
-        extra += f" que contengan «{contiene}»" if contiene else ""
+        detalle = filtro.describir()
+        extra = f" ({detalle})" if detalle else ""
         console.print(f"[aviso]No hay archivos{escape(extra)} en esta carpeta.[/]")
         return
 
@@ -226,7 +209,7 @@ def renombrar(
     if simular:
         console.print("[pista]Simulación: no se ha cambiado nada. Sin --simular, lo hace.[/]")
         return
-    if not confirmar(f"¿Renombrar {len(aplicables)} archivos?", saltar=si, por_defecto=False):
+    if not confirmar(f"¿Renombrar {cuantos(len(aplicables), 'archivo')}?", saltar=si, por_defecto=False):
         console.print("[aviso]Cancelado.[/]")
         return
 
@@ -246,7 +229,7 @@ def renombrar(
 
     if realizados:
         guardar_acciones("renombra", realizados)
-    console.print(f"[ok]Renombrados {len(realizados)} archivos.[/]")
+    console.print(f"[ok]{'Renombrado' if len(realizados) == 1 else 'Renombrados'} {cuantos(len(realizados), 'archivo')}.[/]")
     if errores:
         console.print(f"[aviso]{errores} archivos no se pudieron renombrar.[/]")
     if realizados:
@@ -254,13 +237,6 @@ def renombrar(
 
 
 # ── Cómo se calcula cada nombre ────────────────────────────────────────────
-
-
-def sin_tildes(texto: str) -> str:
-    """«Año Ñandú» → «Ano Nandu»."""
-    return "".join(
-        c for c in unicodedata.normalize("NFKD", texto) if not unicodedata.combining(c)
-    )
 
 
 def nombre_arreglado(nombre: str, separador: str = "-") -> str:
@@ -296,6 +272,8 @@ def cambiar(
     carpeta: Path = OPCION_CARPETA,
     solo: str = OPCION_SOLO,
     contiene: str = OPCION_CONTIENE,
+    desde: str = OPCION_DESDE,
+    hasta: str = OPCION_HASTA,
     recursivo: bool = OPCION_RECURSIVO,
     ocultos: bool = OPCION_OCULTOS,
     simular: bool = OPCION_SIMULAR,
@@ -304,7 +282,7 @@ def cambiar(
     """Cambia un texto por otro en el nombre."""
     renombrar(
         lambda a, n: a.stem.replace(buscar, por) + a.suffix,
-        carpeta, solo, recursivo, ocultos, simular, si, contiene=contiene,
+        carpeta, Filtro(solo, contiene, desde, hasta, recursivo, ocultos), simular, si,
     )
 
 
@@ -313,6 +291,8 @@ def delante(
     carpeta: Path = OPCION_CARPETA,
     solo: str = OPCION_SOLO,
     contiene: str = OPCION_CONTIENE,
+    desde: str = OPCION_DESDE,
+    hasta: str = OPCION_HASTA,
     recursivo: bool = OPCION_RECURSIVO,
     ocultos: bool = OPCION_OCULTOS,
     simular: bool = OPCION_SIMULAR,
@@ -321,7 +301,7 @@ def delante(
     """Añade texto delante del nombre."""
     renombrar(
         lambda a, n: texto + a.name,
-        carpeta, solo, recursivo, ocultos, simular, si, contiene=contiene,
+        carpeta, Filtro(solo, contiene, desde, hasta, recursivo, ocultos), simular, si,
     )
 
 
@@ -330,6 +310,8 @@ def detras(
     carpeta: Path = OPCION_CARPETA,
     solo: str = OPCION_SOLO,
     contiene: str = OPCION_CONTIENE,
+    desde: str = OPCION_DESDE,
+    hasta: str = OPCION_HASTA,
     recursivo: bool = OPCION_RECURSIVO,
     ocultos: bool = OPCION_OCULTOS,
     simular: bool = OPCION_SIMULAR,
@@ -338,7 +320,7 @@ def detras(
     """Añade texto detrás del nombre."""
     renombrar(
         lambda a, n: a.stem + texto + a.suffix,
-        carpeta, solo, recursivo, ocultos, simular, si, contiene=contiene,
+        carpeta, Filtro(solo, contiene, desde, hasta, recursivo, ocultos), simular, si,
     )
 
 
@@ -350,22 +332,24 @@ def numerar(
     cifras: int = typer.Option(
         3, "--cifras", help="Cifras del número (3 → 001, 1 → 1).", rich_help_panel=AJUSTE
     ),
-    desde: int = typer.Option(1, "--desde", help="Primer número."),
+    empieza: int = typer.Option(1, "--empieza", help="Primer número (por defecto, 1)."),
     orden: Orden = OPCION_ORDEN,
     carpeta: Path = OPCION_CARPETA,
     solo: str = OPCION_SOLO,
     contiene: str = OPCION_CONTIENE,
+    desde: str = OPCION_DESDE,
+    hasta: str = OPCION_HASTA,
     recursivo: bool = OPCION_RECURSIVO,
     ocultos: bool = OPCION_OCULTOS,
     simular: bool = OPCION_SIMULAR,
     si: bool = OPCION_SI,
 ) -> None:
     """Pone a todos el mismo nombre con un número."""
-    if cifras < 1 or desde < 0:
-        raise typer.BadParameter("--cifras tiene que ser 1 o más y --desde, 0 o más.")
+    if cifras < 1 or empieza < 0:
+        raise typer.BadParameter("--cifras tiene que ser 1 o más y --empieza, 0 o más.")
     renombrar(
-        lambda a, n: f"{nombre}{separador}{n + desde - 1:0{cifras}d}{a.suffix}",
-        carpeta, solo, recursivo, ocultos, simular, si, orden, contiene=contiene,
+        lambda a, n: f"{nombre}{separador}{n + empieza - 1:0{cifras}d}{a.suffix}",
+        carpeta, Filtro(solo, contiene, desde, hasta, recursivo, ocultos), simular, si, orden,
     )
 
 
@@ -377,6 +361,8 @@ def fecha(
     carpeta: Path = OPCION_CARPETA,
     solo: str = OPCION_SOLO,
     contiene: str = OPCION_CONTIENE,
+    desde: str = OPCION_DESDE,
+    hasta: str = OPCION_HASTA,
     recursivo: bool = OPCION_RECURSIVO,
     ocultos: bool = OPCION_OCULTOS,
     simular: bool = OPCION_SIMULAR,
@@ -389,7 +375,9 @@ def fecha(
         # si ya la tiene (por ejecutarlo dos veces), no la repite
         return archivo.name if archivo.name.startswith(marca) else marca + archivo.name
 
-    renombrar(con_fecha, carpeta, solo, recursivo, ocultos, simular, si, contiene=contiene)
+    renombrar(
+        con_fecha, carpeta, Filtro(solo, contiene, desde, hasta, recursivo, ocultos), simular, si
+    )
 
 
 def arreglar(
@@ -397,6 +385,8 @@ def arreglar(
     carpeta: Path = OPCION_CARPETA,
     solo: str = OPCION_SOLO,
     contiene: str = OPCION_CONTIENE,
+    desde: str = OPCION_DESDE,
+    hasta: str = OPCION_HASTA,
     recursivo: bool = OPCION_RECURSIVO,
     ocultos: bool = OPCION_OCULTOS,
     simular: bool = OPCION_SIMULAR,
@@ -405,7 +395,7 @@ def arreglar(
     """Minúsculas, sin tildes, sin eñes y sin espacios."""
     renombrar(
         lambda a, n: nombre_arreglado(a.name, separador),
-        carpeta, solo, recursivo, ocultos, simular, si, contiene=contiene,
+        carpeta, Filtro(solo, contiene, desde, hasta, recursivo, ocultos), simular, si,
     )
 
 
@@ -417,6 +407,8 @@ def plantilla(
     carpeta: Path = OPCION_CARPETA,
     solo: str = OPCION_SOLO,
     contiene: str = OPCION_CONTIENE,
+    desde: str = OPCION_DESDE,
+    hasta: str = OPCION_HASTA,
     recursivo: bool = OPCION_RECURSIVO,
     ocultos: bool = OPCION_OCULTOS,
     simular: bool = OPCION_SIMULAR,
@@ -425,7 +417,7 @@ def plantilla(
     """Tú decides el formato del nombre con huecos."""
     renombrar(
         lambda a, n: formatear_plantilla(formato, a, n),
-        carpeta, solo, recursivo, ocultos, simular, si, orden, contiene=contiene,
+        carpeta, Filtro(solo, contiene, desde, hasta, recursivo, ocultos), simular, si, orden,
     )
 
 
@@ -438,6 +430,8 @@ def avanzado(
     carpeta: Path = OPCION_CARPETA,
     solo: str = OPCION_SOLO,
     contiene: str = OPCION_CONTIENE,
+    desde: str = OPCION_DESDE,
+    hasta: str = OPCION_HASTA,
     recursivo: bool = OPCION_RECURSIVO,
     ocultos: bool = OPCION_OCULTOS,
     simular: bool = OPCION_SIMULAR,
@@ -455,7 +449,9 @@ def avanzado(
             return regex.sub(reemplazo, archivo.name)
         return regex.sub(reemplazo, archivo.stem) + archivo.suffix
 
-    renombrar(con_regex, carpeta, solo, recursivo, ocultos, simular, si, contiene=contiene)
+    renombrar(
+        con_regex, carpeta, Filtro(solo, contiene, desde, hasta, recursivo, ocultos), simular, si
+    )
 
 
 def deshacer(si: bool = OPCION_SI) -> None:

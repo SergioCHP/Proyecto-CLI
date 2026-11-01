@@ -60,16 +60,16 @@ def test_manual_de_un_comando_solo_muestra_ese():
 
 def test_manual_de_un_grupo_explica_sus_subcomandos():
     resultado = runner.invoke(app, ["manual", "ordena"])
-    for sub in ("previsualizar", "aplicar", "deshacer", "categorias"):
+    for sub in ("tipo", "fecha", "tramo", "nombre", "letra", "tipos", "deshacer"):
         assert f"ordena {sub}" in resultado.output
     assert "Otros" in resultado.output  # nota de las categorías
 
 
 def test_manual_de_algo_que_no_existe():
-    resultado = runner.invoke(app, ["manual", "ordena", "aplicr"])
+    resultado = runner.invoke(app, ["manual", "ordena", "tram"])
     assert resultado.exit_code == 1
-    assert "No hay ningún comando «ordena aplicr»" in resultado.output
-    assert "ordena aplicar" in resultado.output
+    assert "No hay ningún comando «ordena tram»" in resultado.output
+    assert "ordena tramo" in resultado.output
 
 
 def test_manual_va_el_ultimo_del_menu():

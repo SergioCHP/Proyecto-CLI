@@ -36,11 +36,12 @@ src/navaja/
 ├── app.py              # Typer app raíz, --version y registro de comandos
 ├── interactivo.py      # `navaja` sin argumentos: menú, cd, preguntas guiadas
 ├── comun.py            # console Rich, tamaños, rutas, undo, editor, iteradores
+├── filtros.py          # qué archivos: tipos, texto, fechas fáciles (ordena y renombra)
 └── comandos/
     ├── listar.py       # listar (contenido de una carpeta en tabla)
     ├── ayuda.py        # «ayuda» (lo de aquí), «ayuda ocupa» y la orden manual
     ├── ocupa.py        # ocupa (analizar) y limpia (borrar basura)
-    ├── ordena.py       # sub-app: previsualizar / aplicar / deshacer / categorias
+    ├── ordena.py       # sub-app: tipo / fecha / tramo / nombre / letra / tipos / deshacer
     ├── renombra.py     # sub-app: cambiar / delante / detras / numerar / fecha / arreglar / plantilla / avanzado / deshacer
     ├── duplicados.py   # sub-app: buscar / borrar (a papelera) / restaurar / vaciar
     ├── notas.py        # sub-app SQLite: agregar / listar / buscar / abrir / borrar / etiquetas
@@ -66,6 +67,12 @@ para dejar su valor por defecto. Marca así solo las que de verdad importan para
 ese comando (en `renombra`: `--contiene`, `--orden` y, en `numerar`,
 `--separador` y `--cifras`); las demás se escriben a mano. En `--help` salen en
 su propio panel «Ajustes».
+
+Los filtros (`--solo`, `--contiene`, `--desde`, `--hasta`) llevan
+`rich_help_panel=FILTRO` (de `filtros.py`): el modo interactivo no los pregunta
+uno a uno, sino con una sola pregunta, «¿Con qué archivos?» (todos / de un tipo /
+con un texto / de unas fechas). Las fechas se leen con `filtros.periodo()`; un
+argumento que se llame `desde` o `hasta` se valida igual al preguntarlo.
 
 El manual (`navaja manual`) también se genera de los comandos registrados. Todo
 comando, argumento y opción necesita un `help` en castellano
@@ -119,5 +126,5 @@ considera basura `limpia`, cómo compara `duplicados`…) va en `EXTRA` de
 ## Estado actual
 
 Resumen y bitácora en [ESTADO.md](ESTADO.md). Última verificación conocida
-(2026-11-01): 96 tests pasando (Python 3.10 y 3.13) y modo interactivo probado
+(2026-11-01): 146 tests pasando (Python 3.10 y 3.13) y modo interactivo probado
 en una terminal real (menú, submenús, preguntas guiadas, cd, errores y salida).

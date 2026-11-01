@@ -25,6 +25,15 @@ from .comandos.ayuda import (
 )
 from .comandos.ayuda import subcomandos as opciones_de
 from .comun import AJUSTE, console, error_console
+from .filtros import (
+    CATEGORIAS,
+    EJEMPLOS_FECHA,
+    ETIQUETAS,
+    FILTRO,
+    periodo,
+    rango,
+    sin_tildes,
+)
 
 Lector = Callable[[str], str]
 
@@ -166,12 +175,23 @@ def preguntar_obligatorios(comando: Any, leer: Lector) -> list[str]:
                 pendientes.append(valor_texto(param.default))
             continue
         texto = escape((getattr(param, "help", None) or param.name or "").rstrip("."))
+        es_fecha = param.name in ("desde", "hasta")
         if param.required:
             while True:
                 valor = leer_texto(leer, f"  {texto}: ", "")
-                if valor:
-                    break
-                console.print("  [aviso]Hace falta un valor.[/]")
+                if not valor:
+                    console.print("  [aviso]Hace falta un valor.[/]")
+                    continue
+                if es_fecha:
+                    try:
+                        periodo(valor)
+                    except ValueError as exc:
+                        console.print(f"  [aviso]{escape(str(exc))}[/]")
+                        continue
+                break
+        elif es_fecha:
+            defecto = "" if param.default is None else valor_texto(param.default)
+            valor = preguntar_fecha(leer, f"  {texto} [pista](Intro = {escape(defecto)})[/]: ") or defecto
         else:
             defecto = "" if param.default is None else valor_texto(param.default)
             pista = "vacío" if defecto == "" else defecto
@@ -198,17 +218,99 @@ def preguntar_ajustes(comando: Any, leer: Lector) -> list[str]:
         defecto = "" if param.default is None else valor_texto(param.default)
         elecciones = [valor_texto(c) for c in getattr(param.type, "choices", None) or []]
         if elecciones:
-            pista = f"{' o '.join(elecciones)} · Intro = {defecto}"
+            pista = f"{', '.join(elecciones[:-1])} o {elecciones[-1]} · Intro = {defecto}"
         else:
             pista = f"Intro = {defecto}" if defecto else "Intro para saltar"
         while True:
             valor = leer_texto(leer, f"  {texto} [pista]({escape(pista)})[/]: ", defecto)
-            if not elecciones or valor in elecciones:
+            if not elecciones:
                 break
-            console.print(f"  [aviso]Escribe {' o '.join(elecciones)}.[/]")
+            # «dia» vale por «día» y «Mes» por «mes»
+            parecida = [e for e in elecciones if sin_tildes(e.lower()) == sin_tildes(valor.lower())]
+            if parecida:
+                valor = parecida[0]
+                break
+            console.print(f"  [aviso]Escribe {', '.join(elecciones[:-1])} o {elecciones[-1]}.[/]")
         if valor != defecto:
             extra += [nombre, valor]
     return extra
+
+
+def preguntar_fecha(leer: Lector, prompt: str) -> str:
+    """Pide una fecha hasta que se entienda (o Intro para dejarla vacía)."""
+    while True:
+        valor = leer_texto(leer, prompt, "")
+        if not valor:
+            return ""
+        try:
+            periodo(valor)
+            return valor
+        except ValueError as exc:
+            console.print(f"  [aviso]{escape(str(exc))}[/]")
+
+
+def preguntar_filtro(comando: Any, leer: Lector) -> list[str]:
+    """Una sola pregunta, «¿Con qué archivos?», en vez de un filtro tras otro."""
+    filtros = {
+        max(p.opts, key=len): p
+        for p in comando.params
+        if p.param_type_name == "option" and getattr(p, "rich_help_panel", None) == FILTRO
+    }
+    if not filtros:
+        return []
+    opciones = [("todos", "Todos los de la carpeta")]
+    if "--solo" in filtros:
+        opciones.append(("tipo", "Solo de un tipo (imágenes, documentos, vídeos…)"))
+    if "--contiene" in filtros:
+        opciones.append(("texto", "Los que llevan un texto en el nombre"))
+    if "--desde" in filtros:
+        opciones.append(("fechas", "Los de unas fechas (de una a otra)"))
+
+    console.print("  [bold]¿Con qué archivos?[/]")
+    for numero, (_, texto) in enumerate(opciones, start=1):
+        console.print(f"    [acento]{numero}[/]  {texto}")
+    while True:
+        respuesta = leer("  Elige [pista](Intro = 1, todos)[/]: ").strip()
+        if not respuesta:
+            return []
+        if respuesta.isdigit() and 1 <= int(respuesta) <= len(opciones):
+            clave = opciones[int(respuesta) - 1][0]
+            break
+        console.print(f"  [aviso]Elige un número del 1 al {len(opciones)}.[/]")
+
+    if clave == "tipo":
+        tipos = [c for c in CATEGORIAS]
+        for numero, categoria in enumerate(tipos, start=1):
+            console.print(f"    [acento]{numero}[/]  {ETIQUETAS[categoria]}")
+        while True:
+            respuesta = leer_texto(
+                leer, "  ¿Qué tipo? [pista](un número, o extensiones: jpg,png)[/]: ", ""
+            )
+            if respuesta.isdigit() and 1 <= int(respuesta) <= len(tipos):
+                return ["--solo", tipos[int(respuesta) - 1]]
+            if respuesta and not respuesta.isdigit():
+                return ["--solo", respuesta]
+            console.print(f"  [aviso]Elige un número del 1 al {len(tipos)} o escribe extensiones.[/]")
+    if clave == "texto":
+        while True:
+            texto = leer_texto(leer, "  Texto que tiene que llevar el nombre: ", "")
+            if texto:
+                return ["--contiene", texto]
+            console.print("  [aviso]Hace falta un texto.[/]")
+    if clave == "fechas":
+        ejemplos = escape(EJEMPLOS_FECHA)
+        while True:
+            desde = preguntar_fecha(
+                leer, f"  Desde qué fecha [pista](ej.: {ejemplos} · Intro = desde siempre)[/]: "
+            )
+            hasta = preguntar_fecha(leer, "  Hasta qué fecha, incluida [pista](Intro = hoy)[/]: ")
+            try:
+                rango(desde, hasta)
+                break
+            except ValueError as exc:
+                console.print(f"  [aviso]{escape(str(exc))}[/]")
+        return (["--desde", desde] if desde else []) + (["--hasta", hasta] if hasta else [])
+    return []
 
 
 def pista_opciones(nombres: list[str], comando: Any) -> None:
@@ -230,6 +332,7 @@ def guiado(
     try:
         valores = preguntar_obligatorios(comando, leer)
         valores += preguntar_ajustes(comando, leer)
+        valores += preguntar_filtro(comando, leer)
     except (KeyboardInterrupt, EOFError):
         console.print("\n[aviso]Cancelado.[/]")
         return

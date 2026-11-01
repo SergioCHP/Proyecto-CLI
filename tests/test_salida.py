@@ -11,7 +11,7 @@ runner = CliRunner()
     [
         ["listar"],
         ["ocupa"],
-        ["ordena", "previsualizar"],
+        ["ordena", "tipo", "--simular", "-c", "{ruta}"],
         ["renombra", "detras", "_v2", "--simular", "-c", "{ruta}"],
     ],
 )

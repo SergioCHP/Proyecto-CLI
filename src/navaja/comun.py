@@ -7,6 +7,7 @@ import json
 import os
 import shlex
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -75,6 +76,11 @@ console = Console(theme=Theme(TEMAS[TEMA_POR_DEFECTO]))
 error_console = Console(stderr=True, theme=Theme(TEMAS[TEMA_POR_DEFECTO]))
 
 UNIDADES = ("B", "KB", "MB", "GB", "TB", "PB")
+
+
+def cuantos(n: int, palabra: str, plural: str | None = None) -> str:
+    """``cuantos(1, "archivo")`` → «1 archivo»; ``cuantos(3, "archivo")`` → «3 archivos»."""
+    return f"{n} {palabra if n == 1 else (plural or palabra + 's')}"
 
 
 def tamano_legible(numero: float) -> str:
@@ -175,8 +181,20 @@ def ruta_libre(destino: Path) -> Path:
         indice += 1
 
 
+ARCHIVOS_DE_SISTEMA = {"desktop.ini", "thumbs.db", ".ds_store"}
+
+
 def es_oculto(ruta: Path) -> bool:
-    return ruta.name.startswith(".")
+    """Empieza por punto, es un archivo de sistema (desktop.ini…) o Windows lo marca oculto."""
+    if ruta.name.startswith(".") or ruta.name.lower() in ARCHIVOS_DE_SISTEMA:
+        return True
+    if os.name == "nt":
+        try:
+            atributos = ruta.lstat().st_file_attributes
+        except (OSError, AttributeError):
+            return False
+        return bool(atributos & (stat.FILE_ATTRIBUTE_HIDDEN | stat.FILE_ATTRIBUTE_SYSTEM))
+    return False
 
 
 def iterar_archivos(
@@ -209,13 +227,13 @@ def iterar_archivos(
 
     for actual, dirs, archivos in os.walk(ruta):
         if not ocultos:
-            dirs[:] = [nombre for nombre in dirs if not nombre.startswith(".")]
+            dirs[:] = [nombre for nombre in dirs if not es_oculto(Path(actual) / nombre)]
         for nombre in sorted(archivos):
-            if not ocultos and nombre.startswith("."):
-                continue
             if not fnmatch.fnmatch(nombre, patron):
                 continue
             candidato = Path(actual) / nombre
+            if not ocultos and es_oculto(candidato):
+                continue
             try:
                 if candidato.is_file() and not candidato.is_symlink():
                     encontrados.append(candidato)
