@@ -98,8 +98,8 @@ def _recolectar(ruta: Path, profundidad: int, nivel: int = 0) -> list[tuple]:
 
 def _barra(porcentaje: float, ancho: int = 18) -> str:
     llenos = round(max(0.0, min(100.0, porcentaje)) / 100 * ancho)
-    color = "green" if porcentaje < 60 else "yellow" if porcentaje < 85 else "red"
-    return f"[{color}]{'█' * llenos}[/][pista]{'░' * (ancho - llenos)}[/]"
+    estilo = "ok" if porcentaje < 60 else "aviso" if porcentaje < 85 else "error"
+    return f"[{estilo}]{'━' * llenos}[/][borde]{'━' * (ancho - llenos)}[/]"
 
 
 def ocupa(

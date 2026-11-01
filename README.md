@@ -34,12 +34,14 @@ PS C:\Users\sergi\Descargas> navaja
 …
 0  salir
 
-Descargas> 2                       ← un número: te pregunta lo que necesita
-  Carpeta que se quiere analizar (Intro = aquí):
-  Opciones (Intro = ninguna · ? = ver cuáles hay): -n 5
-→ navaja ocupa . -n 5              ← la orden equivalente, para aprenderla
+Descargas> 2                       ← un número: lo ejecuta aquí mismo
 …
-Descargas> ordena aplicar          ← o escribe el comando como en la terminal
+Más opciones: --mayores --profundidad · ayuda ocupa explica cada una
+Descargas> ocupa -n 5              ← o escribe el comando con sus opciones
+Descargas> renombra previsualizar  ← si falta algo obligatorio, lo pregunta
+  Expresión regular a buscar: IMG_
+  Texto de reemplazo. Usa \1, \2… para los grupos: foto_
+→ navaja renombra previsualizar . IMG_ foto_
 Descargas> cd ..
 sergi> salir
 PS C:\Users\sergi\Descargas>
@@ -47,15 +49,16 @@ PS C:\Users\sergi\Descargas>
 
 | Dentro de navaja | Qué hace |
 | --- | --- |
-| un número | Elige esa opción. Si es un grupo (`ordena`, `notas`…) abre su submenú; si no, pregunta lo que hace falta y lo ejecuta. |
-| un comando | Igual que en la terminal, sin escribir `navaja` delante: `ocupa -n 5`, `ordena aplicar ~/Descargas`. |
+| un número | Elige esa opción. Si es un grupo (`ordena`, `notas`…) abre su submenú; si no, lo ejecuta en la carpeta actual y solo pregunta lo obligatorio. Debajo te dice qué opciones tiene. |
+| un comando | Igual que en la terminal, sin escribir `navaja` delante: `ocupa -n 5`, `ordena aplicar ~/Descargas`. Si le falta algo obligatorio, lo pregunta. |
+| `ayuda ocupa` · `ocupa ?` · `? 2` | Qué hace un comando, cómo se escribe y sus opciones con su valor por defecto. |
 | `cd RUTA` · `cd ..` · `cd` | Cambia de carpeta (`cd` solo enseña dónde estás). Al salir vuelves a la carpeta de antes. |
 | `ls` · `dir` | Atajos de `listar`. |
 | `menu` · `?` | Vuelve a enseñar las opciones. |
 | `cls` | Limpia la pantalla. |
-| `salir` · `exit` · `0` · Ctrl+C | Vuelve a la terminal normal. En un submenú, Intro o `0` vuelven al menú principal. |
+| `salir` · `exit` · `0` · Ctrl+C | Vuelve a la terminal normal. Un submenú sigue abierto hasta que pulsas Intro o `0`; desde él también puedes escribir un comando del menú principal. |
 
-Un error enseña el mensaje y sigues dentro. Si `navaja` no se ejecuta en una
+Un error enseña el mensaje y sigues dentro. Las confirmaciones son `[s/n]`. Si `navaja` no se ejecuta en una
 terminal (por ejemplo, en un script), no abre el menú: solo enseña el saludo y
 la lista de comandos. Fuera del modo interactivo todo funciona como siempre:
 `navaja ocupa ~/Descargas` desde la terminal normal.

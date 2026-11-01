@@ -1,4 +1,7 @@
-from navaja.comun import ruta_libre, tamano_legible
+import pytest
+from rich.prompt import InvalidResponse
+
+from navaja.comun import Confirmar, ruta_libre, tamano_legible
 
 
 def test_tamano_legible():
@@ -18,3 +21,13 @@ def test_ruta_libre(tmp_path):
 
     (tmp_path / "informe (1).txt").write_text("x")
     assert ruta_libre(original).name == "informe (2).txt"
+
+
+def test_confirmar_en_castellano():
+    pregunta = Confirmar("¿Seguro?")
+    for si in ("s", "S", "sí", "si", "y"):
+        assert pregunta.process_response(si) is True
+    for no in ("n", "No"):
+        assert pregunta.process_response(no) is False
+    with pytest.raises(InvalidResponse):
+        pregunta.process_response("quizá")

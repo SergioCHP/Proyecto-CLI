@@ -27,10 +27,11 @@ VOLVER = {"", "0", "volver"}
 ALIAS = {"ls": "listar", "dir": "listar"}
 PREFIJOS = {"navaja", "nv"}
 CD = re.compile(r"^cd(?=$|[\s./\\])(.*)$", re.IGNORECASE)
+AYUDA_DE = re.compile(r"^(?:ayuda|help|\?)\s+(.+)$|^(.+?)\s+\?$", re.IGNORECASE)
 
 AYUDA = (
-    "[pista]Elige un número o escribe un comando (ej.: [/][acento]ocupa -n 5[/][pista])"
-    " · [/][acento]cd[/][pista] carpeta · [/][acento]menu[/][pista] · [/][acento]salir[/]"
+    "[pista]Elige un número o escribe un comando · [/][acento]ayuda ocupa[/][pista] "
+    "explica uno · [/][acento]cd[/][pista] carpeta · [/][acento]salir[/]"
 )
 
 activo = False
@@ -131,26 +132,41 @@ def ejecutar(raiz: Any, argumentos: list[str]) -> int:
     return 0
 
 
-def preguntar_argumentos(comando: Any, leer: Lector) -> list[str]:
+def valor_texto(valor: Any) -> str:
+    return str(valor.value if isinstance(valor, Enum) else valor)
+
+
+def opciones_visibles(comando: Any) -> list[Any]:
+    return [
+        p
+        for p in comando.params
+        if p.param_type_name == "option" and not getattr(p, "hidden", False)
+    ]
+
+
+def preguntar_obligatorios(comando: Any, leer: Lector) -> list[str]:
+    """Pregunta solo los argumentos obligatorios.
+
+    Los opcionales (como la carpeta) se quedan con su valor por defecto; solo se
+    escriben si detrás va uno obligatorio, para no descolocar las posiciones.
+    """
     valores: list[str] = []
+    pendientes: list[str] = []
     for param in comando.params:
         if param.param_type_name != "argument":
             continue
+        if not param.required:
+            if param.default is not None:
+                pendientes.append(valor_texto(param.default))
+            continue
         texto = escape((getattr(param, "help", None) or param.name or "").rstrip("."))
-        if param.required:
-            while True:
-                valor = leer(f"  {texto}: ").strip()
-                if valor:
-                    break
-                console.print("  [aviso]Hace falta un valor.[/]")
-        else:
-            defecto = param.default
-            pista = "aquí" if str(defecto) == "." else str(defecto)
-            valor = leer(f"  {texto} [pista](Intro = {escape(pista)})[/]: ").strip()
-            if not valor:
-                if defecto is None:
-                    continue
-                valor = str(defecto)
+        while True:
+            valor = leer(f"  {texto}: ").strip()
+            if valor:
+                break
+            console.print("  [aviso]Hace falta un valor.[/]")
+        valores += pendientes
+        pendientes = []
         if getattr(param, "nargs", 1) == -1:
             valores += dividir(valor)
         else:
@@ -166,44 +182,57 @@ def mostrar_opciones(opciones: list[Any]) -> None:
         nombres = ", ".join(sorted(opcion.opts, key=len))
         ayuda = escape(getattr(opcion, "help", None) or "")
         defecto = opcion.default
-        if isinstance(defecto, Enum):
-            defecto = defecto.value
         if not getattr(opcion, "is_flag", False) and defecto not in (None, ""):
-            ayuda += f" [pista](por defecto: {escape(str(defecto))})[/]"
+            ayuda += f" [pista](por defecto: {escape(valor_texto(defecto))})[/]"
         tabla.add_row(nombres, ayuda)
     console.print(tabla)
 
 
-def preguntar_opciones(comando: Any, leer: Lector) -> list[str]:
-    opciones = [
-        p
-        for p in comando.params
-        if p.param_type_name == "option" and not getattr(p, "hidden", False)
-    ]
+def mostrar_ayuda(nombres: list[str], comando: Any) -> None:
+    """Qué hace un comando, cómo se escribe y sus opciones, en castellano."""
+    console.print(
+        f"[titulo]{escape(' '.join(nombres))}[/]  "
+        f"[pista]{escape(comando.get_short_help_str(80))}[/]",
+        soft_wrap=True,
+    )
+    partes = list(nombres)
+    for param in comando.params:
+        if param.param_type_name == "argument":
+            nombre = (param.name or "").upper()
+            partes.append(f"<{nombre}>" if param.required else f"[{nombre}]")
+    opciones = opciones_visibles(comando)
+    if opciones:
+        partes.append("[opciones]")
+    console.print(f"Uso: [acento]{escape(' '.join(partes))}[/]", soft_wrap=True)
+    if opciones:
+        mostrar_opciones(opciones)
+
+
+def pista_opciones(nombres: list[str], comando: Any) -> None:
+    opciones = opciones_visibles(comando)
     if not opciones:
-        return []
-    while True:
-        linea = leer("  Opciones [pista](Intro = ninguna · ? = ver cuáles hay)[/]: ").strip()
-        if linea == "?":
-            mostrar_opciones(opciones)
-            continue
-        try:
-            return dividir(linea)
-        except ValueError:
-            console.print("  [aviso]Falta cerrar unas comillas.[/]")
+        return
+    largas = " ".join(max(o.opts, key=len) for o in opciones)
+    console.print(
+        f"[pista]Más opciones: {escape(largas)} · [/]"
+        f"[acento]ayuda {escape(' '.join(nombres))}[/][pista] explica cada una[/]",
+        soft_wrap=True,
+    )
 
 
 def guiado(raiz: Any, camino: list[str], comando: Any, leer: Lector) -> None:
-    """Pregunta lo que necesita la orden, enseña la orden equivalente y la ejecuta."""
+    """Pregunta solo lo obligatorio, ejecuta en la carpeta actual y dice qué más se puede ajustar."""
     try:
-        argumentos = camino + preguntar_argumentos(comando, leer)
-        argumentos += preguntar_opciones(comando, leer)
+        valores = preguntar_obligatorios(comando, leer)
     except (KeyboardInterrupt, EOFError):
         console.print("\n[aviso]Cancelado.[/]")
         return
-    orden = " ".join(citar(a) for a in argumentos)
-    console.print(f"[pista]→ navaja {escape(orden)}[/]", soft_wrap=True)
+    argumentos = camino + valores
+    if valores:
+        orden = " ".join(citar(a) for a in argumentos)
+        console.print(f"[pista]→ navaja {escape(orden)}[/]", soft_wrap=True)
     ejecutar(raiz, argumentos)
+    pista_opciones(camino, comando)
 
 
 def cambiar_carpeta(destino: str) -> None:
@@ -240,16 +269,63 @@ def resolver(grupo: Any, palabras: list[str]) -> tuple[Any, list[str]]:
     return comando, nombres
 
 
-def bucle(raiz: Any, grupo: Any, camino: list[str], leer: Lector) -> None:
-    """Pide órdenes hasta salir. En un submenú, vuelve al menú anterior tras ejecutar algo."""
-    while True:
+def ayuda_de(grupo: Any, camino: list[str], texto: str, opciones: list[tuple[str, Any]]) -> None:
+    """``ayuda ocupa``, ``ayuda 2`` u ``ocupa ?``."""
+    texto = texto.strip()
+    if texto.isdigit() and 1 <= int(texto) <= len(opciones):
+        nombre, comando = opciones[int(texto) - 1]
+        comando, nombres = comando, [nombre]
+    else:
         try:
-            linea = leer(texto_prompt(camino)).strip()
-        except (KeyboardInterrupt, EOFError):
-            console.print()
-            if camino:
-                return
-            raise Salir from None
+            palabras = dividir(texto)
+        except ValueError:
+            palabras = []
+        if palabras:
+            palabras[0] = ALIAS.get(palabras[0].lower(), palabras[0])
+        comando, nombres = resolver(grupo, palabras)
+    if not nombres:
+        console.print(
+            f"[aviso]No conozco «{escape(texto)}».[/] [pista]Escribe menu para ver las opciones.[/]",
+            soft_wrap=True,
+        )
+    elif es_grupo(comando):
+        mostrar_menu(comando, camino + nombres)
+    else:
+        mostrar_ayuda(camino + nombres, comando)
+
+
+class Reenviar(Exception):
+    """En un submenú se ha escrito un comando del menú principal."""
+
+    def __init__(self, linea: str) -> None:
+        super().__init__(linea)
+        self.linea = linea
+
+
+def submenu(raiz: Any, grupo: Any, camino: list[str], leer: Lector) -> str | None:
+    """Abre un submenú. Devuelve la línea si se escribió un comando del menú principal."""
+    mostrar_menu(grupo, camino)
+    try:
+        bucle(raiz, grupo, camino, leer)
+    except Reenviar as reenvio:
+        return reenvio.linea
+    return None
+
+
+def bucle(raiz: Any, grupo: Any, camino: list[str], leer: Lector) -> None:
+    """Pide órdenes hasta salir. Un submenú sigue abierto hasta Intro, 0 o volver."""
+    pendiente: str | None = None
+    while True:
+        if pendiente is not None:
+            linea, pendiente = pendiente, None
+        else:
+            try:
+                linea = leer(texto_prompt(camino)).strip()
+            except (KeyboardInterrupt, EOFError):
+                console.print()
+                if camino:
+                    return
+                raise Salir from None
 
         palabra = linea.lower()
         if camino and palabra in VOLVER:
@@ -273,60 +349,73 @@ def bucle(raiz: Any, grupo: Any, camino: list[str], leer: Lector) -> None:
             continue
 
         opciones = opciones_de(grupo)
+        pedida = AYUDA_DE.match(linea)
+        if pedida:
+            ayuda_de(grupo, camino, pedida.group(1) or pedida.group(2), opciones)
+            console.print()
+            continue
+
+        reenviada: str | None = None
         if linea.isdigit():
             numero = int(linea)
             if not 1 <= numero <= len(opciones):
-                console.print(f"[aviso]Elige un número del 1 al {len(opciones)}.[/]")
+                salida = "volver" if camino else "salir"
+                console.print(
+                    f"[aviso]Elige un número del 1 al {len(opciones)} (0 para {salida}).[/]"
+                )
                 continue
             nombre, comando = opciones[numero - 1]
             if es_grupo(comando):
-                mostrar_menu(comando, camino + [nombre])
-                bucle(raiz, comando, camino + [nombre], leer)
+                reenviada = submenu(raiz, comando, camino + [nombre], leer)
             else:
                 guiado(raiz, camino + [nombre], comando, leer)
                 console.print()
-            if camino:
-                return
-            continue
-
-        try:
-            palabras = dividir(linea)
-        except ValueError:
-            console.print("[aviso]Falta cerrar unas comillas.[/]")
-            continue
-        if not camino and palabras and palabras[0].lower() in PREFIJOS:
-            palabras = palabras[1:]
-        if not palabras:
-            continue
-        palabras[0] = ALIAS.get(palabras[0].lower(), palabras[0])
-        primera = palabras[0]
-
-        if primera.startswith("-"):
-            ejecutar(raiz, camino + palabras)
-        elif primera in grupo.commands:
-            comando, nombres = resolver(grupo, palabras)
-            if len(nombres) < len(palabras):
-                ejecutar(raiz, camino + palabras)
-            elif es_grupo(comando):
-                mostrar_menu(comando, camino + nombres)
-                bucle(raiz, comando, camino + nombres, leer)
-            elif requiere_algo(comando):
-                guiado(raiz, camino + nombres, comando, leer)
-            else:
-                ejecutar(raiz, camino + palabras)
         else:
-            nombres = [nombre for nombre, _ in opciones]
-            parecido = difflib.get_close_matches(primera, nombres, n=1)
-            pista = f" ¿Querías decir [acento]{parecido[0]}[/]?" if parecido else ""
-            console.print(
-                f"[aviso]No conozco «{escape(primera)}».[/]{pista} "
-                "[pista]Escribe menu para ver las opciones.[/]",
-                soft_wrap=True,
-            )
-            continue
-        console.print()
-        if camino:
-            return
+            try:
+                palabras = dividir(linea)
+            except ValueError:
+                console.print("[aviso]Falta cerrar unas comillas.[/]")
+                continue
+            if palabras and palabras[0].lower() in PREFIJOS:
+                if camino:
+                    raise Reenviar(linea)
+                palabras = palabras[1:]
+            if not palabras:
+                continue
+            palabras[0] = ALIAS.get(palabras[0].lower(), palabras[0])
+            primera = palabras[0]
+
+            if camino and primera not in grupo.commands and primera in raiz.commands:
+                raise Reenviar(linea)
+            if primera.startswith("-"):
+                ejecutar(raiz, camino + palabras)
+            elif primera in grupo.commands:
+                comando, nombres = resolver(grupo, palabras)
+                if len(nombres) < len(palabras):
+                    ejecutar(raiz, camino + palabras)
+                elif es_grupo(comando):
+                    reenviada = submenu(raiz, comando, camino + nombres, leer)
+                elif requiere_algo(comando):
+                    guiado(raiz, camino + nombres, comando, leer)
+                else:
+                    ejecutar(raiz, camino + palabras)
+            else:
+                nombres = [nombre for nombre, _ in opciones]
+                parecido = difflib.get_close_matches(primera, nombres, n=1)
+                pista = f" ¿Querías decir [acento]{parecido[0]}[/]?" if parecido else ""
+                console.print(
+                    f"[aviso]No conozco «{escape(primera)}».[/]{pista} "
+                    "[pista]Escribe menu para ver las opciones.[/]",
+                    soft_wrap=True,
+                )
+                continue
+            if reenviada is None:
+                console.print()
+
+        if reenviada is not None:
+            if camino:
+                raise Reenviar(reenviada)
+            pendiente = reenviada
 
 
 def _activar_historial() -> None:

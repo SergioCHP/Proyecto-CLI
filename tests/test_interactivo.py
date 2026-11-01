@@ -6,6 +6,7 @@ import typer
 
 from navaja import interactivo
 from navaja.app import app
+from navaja.comun import cargar_config
 
 
 def lector(*lineas):
@@ -73,11 +74,12 @@ def test_cd_a_una_carpeta_que_no_existe(carpeta, capsys):
     assert str(carpeta) in texto
 
 
-def test_numero_pregunta_y_usa_la_carpeta_actual(carpeta, capsys):
-    interactivo.iniciar(app, lector(numero_de("listar"), "", ""))
+def test_numero_ejecuta_en_la_carpeta_actual_sin_preguntar(carpeta, capsys):
+    interactivo.iniciar(app, lector(numero_de("listar")))
     texto = salida(capsys)
-    assert "→ navaja listar ." in texto
     assert "apuntes.pdf" in texto
+    assert "→ navaja" not in texto  # no ha hecho falta preguntar nada
+    assert "Más opciones: --ocultos" in texto
 
 
 def test_un_error_no_cierra_navaja(carpeta, capsys):
@@ -95,14 +97,51 @@ def test_grupo_abre_submenu_e_intro_vuelve(carpeta, capsys):
     assert "apuntes.pdf" in texto
 
 
+def test_submenu_sigue_abierto_despues_de_ejecutar(carpeta, capsys):
+    # config → 1 (ver) → 2 (nombre): el «2» es de config, no «ocupa» del menú principal
+    interactivo.iniciar(app, lector(numero_de("config"), "1", "2", "Lucía"))
+    texto = salida(capsys)
+    assert "Uso de disco" not in texto
+    assert cargar_config()["nombre"] == "Lucía"
+
+
+def test_numero_fuera_de_rango_en_submenu(carpeta, capsys):
+    interactivo.iniciar(app, lector("config", "7"))
+    assert "Elige un número del 1 al 2 (0 para volver)." in salida(capsys)
+
+
+@pytest.mark.parametrize("linea", ["listar", "ls", "navaja listar"])
+def test_comando_del_menu_principal_desde_un_submenu(carpeta, capsys, linea):
+    interactivo.iniciar(app, lector("config", linea))
+    texto = salida(capsys)
+    assert "apuntes.pdf" in texto
+    assert "No conozco" not in texto
+
+
 def test_comando_con_obligatorios_sin_argumentos_pregunta(carpeta, capsys):
-    interactivo.iniciar(
-        app, lector("renombra previsualizar", "", "apuntes", "notas", "")
-    )
+    interactivo.iniciar(app, lector("renombra previsualizar", "apuntes", "notas"))
     texto = salida(capsys)
     assert "→ navaja renombra previsualizar . apuntes notas" in texto
     assert "notas.pdf" in texto
     assert (carpeta / "apuntes.pdf").exists()
+
+
+@pytest.mark.parametrize("pedido", ["ayuda ocupa", "ocupa ?", "? 2"])
+def test_ayuda_de_un_comando(carpeta, capsys, pedido):
+    if pedido == "? 2":
+        pedido = f"? {numero_de('ocupa')}"
+    interactivo.iniciar(app, lector(pedido))
+    texto = salida(capsys)
+    assert "Uso: ocupa [RUTA] [opciones]" in texto
+    assert "--mayores" in texto and "por defecto: 15" in texto
+
+
+def test_ayuda_de_un_grupo_muestra_sus_opciones(carpeta, capsys):
+    interactivo.iniciar(app, lector("ayuda ordena", "ayuda ordena aplicar"))
+    texto = salida(capsys)
+    assert "previsualizar" in texto
+    assert "Uso: ordena aplicar [RUTA] [opciones]" in texto
+    assert "extension" in texto  # valor por defecto de --por, sin «ModoOrden.»
 
 
 def test_comando_desconocido_sugiere(carpeta, capsys):

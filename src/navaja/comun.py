@@ -14,7 +14,7 @@ from datetime import datetime
 from pathlib import Path
 
 from rich.console import Console
-from rich.prompt import Confirm
+from rich.prompt import Confirm, InvalidResponse
 from rich.table import Table
 from rich.theme import Theme
 
@@ -135,11 +135,26 @@ def aplicar_tema(nombre: str) -> None:
         consola.push_theme(Theme(estilos))
 
 
+class Confirmar(Confirm):
+    """Pregunta de sí o no en castellano: ``[s/n]``; también acepta «sí», «no» e «y»."""
+
+    choices = ["s", "n"]
+    validate_error_message = "[aviso]Responde s o n.[/]"
+
+    def process_response(self, value: str) -> bool:
+        respuesta = value.strip().lower()
+        if respuesta in ("s", "si", "sí", "y", "yes"):
+            return True
+        if respuesta in ("n", "no"):
+            return False
+        raise InvalidResponse(self.validate_error_message)
+
+
 def confirmar(mensaje: str, saltar: bool = False, por_defecto: bool = False) -> bool:
     """Pide confirmación salvo que se haya pasado ``--si``."""
     if saltar:
         return True
-    return Confirm.ask(mensaje, default=por_defecto, console=console)
+    return Confirmar.ask(mensaje, default=por_defecto, console=console)
 
 
 def ruta_libre(destino: Path) -> Path:

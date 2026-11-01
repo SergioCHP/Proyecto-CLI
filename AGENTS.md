@@ -103,5 +103,5 @@ Solo se abre si stdin y stdout son una terminal (`puede_iniciar()`).
 ## Estado actual
 
 Resumen y bitácora en [ESTADO.md](ESTADO.md). Última verificación conocida
-(2026-11-01): 54 tests pasando (Python 3.10 y 3.13) y modo interactivo probado
+(2026-11-01): 64 tests pasando (Python 3.10 y 3.13) y modo interactivo probado
 en una terminal real (menú, submenús, preguntas guiadas, cd, errores y salida).

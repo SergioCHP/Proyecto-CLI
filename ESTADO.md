@@ -92,11 +92,17 @@ Documentación y calidad:
 
 - **Modo interactivo:** `navaja` sin argumentos abre un menú numerado y espera
   órdenes hasta `salir` (`interactivo.py`).
-  - Un número abre el submenú del grupo o pregunta los argumentos del comando
-    (con su valor por defecto) y las opciones, y enseña la orden equivalente
-    (`→ navaja ocupa . -n 5`) antes de ejecutarla.
+  - Un número abre el submenú del grupo o ejecuta el comando en la carpeta
+    actual. Solo pregunta los argumentos obligatorios (y entonces enseña la
+    orden equivalente, `→ navaja renombra previsualizar . IMG_ foto_`); debajo
+    del resultado dice qué opciones tiene (`Más opciones: --mayores …`).
   - También se pueden escribir los comandos como en la terminal, sin `navaja`
     delante. Un comando con argumentos obligatorios escrito solo los pregunta.
+  - `ayuda ocupa`, `ocupa ?` o `? 2`: uso del comando y sus opciones con el
+    valor por defecto, en castellano.
+  - Un submenú (`config`, `ordena`…) sigue abierto después de ejecutar algo,
+    hasta Intro, `0` o `volver`. Si desde él se escribe un comando del menú
+    principal (`listar`), se ejecuta y se vuelve al menú principal.
   - Trabaja en la carpeta actual, que se ve en el prompt (`Descargas>`). `cd`
     cambia de carpeta solo dentro de navaja; al salir se vuelve a la de inicio.
   - Los errores no cierran el modo interactivo. Ctrl+C cancela la pregunta o
@@ -104,9 +110,13 @@ Documentación y calidad:
   - Las rutas de Windows (`C:\Users\...`) y las regex conservan las barras
     invertidas; `~` se expande.
   - Si no hay terminal (scripts, tests), sigue saliendo la bienvenida de antes.
+- **Confirmaciones en castellano:** `[s/n]` en vez de `[y/n]` (acepta también
+  «sí», «no» e «y»), en todos los comandos.
 - **Nuevo:** `navaja listar [ruta] [--ocultos]`: tabla con nombre, tipo,
   tamaño y fecha; carpetas primero; carpeta inexistente → código 1.
-- 54 tests pasando en Python 3.10 y 3.13.
+- **`ocupa`:** la barra de uso usa los colores del tema (antes eran fijos) y
+  una línea fina en vez de bloques, que en Windows Terminal formaban una mancha.
+- 64 tests pasando en Python 3.10 y 3.13.
 
 ## Decisiones técnicas
 
