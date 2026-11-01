@@ -88,6 +88,26 @@ Documentación y calidad:
   (`Programación`), la instalación editable no se encuentra porque 3.10 lee
   el `.pth` como cp1252. Se arregla con `PYTHONUTF8=1`; desde 3.13 no pasa.
 
+### 2026-11-01 — Modo interactivo y listar
+
+- **Modo interactivo:** `navaja` sin argumentos abre un menú numerado y espera
+  órdenes hasta `salir` (`interactivo.py`).
+  - Un número abre el submenú del grupo o pregunta los argumentos del comando
+    (con su valor por defecto) y las opciones, y enseña la orden equivalente
+    (`→ navaja ocupa . -n 5`) antes de ejecutarla.
+  - También se pueden escribir los comandos como en la terminal, sin `navaja`
+    delante. Un comando con argumentos obligatorios escrito solo los pregunta.
+  - Trabaja en la carpeta actual, que se ve en el prompt (`Descargas>`). `cd`
+    cambia de carpeta solo dentro de navaja; al salir se vuelve a la de inicio.
+  - Los errores no cierran el modo interactivo. Ctrl+C cancela la pregunta o
+    la orden en curso; en el prompt principal, sale.
+  - Las rutas de Windows (`C:\Users\...`) y las regex conservan las barras
+    invertidas; `~` se expande.
+  - Si no hay terminal (scripts, tests), sigue saliendo la bienvenida de antes.
+- **Nuevo:** `navaja listar [ruta] [--ocultos]`: tabla con nombre, tipo,
+  tamaño y fecha; carpetas primero; carpeta inexistente → código 1.
+- 54 tests pasando en Python 3.10 y 3.13.
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.
@@ -100,6 +120,10 @@ Documentación y calidad:
 - **Temas de Rich con estilos semánticos**: los comandos dicen qué es cada
   texto (`[ok]`, `[aviso]`) y el tema decide el color; cambiar paleta no toca
   los comandos.
+- **Modo interactivo sin lista propia de comandos:** el menú y las preguntas
+  se generan a partir de los comandos de Typer, así que no hay que mantener dos
+  sitios. Los comandos siguen funcionando igual desde la terminal (códigos de
+  salida, scripts, tests).
 - **Comandos en castellano** y opciones cortas coherentes (`-n`, `-p`, `-e`,
   `-r`, `-s`).
 

@@ -9,15 +9,15 @@ from rich.markup import escape
 from rich.panel import Panel
 from rich.table import Table
 
-from . import __version__
-from .comandos import ajustes, duplicados, notas, ocupa, ordena, renombra
+from . import __version__, interactivo
+from .comandos import ajustes, duplicados, listar, notas, ocupa, ordena, renombra
 from .comun import aplicar_tema, cargar_config, console
 
 app = typer.Typer(
     name="navaja",
     help=(
         "Caja de herramientas de terminal con utilidades cotidianas.\n\n"
-        "Comandos: [bold]ocupa[/], [bold]limpia[/], [bold]ordena[/], "
+        "Comandos: [bold]listar[/], [bold]ocupa[/], [bold]limpia[/], [bold]ordena[/], "
         "[bold]renombra[/], [bold]duplicados[/], [bold]notas[/], "
         "[bold]tema[/] y [bold]config[/]."
     ),
@@ -46,13 +46,16 @@ def resumen_comandos(raiz: typer.Typer) -> list[tuple[str, str]]:
     return filas
 
 
-def _mostrar_bienvenida(config: dict[str, str]) -> None:
+def _mostrar_cabecera(config: dict[str, str]) -> None:
     texto = (
         f"[titulo]{escape(saludo(datetime.now().hour, config['nombre']))}[/]\n"
         f"[pista]navaja {__version__} · tema {config['tema']}[/]"
     )
     console.print(Panel(texto, title="navaja", border_style="marco", expand=False))
 
+
+def _mostrar_bienvenida(config: dict[str, str]) -> None:
+    _mostrar_cabecera(config)
     tabla = Table.grid(padding=(0, 2))
     tabla.add_column(style="acento", no_wrap=True)
     tabla.add_column()
@@ -80,14 +83,18 @@ def principal(
         help="Muestra la versión y sale.",
     ),
 ) -> None:
-    """Utilidades de terminal en castellano."""
+    """Utilidades de terminal en castellano. Sin comando, abre el modo interactivo."""
     config = cargar_config()
     aplicar_tema(config["tema"])
     if ctx.invoked_subcommand is None:
-        _mostrar_bienvenida(config)
+        if interactivo.puede_iniciar():
+            _mostrar_cabecera(config)
+            interactivo.iniciar(app)
+        else:
+            _mostrar_bienvenida(config)
 
 
-for modulo in (ocupa, ordena, renombra, duplicados, notas, ajustes):
+for modulo in (listar, ocupa, ordena, renombra, duplicados, notas, ajustes):
     modulo.registrar(app)
 
 

@@ -6,6 +6,7 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
 
 | Comando | Qué hace |
 | --- | --- |
+| `navaja listar [ruta]` | Muestra qué hay en una carpeta: nombre, tipo, tamaño y fecha. |
 | `navaja ocupa [ruta]` | Muestra qué archivos y carpetas ocupan más espacio. |
 | `navaja limpia [ruta]` | Busca y borra cachés y temporales (`node_modules`, `__pycache__`, `dist`…). |
 | `navaja ordena` | Organiza archivos por extensión o fecha, con deshacer. |
@@ -15,8 +16,49 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
 | `navaja tema` | Elige los colores (clasico, morado, terminal, pastel). |
 | `navaja config` | Tu nombre para el saludo y el tema actual. |
 
-Escribe `navaja` sin nada más para ver el saludo y la lista de comandos.
 `nv` es un alias corto: `nv ocupa` es lo mismo que `navaja ocupa`.
+
+## Modo interactivo
+
+Escribe `navaja` sin nada más y entras en navaja: sale un menú numerado y se
+queda esperando órdenes hasta que escribas `salir`. Trabaja en la carpeta desde
+la que entras, que se ve siempre en el prompt.
+
+```text
+PS C:\Users\sergi\Descargas> navaja
+╭────────── navaja ───────────╮
+│ Buenos días, Sergio         │
+╰─────────────────────────────╯
+1  listar      Muestra qué hay en una carpeta.
+2  ocupa       Muestra qué ocupa espacio en disco.
+…
+0  salir
+
+Descargas> 2                       ← un número: te pregunta lo que necesita
+  Carpeta que se quiere analizar (Intro = aquí):
+  Opciones (Intro = ninguna · ? = ver cuáles hay): -n 5
+→ navaja ocupa . -n 5              ← la orden equivalente, para aprenderla
+…
+Descargas> ordena aplicar          ← o escribe el comando como en la terminal
+Descargas> cd ..
+sergi> salir
+PS C:\Users\sergi\Descargas>
+```
+
+| Dentro de navaja | Qué hace |
+| --- | --- |
+| un número | Elige esa opción. Si es un grupo (`ordena`, `notas`…) abre su submenú; si no, pregunta lo que hace falta y lo ejecuta. |
+| un comando | Igual que en la terminal, sin escribir `navaja` delante: `ocupa -n 5`, `ordena aplicar ~/Descargas`. |
+| `cd RUTA` · `cd ..` · `cd` | Cambia de carpeta (`cd` solo enseña dónde estás). Al salir vuelves a la carpeta de antes. |
+| `ls` · `dir` | Atajos de `listar`. |
+| `menu` · `?` | Vuelve a enseñar las opciones. |
+| `cls` | Limpia la pantalla. |
+| `salir` · `exit` · `0` · Ctrl+C | Vuelve a la terminal normal. En un submenú, Intro o `0` vuelven al menú principal. |
+
+Un error enseña el mensaje y sigues dentro. Si `navaja` no se ejecuta en una
+terminal (por ejemplo, en un script), no abre el menú: solo enseña el saludo y
+la lista de comandos. Fuera del modo interactivo todo funciona como siempre:
+`navaja ocupa ~/Descargas` desde la terminal normal.
 
 ## Instalación
 
@@ -38,6 +80,9 @@ uv run navaja --help
 ## Ejemplos
 
 ```bash
+# Ver qué hay en una carpeta (carpetas primero)
+navaja listar ~/Descargas
+
 # Ver qué ocupa espacio (2 niveles de profundidad, 20 entradas)
 navaja ocupa ~/Descargas -n 20 -p 2
 

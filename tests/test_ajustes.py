@@ -42,7 +42,7 @@ def test_todos_los_temas_definen_los_mismos_estilos():
 
 def test_resumen_incluye_todos_los_comandos():
     nombres = [nombre for nombre, _ in resumen_comandos(app)]
-    for esperado in ("ocupa", "limpia", "ordena", "duplicados", "notas", "tema", "config"):
+    for esperado in ("listar", "ocupa", "limpia", "ordena", "duplicados", "notas", "tema", "config"):
         assert esperado in nombres
 
 

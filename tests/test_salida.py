@@ -9,6 +9,7 @@ runner = CliRunner()
 @pytest.mark.parametrize(
     "argumentos",
     [
+        ["listar"],
         ["ocupa"],
         ["ordena", "previsualizar"],
         ["renombra", "previsualizar", "{ruta}", "zzz", "y"],

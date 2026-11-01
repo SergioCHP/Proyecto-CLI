@@ -1,0 +1,118 @@
+import os
+from pathlib import Path
+
+import pytest
+import typer
+
+from navaja import interactivo
+from navaja.app import app
+
+
+def lector(*lineas):
+    """Simula lo que escribe la persona; al acabarse, es como pulsar Ctrl+D."""
+    pendientes = iter(lineas)
+
+    def leer(_prompt):
+        try:
+            return next(pendientes)
+        except StopIteration:
+            raise EOFError from None
+
+    return leer
+
+
+@pytest.fixture
+def carpeta(tmp_path, monkeypatch):
+    (tmp_path / "apuntes.pdf").write_text("x")
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "sub" / "dentro.txt").write_text("x")
+    monkeypatch.chdir(tmp_path)
+    return tmp_path
+
+
+def salida(capsys):
+    capturado = capsys.readouterr()
+    return capturado.out + capturado.err
+
+
+def numero_de(nombre):
+    nombres = typer.main.get_command(app).list_commands(None)
+    return str(nombres.index(nombre) + 1)
+
+
+def test_dividir_respeta_comillas_y_barras_de_windows():
+    assert interactivo.dividir(r'listar "C:\Users\ana\Mis cosas"') == [
+        "listar",
+        r"C:\Users\ana\Mis cosas",
+    ]
+    assert interactivo.dividir(r"renombra previsualizar . 'IMG_(\d+)' 'foto_\1'") == [
+        "renombra",
+        "previsualizar",
+        ".",
+        r"IMG_(\d+)",
+        r"foto_\1",
+    ]
+    assert interactivo.dividir("listar ~") == ["listar", os.path.expanduser("~")]
+    with pytest.raises(ValueError):
+        interactivo.dividir('listar "sin cerrar')
+
+
+def test_salir_vuelve_a_la_carpeta_de_inicio(carpeta, capsys):
+    interactivo.iniciar(app, lector("cd sub", "listar", "salir"))
+    texto = salida(capsys)
+    assert "dentro.txt" in texto
+    assert "Hasta luego" in texto
+    assert Path.cwd() == carpeta
+    assert interactivo.activo is False
+
+
+def test_cd_a_una_carpeta_que_no_existe(carpeta, capsys):
+    interactivo.iniciar(app, lector("cd no-existe", "pwd"))
+    texto = salida(capsys)
+    assert "No existe la carpeta" in texto
+    assert str(carpeta) in texto
+
+
+def test_numero_pregunta_y_usa_la_carpeta_actual(carpeta, capsys):
+    interactivo.iniciar(app, lector(numero_de("listar"), "", ""))
+    texto = salida(capsys)
+    assert "→ navaja listar ." in texto
+    assert "apuntes.pdf" in texto
+
+
+def test_un_error_no_cierra_navaja(carpeta, capsys):
+    interactivo.iniciar(app, lector("ocupa no-existe", "listar", "0"))
+    texto = salida(capsys)
+    assert "La ruta no existe" in texto
+    assert "apuntes.pdf" in texto
+    assert "Hasta luego" in texto
+
+
+def test_grupo_abre_submenu_e_intro_vuelve(carpeta, capsys):
+    interactivo.iniciar(app, lector("ordena", "", "listar"))
+    texto = salida(capsys)
+    assert "previsualizar" in texto and "volver" in texto
+    assert "apuntes.pdf" in texto
+
+
+def test_comando_con_obligatorios_sin_argumentos_pregunta(carpeta, capsys):
+    interactivo.iniciar(
+        app, lector("renombra previsualizar", "", "apuntes", "notas", "")
+    )
+    texto = salida(capsys)
+    assert "→ navaja renombra previsualizar . apuntes notas" in texto
+    assert "notas.pdf" in texto
+    assert (carpeta / "apuntes.pdf").exists()
+
+
+def test_comando_desconocido_sugiere(carpeta, capsys):
+    interactivo.iniciar(app, lector("ocpa", "navaja ls"))
+    texto = salida(capsys)
+    assert "No conozco «ocpa»" in texto
+    assert "ocupa" in texto
+    assert "apuntes.pdf" in texto
+
+
+def test_sin_terminal_no_se_abre():
+    # Bajo pytest la entrada no es una terminal: navaja enseña la bienvenida y sale.
+    assert interactivo.puede_iniciar() is False

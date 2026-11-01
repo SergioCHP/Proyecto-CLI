@@ -34,8 +34,10 @@ sobre carpetas reales del usuario: prueba en una carpeta temporal.
 ```
 src/navaja/
 ├── app.py              # Typer app raíz, --version y registro de comandos
+├── interactivo.py      # `navaja` sin argumentos: menú, cd, preguntas guiadas
 ├── comun.py            # console Rich, tamaños, rutas, undo, editor, iteradores
 └── comandos/
+    ├── listar.py       # listar (contenido de una carpeta en tabla)
     ├── ocupa.py        # ocupa (analizar) y limpia (borrar basura)
     ├── ordena.py       # sub-app: previsualizar / aplicar / deshacer / categorias
     ├── renombra.py     # sub-app: previsualizar / aplicar / deshacer
@@ -48,6 +50,14 @@ tests/                  # un archivo por módulo
 Cada módulo de `comandos/` expone `registrar(app)` y se registra en el bucle de
 `app.py`. Los comandos de nivel superior se añaden con `app.command(...)`; los
 subcomandos con `app.add_typer(sub, name="...")`.
+
+El modo interactivo no tiene una lista propia de comandos: lee los registrados
+en la app (con `typer.main.get_command`), así que un comando nuevo aparece solo
+en el menú y sus preguntas guiadas salen de sus argumentos (`help` y valor por
+defecto). Por eso cada argumento debe tener un `help` claro. Las órdenes se
+ejecutan con `raiz.main(args, standalone_mode=True)` y se captura `SystemExit`,
+de modo que los errores salen igual que en la terminal y no cierran el bucle.
+Solo se abre si stdin y stdout son una terminal (`puede_iniciar()`).
 
 ## Cómo añadir una utilidad nueva
 
@@ -93,5 +103,5 @@ subcomandos con `app.add_typer(sub, name="...")`.
 ## Estado actual
 
 Resumen y bitácora en [ESTADO.md](ESTADO.md). Última verificación conocida
-(2026-10-30): 39 tests pasando (Python 3.10 y 3.13) y CLI probada de punta a
-punta (ocupa, limpia, ordena, renombra, duplicados, notas, tema y config).
+(2026-11-01): 54 tests pasando (Python 3.10 y 3.13) y modo interactivo probado
+en una terminal real (menú, submenús, preguntas guiadas, cd, errores y salida).
