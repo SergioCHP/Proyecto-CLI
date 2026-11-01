@@ -249,6 +249,10 @@ EXTRA: dict[str, str] = {
         "el que piden abrir y borrar."
     ),
     "tema": "Temas disponibles: " + ", ".join(TEMAS) + ".",
+    "config": (
+        "La primera vez que abres navaja te pregunta cómo quieres que te llame (Intro = tu "
+        "usuario de Windows). Lo que pongas en «config nombre» se guarda y te llama así siempre."
+    ),
     "manual": "Sin nada, este manual entero. Con un comando, solo su parte.",
 }
 

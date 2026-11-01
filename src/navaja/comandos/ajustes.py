@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import typer
 from rich.markup import escape
 from rich.theme import Theme
@@ -15,6 +17,7 @@ from ..comun import (
     directorio_datos,
     error_console,
     guardar_config,
+    usuario_del_sistema,
 )
 
 
@@ -60,7 +63,14 @@ def elegir(
 def ver_config() -> None:
     """Muestra tu nombre, tu tema y dónde guarda navaja tus datos."""
     config = cargar_config()
-    console.print(f"Nombre: [acento]{escape(config['nombre'])}[/]")
+    if config["nombre"]:
+        console.print(f"Nombre: [acento]{escape(config['nombre'])}[/]")
+    else:
+        console.print(
+            f"Nombre: [acento]{escape(usuario_del_sistema() or '(ninguno)')}[/] "
+            f"[pista](tu usuario del sistema; para cambiarlo: {como_se_escribe('config nombre')})[/]",
+            soft_wrap=True,
+        )
     console.print(f"Tema:   [acento]{config['tema']}[/]")
     console.print(
         f"Datos:  [acento]{escape(str(directorio_datos()))}[/] "
@@ -69,10 +79,36 @@ def ver_config() -> None:
     )
 
 
+def preguntar_nombre(leer: Callable[[str], str] | None = None) -> str:
+    """La primera vez que se abre el menú: cómo quieres que te llame. Se guarda para siempre.
+
+    Intro = tu usuario del sistema. Si se cancela (Ctrl+C), se usa el usuario sin
+    guardarlo, y la próxima vez lo vuelve a preguntar.
+    """
+    leer = leer or console.input
+    usuario = usuario_del_sistema()
+    console.print("[titulo]¡Hola! Es la primera vez que abres navaja.[/]")
+    pista = f" [pista](Intro = {escape(usuario)}, tu usuario)[/]" if usuario else ""
+    try:
+        elegido = leer(f"¿Cómo quieres que te llame?{pista}: ").strip()
+    except (KeyboardInterrupt, EOFError):
+        console.print()
+        return usuario
+    elegido = elegido or usuario
+    if elegido:
+        config = cargar_config()
+        config["nombre"] = elegido
+        guardar_config(config)
+        console.print(
+            f"[pista]Te llamaré {escape(elegido)}. Para cambiarlo, en el menú: config → nombre.[/]\n"
+        )
+    return elegido
+
+
 def nombre(
     nuevo: str = typer.Argument(..., help="Cómo quieres que te salude navaja."),
 ) -> None:
-    """Cambia el nombre del saludo."""
+    """Cambia el nombre con el que te saluda (se guarda para siempre)."""
     nuevo = nuevo.strip()
     if not nuevo:
         error_console.print("[error]El nombre no puede estar vacío.[/]")
@@ -93,5 +129,5 @@ def registrar(app: typer.Typer) -> None:
         help="Tu nombre para el saludo y dónde guarda navaja tus datos.", no_args_is_help=True
     )
     config.command("ver", help="Muestra tu nombre, tu tema y dónde están tus datos.")(ver_config)
-    config.command("nombre", help="Cambia el nombre con el que te saluda.")(nombre)
+    config.command("nombre", help="Cambia el nombre con el que te saluda (para siempre).")(nombre)
     app.add_typer(config, name="config")

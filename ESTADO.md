@@ -303,6 +303,17 @@ Más claro:
 - Se quitan las referencias a un `acciones.json` que ya no existe.
 - 187 tests pasando en Python 3.10 y 3.13.
 
+### 2026-11-01 — Tu nombre la primera vez
+
+- El nombre por defecto ya no es «Sergio» para todo el mundo. Sin nombre guardado,
+  navaja te llama por tu usuario del sistema (en Windows, «sergi» → «Sergi»).
+- La primera vez que abres el menú pregunta «¿Cómo quieres que te llame?» (Intro =
+  tu usuario) y lo guarda en config.json: ya no vuelve a preguntar. Si se cancela,
+  usa el usuario sin guardarlo y lo pregunta la próxima vez.
+- `config nombre` lo cambia para siempre; `config ver` dice si el nombre es el
+  tuyo guardado o tu usuario del sistema.
+- 192 tests pasando en Python 3.10 y 3.13.
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.

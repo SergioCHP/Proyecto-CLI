@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import fnmatch
+import getpass
 import json
 import os
 import shlex
@@ -67,7 +68,9 @@ TEMAS: dict[str, dict[str, str]] = {
     },
 }
 TEMA_POR_DEFECTO = "clasico"
-CONFIG_POR_DEFECTO = {"nombre": "Sergio", "tema": TEMA_POR_DEFECTO}
+CONFIG_POR_DEFECTO = {"nombre": "", "tema": TEMA_POR_DEFECTO}
+"""Sin nombre guardado, navaja te llama por tu usuario del sistema (y la primera vez
+que abres el menú te pregunta cómo quieres que te llame)."""
 
 AJUSTE = "Ajustes"
 """Panel de --help (``rich_help_panel``) de las opciones que el modo interactivo
@@ -132,6 +135,21 @@ def cargar_config(ruta: Path | None = None) -> dict[str, str]:
     if config["tema"] not in TEMAS:
         config["tema"] = TEMA_POR_DEFECTO
     return config
+
+
+def usuario_del_sistema() -> str:
+    """Tu usuario de Windows (o de Linux/macOS), con la primera letra en mayúscula."""
+    try:
+        usuario = getpass.getuser()
+    except Exception:  # getuser lanza si no encuentra ninguno
+        usuario = os.environ.get("USERNAME") or os.environ.get("USER") or ""
+    usuario = usuario.strip()
+    return usuario[:1].upper() + usuario[1:]
+
+
+def nombre_para_saludar(config: dict[str, str]) -> str:
+    """El nombre que guardaste en config o, si no hay, tu usuario del sistema."""
+    return config["nombre"] or usuario_del_sistema()
 
 
 def guardar_config(config: dict[str, str], ruta: Path | None = None) -> None:

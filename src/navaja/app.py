@@ -11,7 +11,7 @@ from rich.table import Table
 
 from . import __version__, interactivo
 from .comandos import ajustes, ayuda, duplicados, listar, notas, ocupa, ordena, renombra
-from .comun import aplicar_tema, cargar_config, console
+from .comun import aplicar_tema, cargar_config, console, nombre_para_saludar
 
 app = typer.Typer(
     name="navaja",
@@ -29,14 +29,14 @@ ayuda.instalar_en_castellano()
 
 
 def saludo(hora: int, nombre: str) -> str:
-    """Saludo según la hora del día (0-23)."""
+    """Saludo según la hora del día (0-23); sin nombre, solo el saludo."""
     if 6 <= hora < 14:
         momento = "Buenos días"
     elif 14 <= hora < 21:
         momento = "Buenas tardes"
     else:
         momento = "Buenas noches"
-    return f"{momento}, {nombre}"
+    return f"{momento}, {nombre}" if nombre else momento
 
 
 def resumen_comandos(raiz: typer.Typer) -> list[tuple[str, str]]:
@@ -47,7 +47,7 @@ def resumen_comandos(raiz: typer.Typer) -> list[tuple[str, str]]:
 
 def _mostrar_cabecera(config: dict[str, str]) -> None:
     texto = (
-        f"[titulo]{escape(saludo(datetime.now().hour, config['nombre']))}[/]\n"
+        f"[titulo]{escape(saludo(datetime.now().hour, nombre_para_saludar(config)))}[/]\n"
         f"[pista]navaja {__version__} · tema {config['tema']}[/]"
     )
     console.print(Panel(texto, title="navaja", border_style="marco", expand=False))
@@ -89,6 +89,8 @@ def principal(
     aplicar_tema(config["tema"])
     if ctx.invoked_subcommand is None:
         if interactivo.puede_iniciar():
+            if not config["nombre"]:  # la primera vez
+                config["nombre"] = ajustes.preguntar_nombre()
             _mostrar_cabecera(config)
             interactivo.iniciar(app)
         else:

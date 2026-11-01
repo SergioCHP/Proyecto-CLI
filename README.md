@@ -14,7 +14,7 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
 | `navaja duplicados` | Encuentra archivos repetidos por contenido y los manda a una papelera recuperable. |
 | `navaja notas` | Notas y enlaces con etiquetas, guardados en SQLite. Lo que empieza por `https://` o `www.` es un enlace. |
 | `navaja tema` | `ver` los temas y `elegir` uno (clasico, morado, terminal, pastel). |
-| `navaja config` | Tu nombre para el saludo y dónde guarda navaja tus datos. |
+| `navaja config` | Tu nombre para el saludo y dónde guarda navaja tus datos. La primera vez que abres navaja te pregunta cómo llamarte (Intro = tu usuario de Windows); con `config nombre` lo cambias para siempre. |
 | `navaja manual [comando]` | El manual completo: cómo se usa, todos los comandos con sus opciones, atajos, seguridad y datos. Con un comando, solo su parte. |
 
 `nav` es un alias corto: `nav ocupa` es lo mismo que `navaja ocupa`. (No es `nv` porque en
@@ -31,6 +31,8 @@ la que entras, que se ve siempre en el prompt.
 
 ```text
 PS C:\Users\sergi\Descargas> navaja
+¡Hola! Es la primera vez que abres navaja.         ← solo la primera vez
+¿Cómo quieres que te llame? (Intro = Sergi, tu usuario): Sergio
 ╭────────── navaja ───────────╮
 │ Buenos días, Sergio         │
 ╰─────────────────────────────╯
