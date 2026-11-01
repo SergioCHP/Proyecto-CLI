@@ -365,7 +365,7 @@ Más claro:
 - **Comandos en castellano** y opciones cortas coherentes (`-n`, `-p`, `-e`,
   `-r`, `-s`).
 - **Acciones en un archivo externo (acciones.json)** y no en código: añadir o
-  cambiar una acción no exige programar ni reinstalar. Pendiente de explicar en
+  cambiar una acción no exige programar ni reinstalar. Razones y alternativas en
   `docs/adr/0001-configuracion-externa.md`.
 
 ## Pendientes / ideas
@@ -376,7 +376,7 @@ Más claro:
 - [ ] Exportar notas a Markdown o HTML.
 - [ ] Comando `tarea` (tareas pendientes) reutilizando la base de notas.
 - [ ] Historial de deshacer (varias operaciones, no solo la última).
-- [ ] ADR-0001 (por qué acciones.json) y `docs/prompts.md`.
+- [x] ADR-0001 (por qué acciones.json) y `docs/prompts.md`.
 - [ ] En una rutina simulada, cada paso se calcula con la carpeta como está ahora (no
   con lo que habrían cambiado los pasos de antes).
 - [ ] Autocompletado de shell.

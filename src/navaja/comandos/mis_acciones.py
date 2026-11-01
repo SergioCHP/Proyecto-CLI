@@ -196,6 +196,7 @@ def ejecutar(
 
     para_deshacer: list[dict[str, str]] = []
     fallos = 0
+    cancelado = False
     for numero, paso in enumerate(pasos, start=1):
         if len(pasos) > 1:
             console.rule(
@@ -225,6 +226,7 @@ def ejecutar(
                 else f" No se hacen los {restan} pasos que quedan."
             )
             console.print(f"[aviso]Cancelado.{extra}[/]")
+            cancelado = True
             break
 
         paso.ejecutar(plan)
@@ -252,6 +254,7 @@ def ejecutar(
         console.print(f"[pista]Para deshacerlo: {como_se_escribe('acciones deshacer')}[/]")
     if fallos:
         console.print(f"[aviso]No se pudo con {cuantos(fallos, 'archivo')}.[/]")
+    if fallos or cancelado:  # decir que no también sale con 1: un script sabe que no se hizo
         raise typer.Exit(1)
 
 

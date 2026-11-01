@@ -195,6 +195,15 @@ navaja acciones deshacer
 Siempre primero con `--simular`, y en tus carpetas de verdad solo cuando la simulación
 diga exactamente lo que esperas.
 
+Para ver los errores de `acciones validar` (siempre con código de salida 3 y sin traza),
+en `pruebas/` hay cuatro archivos rotos a propósito: `roto-coma.json`, `roto-tipo.json`,
+`roto-repetido.json` y `roto-regex.json`:
+
+```powershell
+navaja acciones validar --config pruebas/roto-tipo.json
+$LASTEXITCODE   # 3
+```
+
 ## Instalación
 
 Con [uv](https://docs.astral.sh/uv/) (Linux, macOS y Windows), desde la carpeta del repo:

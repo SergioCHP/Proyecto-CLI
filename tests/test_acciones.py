@@ -77,6 +77,22 @@ def test_los_archivos_del_repo_son_validos(nombre):
     assert all(not campo.startswith("_") for a in cargadas for campo in a)  # las notas no pasan
 
 
+@pytest.mark.parametrize(
+    ("nombre", "dice"),
+    [
+        ("roto-coma.json", "sobra una coma"),
+        ("roto-tipo.json", "«tipo»"),
+        ("roto-repetido.json", "está repetido"),
+        ("roto-regex.json", "filtro.patron"),
+    ],
+)
+def test_los_json_rotos_de_pruebas_salen_con_3_y_sin_traza(nombre, dice):
+    resultado = runner.invoke(app, ["acciones", "validar", "--config", str(REPO / "pruebas" / nombre)])
+    assert resultado.exit_code == 3
+    assert dice in plano(resultado.output)
+    assert "Traceback" not in resultado.output
+
+
 def test_el_de_pruebas_solo_toca_pruebas_navaja():
     for a in esquema.cargar(REPO / "pruebas" / "acciones-prueba.json"):
         for campo in ("carpeta", "destino"):
@@ -337,7 +353,7 @@ def test_decir_que_no_no_hace_nada(tmp_path, descargas):
     ruta = archivo_de_acciones(tmp_path, accion("todo", "ordenar", carpeta=str(descargas), por="tipo"))
     antes = relativos(descargas)
     resultado = acciones("ejecutar", "todo", config=ruta, entrada="n\n")
-    assert resultado.exit_code == 0
+    assert resultado.exit_code == 1  # no se hizo: un script lo sabe
     assert "Cancelado" in resultado.output
     assert relativos(descargas) == antes
 
