@@ -31,7 +31,7 @@ class Motor:
         """Por nombre (sin mirar mayúsculas) o por su número en «acciones ver»."""
         pedido = pedido.strip()
         lista = list(self.acciones.values())
-        if pedido.isdigit() and 1 <= int(pedido) <= len(lista):
+        if pedido.isdecimal() and 1 <= int(pedido) <= len(lista):
             return lista[int(pedido) - 1]
         for nombre, accion in self.acciones.items():
             if nombre.lower() == pedido.lower():
@@ -59,7 +59,7 @@ class Motor:
         if not carpeta.is_dir():
             que = "no es una carpeta" if carpeta.exists() else "no existe"
             raise NavajaError(f"La carpeta {carpeta} {que} (acción «{accion.nombre}»).")
-        return carpeta
+        return carpeta.resolve()  # absoluta: el plan y el deshacer no dependen de la carpeta actual
 
     @staticmethod
     def seleccionar(carpeta: Path, filtro: dict[str, Any], excluir: Path | None = None) -> list[Path]:
@@ -83,8 +83,10 @@ class Motor:
         patron = re.compile(filtro["patron"], re.IGNORECASE) if "patron" in filtro else None
         minimo = a_bytes(filtro["mayor_que"]) if "mayor_que" in filtro else 0
         prohibidas = [directorio_datos().resolve()]
-        if excluir is not None and excluir.resolve() != carpeta.resolve():
-            prohibidas.append(excluir.resolve())
+        if excluir is not None:
+            ex, base = excluir.resolve(), carpeta.resolve()
+            if ex != base and ex.is_relative_to(base):  # uno por encima excluiría todo
+                prohibidas.append(ex)
 
         elegidos = []
         for archivo in archivos:

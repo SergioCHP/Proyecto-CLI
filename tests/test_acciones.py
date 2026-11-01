@@ -271,6 +271,28 @@ def test_motor_busca_por_nombre_numero_o_parecido():
     assert error.value.codigo_salida == 1
 
 
+def test_motor_buscar_con_cifras_raras_no_revienta():
+    motor = Motor(validar_con(accion("pdf", "mover", destino="x")))
+    with pytest.raises(NavajaError, match="No hay ninguna acción «²»"):
+        motor.buscar("²")
+
+
+def test_sin_carpeta_trabaja_con_la_actual_en_absoluto(descargas, monkeypatch):
+    monkeypatch.chdir(descargas)
+    motor = Motor(validar_con(accion("pdf", "mover", destino=str(descargas), filtro={"solo": "pdf"})))
+    base, plan = motor.planificar(motor.acciones["pdf"])
+    assert base.is_absolute()
+    assert plan == []  # ya están en su sitio: nada de «factura (1).pdf»
+
+
+def test_destino_por_encima_de_la_carpeta_no_excluye_nada(descargas):
+    escaneos = descargas / "Escaneos"
+    crear(escaneos / "dni.pdf")
+    assert [a.name for a in Motor.seleccionar(escaneos, {}, descargas)] == ["dni.pdf"]
+    # el de dentro sí se sigue excluyendo
+    assert Motor.seleccionar(descargas, {"recursivo": True, "solo": "pdf"}, escaneos) == [descargas / "factura.pdf"]
+
+
 def test_seleccionar_cumple_todo_el_filtro(descargas):
     crear(descargas / "grande.png", "x" * 2048)
     elegir = lambda filtro: {a.name for a in Motor.seleccionar(descargas, filtro)}  # noqa: E731
