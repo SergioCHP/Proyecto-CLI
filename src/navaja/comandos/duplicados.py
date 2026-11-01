@@ -17,15 +17,18 @@ from rich.markup import escape
 from rich.panel import Panel
 
 from ..comun import (
+    AJUSTE,
     cargar_acciones,
     confirmar,
     console,
     crear_tabla,
+    cuantos,
     directorio_datos,
     error_console,
     guardar_acciones,
     iterar_archivos,
     limpiar_acciones,
+    como_se_escribe,
     ruta_libre,
     tamano_legible,
 )
@@ -189,7 +192,7 @@ def _escanear(
     conservar: Conservar,
 ) -> list[Grupo]:
     if not ruta.is_dir():
-        error_console.print(f"[error]La carpeta no existe:[/] {escape(str(ruta))}")
+        error_console.print(f"[error]La carpeta no existe:[/] {escape(str(ruta))}", soft_wrap=True)
         raise typer.Exit(1)
     try:
         minimo_bytes = a_bytes(minimo)
@@ -208,7 +211,7 @@ def _escanear(
 
     if fallos:
         error_console.print(
-            f"[aviso]{len(fallos)} archivos no se pudieron leer y se han ignorado.[/]"
+            f"[aviso]No se pudo leer (y no cuenta): {cuantos(len(fallos), 'archivo')}.[/]"
         )
     for grupo in grupos:
         grupo.archivos = ordenar_grupo(grupo.archivos, conservar)
@@ -220,6 +223,7 @@ def _mostrar(grupos: list[Grupo], ruta: Path, limite: int) -> None:
     recuperable = sum(grupo.desperdicio for grupo in grupos)
     console.print(
         Panel(
+            f"[pista]En[/] {escape(str(ruta.resolve()))}\n"
             f"Grupos: [bold]{len(grupos)}[/]  ·  "
             f"Copias sobrantes: [bold]{sobrantes}[/]  ·  "
             f"Recuperable: [logro]{tamano_legible(recuperable)}[/]",
@@ -243,22 +247,48 @@ def _mostrar(grupos: list[Grupo], ruta: Path, limite: int) -> None:
     console.print(tabla)
     if len(grupos) > limite:
         console.print(
-            f"[pista]Mostrando {limite} de {len(grupos)} grupos. "
-            "Usa --mayores para ver más.[/]"
+            f"[pista]Mostrando {limite} de {len(grupos)} grupos. Para ver más: --mayores 50[/]"
         )
     console.print("[pista]✔ se conserva  ·  ✘ copia sobrante[/]")
 
 
-def _sin_duplicados(recursivo: bool) -> None:
-    console.print("[ok]No hay archivos duplicados.[/]")
+def _sin_duplicados(ruta: Path, recursivo: bool) -> None:
+    console.print(
+        f"[ok]No hay archivos repetidos en[/] {escape(str(ruta.resolve()))}", soft_wrap=True
+    )
     if not recursivo:
         console.print(
-            "[pista]Solo he mirado esta carpeta; usa -r para incluir subcarpetas.[/]"
+            "[pista]Solo he mirado esta carpeta. Para mirar también las subcarpetas: "
+            f"{escape(como_se_escribe('duplicados buscar -r'))}[/]"
         )
 
 
-OPCION_RECURSIVO = typer.Option(False, "--recursivo", "-r", help="Incluir subcarpetas.")
-OPCION_OCULTOS = typer.Option(False, "--ocultos", help="Incluir archivos ocultos.")
+def _misma_busqueda(ruta: Path, recursivo: bool, ocultos: bool, minimo: str, conservar: Conservar) -> str:
+    """Las opciones que se escribieron, para repetirlas en «duplicados borrar»."""
+    partes = []
+    if str(ruta) != ".":
+        partes.append(f'"{ruta}"' if " " in str(ruta) else str(ruta))
+    if recursivo:
+        partes.append("-r")
+    if ocultos:
+        partes.append("--ocultos")
+    if minimo != "1B":
+        partes.append(f"--minimo {minimo}")
+    if conservar is not Conservar.antiguo:
+        partes.append(f"--conservar {conservar.value}")
+    return " ".join(partes)
+
+
+OPCION_RECURSIVO = typer.Option(
+    False,
+    "--recursivo",
+    "-r",
+    help="Mirar también dentro de las subcarpetas.",
+    rich_help_panel=AJUSTE,
+)
+OPCION_OCULTOS = typer.Option(
+    False, "--ocultos", help="Incluir archivos ocultos y de sistema (desktop.ini…)."
+)
 OPCION_MINIMO = typer.Option(
     "1B",
     "--minimo",
@@ -269,8 +299,7 @@ OPCION_MINIMO = typer.Option(
 OPCION_CONSERVAR = typer.Option(
     Conservar.antiguo,
     "--conservar",
-    "-c",
-    help="Cuál se queda: el más antiguo, el más reciente o el de ruta más corta.",
+    help="Cuál se queda de cada grupo: el más antiguo, el más reciente o el de ruta más corta.",
 )
 
 
@@ -283,16 +312,18 @@ def buscar(
     minimo: str = OPCION_MINIMO,
     conservar: Conservar = OPCION_CONSERVAR,
     mayores: int = typer.Option(
-        20, "--mayores", "-n", help="Grupos a mostrar.", show_default=True
+        20, "--mayores", "-n", min=1, help="Cuántos grupos enseñar (los que más ocupan)."
     ),
 ) -> None:
     """Muestra los archivos repetidos sin tocar nada."""
     grupos = _escanear(ruta, recursivo, ocultos, minimo, conservar)
     if not grupos:
-        _sin_duplicados(recursivo)
+        _sin_duplicados(ruta, recursivo)
         return
     _mostrar(grupos, ruta, mayores)
-    console.print("[pista]Para quitar las copias: navaja duplicados borrar …[/]")
+    opciones = _misma_busqueda(ruta, recursivo, ocultos, minimo, conservar)
+    texto = f"duplicados borrar {opciones}".strip()
+    console.print(f"[pista]Para quitar las copias (van a la papelera de navaja): {escape(como_se_escribe(texto))}[/]")
 
 
 def borrar(
@@ -302,19 +333,24 @@ def borrar(
     recursivo: bool = OPCION_RECURSIVO,
     ocultos: bool = OPCION_OCULTOS,
     minimo: str = OPCION_MINIMO,
-    conservar: Conservar = OPCION_CONSERVAR,
+    conservar: Conservar = typer.Option(
+        Conservar.antiguo,
+        "--conservar",
+        help="Cuál se queda de cada grupo: el más antiguo, el más reciente o el de ruta más corta.",
+        rich_help_panel=AJUSTE,
+    ),
     si: bool = typer.Option(False, "--si", "-s", help="No pide confirmación."),
 ) -> None:
     """Mueve las copias sobrantes a la papelera de navaja (recuperable)."""
     grupos = _escanear(ruta, recursivo, ocultos, minimo, conservar)
     if not grupos:
-        _sin_duplicados(recursivo)
+        _sin_duplicados(ruta, recursivo)
         return
 
     _mostrar(grupos, ruta, limite=len(grupos))
     total = sum(len(grupo.sobrantes) for grupo in grupos)
     if not confirmar(
-        f"¿Mover {total} copias a la papelera de navaja?", saltar=si, por_defecto=False
+        f"¿Mover {cuantos(total, 'copia')} a la papelera de navaja?", saltar=si, por_defecto=False
     ):
         console.print("[aviso]Cancelado.[/]")
         return
@@ -346,15 +382,15 @@ def borrar(
     if realizados:
         guardar_acciones("duplicados", cargar_acciones("duplicados") + realizados)
     console.print(
-        f"[ok]Movidas {len(realizados)} copias "
-        f"({tamano_legible(liberado)}) a la papelera.[/]"
+        f"[ok]{'Movida' if len(realizados) == 1 else 'Movidas'} {cuantos(len(realizados), 'copia')} "
+        f"({tamano_legible(liberado)}) a la papelera de navaja.[/]"
     )
     if errores:
-        console.print(f"[aviso]{errores} copias no se pudieron mover.[/]")
+        console.print(f"[aviso]No se pudo mover: {cuantos(errores, 'copia')}.[/]")
     if realizados:
         console.print(
-            "[pista]Recuperarlas: navaja duplicados restaurar  ·  "
-            "Liberar el espacio: navaja duplicados vaciar[/]"
+            f"[pista]Recuperarlas: {como_se_escribe('duplicados restaurar')}  ·  "
+            f"Liberar el espacio: {como_se_escribe('duplicados vaciar')}[/]"
         )
 
 
@@ -368,7 +404,7 @@ def restaurar(
         console.print("[aviso]No hay nada en la papelera que restaurar.[/]")
         return
 
-    console.print(f"Se devolverían [bold]{len(pendientes)}[/] archivos a su sitio.")
+    console.print(f"Se devolverían [bold]{cuantos(len(pendientes), 'archivo')}[/] a su sitio.")
     if not confirmar("¿Restaurarlos?", saltar=si, por_defecto=False):
         console.print("[aviso]Cancelado.[/]")
         return
@@ -395,10 +431,10 @@ def restaurar(
             pass
 
     if errores:
-        console.print(f"[aviso]{errores} archivos no se pudieron devolver.[/]")
+        console.print(f"[aviso]No se pudo devolver: {cuantos(errores, 'archivo')}.[/]")
     else:
         limpiar_acciones("duplicados")
-    console.print(f"[ok]Restaurados {devueltos} archivos.[/]")
+    console.print(f"[ok]{'Devuelto' if devueltos == 1 else 'Devueltos'} {cuantos(devueltos, 'archivo')} a su sitio.[/]")
 
 
 def vaciar(
@@ -413,8 +449,9 @@ def vaciar(
 
     total = sum(archivo.stat().st_size for archivo in archivos)
     console.print(
-        f"La papelera tiene [bold]{len(archivos)}[/] archivos "
-        f"([bold]{tamano_legible(total)}[/]) en {escape(str(papelera))}"
+        f"La papelera de navaja tiene [bold]{cuantos(len(archivos), 'archivo')}[/] "
+        f"([bold]{tamano_legible(total)}[/]) en {escape(str(papelera))}",
+        soft_wrap=True,
     )
     if not confirmar(
         "¿Borrarlos para siempre? No se podrá deshacer.", saltar=si, por_defecto=False

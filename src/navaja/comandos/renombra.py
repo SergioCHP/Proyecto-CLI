@@ -27,6 +27,7 @@ from ..comun import (
     error_console,
     guardar_acciones,
     limpiar_acciones,
+    como_se_escribe,
     ruta_libre,
 )
 from ..filtros import (
@@ -100,6 +101,18 @@ def nombre_valido(nombre: str) -> bool:
     )
 
 
+def motivo_invalido(nombre: str) -> str:
+    """Por qué un nombre no vale, en palabras."""
+    malos = sorted({c for c in nombre if c in PROHIBIDOS_EN_WINDOWS})
+    if malos:
+        return f"no puede llevar {' '.join(malos)}"
+    if not nombre.strip():
+        return "se queda vacío"
+    if nombre.endswith((" ", ".")):
+        return "no puede acabar en punto ni en espacio"
+    return "nombre no válido"
+
+
 def planificar(archivos: list[Path], transformar: Transformar) -> list[dict]:
     """Calcula el nombre nuevo de cada archivo y marca lo que no se puede hacer.
 
@@ -118,10 +131,11 @@ def planificar(archivos: list[Path], transformar: Transformar) -> list[dict]:
         entrada = {"origen": str(origen), "destino": str(destino), "estado": "ok", "motivo": ""}
         solo_mayusculas = str(destino).lower() == str(origen).lower()
 
+        entrada["nuevo"] = nuevo
         if nuevo == origen.name:
             entrada["estado"], entrada["motivo"] = "igual", "sin cambios"
         elif not nombre_valido(nuevo) or Path(nuevo).name != nuevo:
-            entrada["estado"], entrada["motivo"] = "invalido", "nombre no válido"
+            entrada["estado"], entrada["motivo"] = "invalido", motivo_invalido(nuevo)
         elif str(destino).lower() in reservados:
             entrada["estado"], entrada["motivo"] = "conflicto", "dos archivos acabarían igual"
         elif destino.exists() and not (solo_mayusculas and destino.samefile(origen)):
@@ -138,6 +152,7 @@ def mostrar_plan(movimientos: list[dict], carpeta: Path, limite: int = 200) -> N
     iguales = len(movimientos) - len(cambian) - len(problemas)
 
     resumen = (
+        f"[pista]En[/] {escape(str(carpeta.resolve()))}\n"
         f"[bold]{len(movimientos)}[/] archivo{'' if len(movimientos) == 1 else 's'} · "
         f"[ok]{len(cambian)} {'cambia' if len(cambian) == 1 else 'cambian'}[/]"
     )
@@ -157,7 +172,7 @@ def mostrar_plan(movimientos: list[dict], carpeta: Path, limite: int = 200) -> N
             antes = str(origen.relative_to(carpeta))
         except ValueError:
             antes = origen.name
-        despues = Path(movimiento["destino"]).name
+        despues = movimiento.get("nuevo") or Path(movimiento["destino"]).name
         fila = [escape(antes), f"[ok]{escape(despues)}[/]"]
         if problemas:
             ok = movimiento["estado"] == "ok"
@@ -178,8 +193,12 @@ def renombrar(
     simular: bool,
     si: bool,
     orden: Orden = Orden.nombre,
+    sin_cambios: str = "Ningún nombre cambia.",
 ) -> None:
-    """El camino común: elegir → plan → confirmar → renombrar → guardar para deshacer."""
+    """El camino común: elegir → plan → confirmar → renombrar → guardar para deshacer.
+
+    ``sin_cambios`` es lo que se dice si no cambia ningún nombre.
+    """
     if not carpeta.is_dir():
         error_console.print(f"[error]La carpeta no existe:[/] {escape(str(carpeta))}", soft_wrap=True)
         raise typer.Exit(1)
@@ -192,7 +211,10 @@ def renombrar(
     if not archivos:
         detalle = filtro.describir()
         extra = f" ({detalle})" if detalle else ""
-        console.print(f"[aviso]No hay archivos{escape(extra)} en esta carpeta.[/]")
+        console.print(
+            f"[aviso]No hay archivos{escape(extra)}[/] [pista](en {escape(str(carpeta.resolve()))})[/]",
+            soft_wrap=True,
+        )
         return
 
     try:
@@ -201,10 +223,16 @@ def renombrar(
         error_console.print(f"[error]{escape(str(exc))}[/]", soft_wrap=True)
         raise typer.Exit(2)
 
-    mostrar_plan(movimientos, carpeta)
     aplicables = [m for m in movimientos if m["estado"] == "ok"]
+    if all(m["estado"] == "igual" for m in movimientos):
+        console.print(
+            f"[aviso]{escape(sin_cambios)}[/] [pista](en {escape(str(carpeta.resolve()))})[/]",
+            soft_wrap=True,
+        )
+        return
+    mostrar_plan(movimientos, carpeta)
     if not aplicables:
-        console.print("[aviso]Ningún nombre cambia.[/]")
+        console.print("[aviso]Ningún nombre se puede cambiar: mira la columna «Problema».[/]")
         return
     if simular:
         console.print("[pista]Simulación: no se ha cambiado nada. Sin --simular, lo hace.[/]")
@@ -231,9 +259,9 @@ def renombrar(
         guardar_acciones("renombra", realizados)
     console.print(f"[ok]{'Renombrado' if len(realizados) == 1 else 'Renombrados'} {cuantos(len(realizados), 'archivo')}.[/]")
     if errores:
-        console.print(f"[aviso]{errores} archivos no se pudieron renombrar.[/]")
+        console.print(f"[aviso]No se pudo renombrar: {cuantos(errores, 'archivo')}.[/]")
     if realizados:
-        console.print("[pista]Para deshacerlo: renombra deshacer[/]")
+        console.print(f"[pista]Para deshacerlo: {como_se_escribe('renombra deshacer')}[/]")
 
 
 # ── Cómo se calcula cada nombre ────────────────────────────────────────────
@@ -251,7 +279,7 @@ def nombre_arreglado(nombre: str, separador: str = "-") -> str:
 
 
 def formatear_plantilla(plantilla: str, archivo: Path, n: int) -> str:
-    """Rellena los huecos {nombre}, {ext}, {n} y {fecha} (mismos que acciones.json)."""
+    """Rellena los huecos {nombre}, {ext}, {n} y {fecha}."""
     fecha = datetime.fromtimestamp(archivo.stat().st_mtime)
     try:
         return plantilla.format(fecha=fecha, n=n, ext=archivo.suffix.lower(), nombre=archivo.stem)
@@ -266,8 +294,27 @@ def formatear_plantilla(plantilla: str, archivo: Path, n: int) -> str:
 # ── Las opciones ───────────────────────────────────────────────────────────
 
 
+def cambiar_texto(archivo: Path, buscar: str, por: str) -> str:
+    """«IMG_» → «foto_» en el nombre, sin mirar mayúsculas; la extensión no se toca.
+
+    Se puede escribir el nombre entero con su extensión: «informe.pdf» → «final»
+    (o «final.pdf») deja «final.pdf».
+    """
+    extension = archivo.suffix
+    if extension and len(buscar) > len(extension) and buscar.lower().endswith(extension.lower()):
+        buscar = buscar[: -len(extension)]
+        if por.lower().endswith(extension.lower()):
+            por = por[: -len(extension)]
+    if not buscar:
+        return archivo.name
+    nuevo = re.sub(re.escape(buscar), lambda _: por, archivo.stem, flags=re.IGNORECASE)
+    return nuevo + extension
+
+
 def cambiar(
-    buscar: str = typer.Argument(..., help="Texto que buscas en el nombre (sin contar la extensión)."),
+    buscar: str = typer.Argument(
+        ..., help="Qué texto del nombre quieres cambiar (ej.: IMG_, o el nombre entero)."
+    ),
     por: str = typer.Argument("", help="Texto nuevo. Vacío para borrar el que buscas."),
     carpeta: Path = OPCION_CARPETA,
     solo: str = OPCION_SOLO,
@@ -281,8 +328,9 @@ def cambiar(
 ) -> None:
     """Cambia un texto por otro en el nombre."""
     renombrar(
-        lambda a, n: a.stem.replace(buscar, por) + a.suffix,
+        lambda a, n: cambiar_texto(a, buscar, por),
         carpeta, Filtro(solo, contiene, desde, hasta, recursivo, ocultos), simular, si,
+        sin_cambios=f"Ningún nombre lleva «{buscar}».",
     )
 
 
@@ -330,9 +378,9 @@ def numerar(
         "_", "--separador", help="Lo que va entre el nombre y el número.", rich_help_panel=AJUSTE
     ),
     cifras: int = typer.Option(
-        3, "--cifras", help="Cifras del número (3 → 001, 1 → 1).", rich_help_panel=AJUSTE
+        3, "--cifras", min=1, help="Cifras del número (3 → 001, 1 → 1).", rich_help_panel=AJUSTE
     ),
-    empieza: int = typer.Option(1, "--empieza", help="Primer número (por defecto, 1)."),
+    empieza: int = typer.Option(1, "--empieza", min=0, help="Primer número."),
     orden: Orden = OPCION_ORDEN,
     carpeta: Path = OPCION_CARPETA,
     solo: str = OPCION_SOLO,
@@ -345,8 +393,6 @@ def numerar(
     si: bool = OPCION_SI,
 ) -> None:
     """Pone a todos el mismo nombre con un número."""
-    if cifras < 1 or empieza < 0:
-        raise typer.BadParameter("--cifras tiene que ser 1 o más y --empieza, 0 o más.")
     renombrar(
         lambda a, n: f"{nombre}{separador}{n + empieza - 1:0{cifras}d}{a.suffix}",
         carpeta, Filtro(solo, contiene, desde, hasta, recursivo, ocultos), simular, si, orden,
@@ -371,7 +417,13 @@ def fecha(
     """Pone delante la fecha de modificación de cada archivo."""
 
     def con_fecha(archivo: Path, n: int) -> str:
-        marca = datetime.fromtimestamp(archivo.stat().st_mtime).strftime(formato) + separador
+        try:
+            marca = datetime.fromtimestamp(archivo.stat().st_mtime).strftime(formato) + separador
+        except ValueError:
+            raise ValueError(
+                f"El formato de fecha «{formato}» no vale. Usa %Y (año), %m (mes) y %d (día): "
+                "%Y-%m-%d → 2026-10-26."
+            ) from None
         # si ya la tiene (por ejecutarlo dos veces), no la repite
         return archivo.name if archivo.name.startswith(marca) else marca + archivo.name
 
@@ -421,6 +473,25 @@ def plantilla(
     )
 
 
+def error_de_regex(exc: Exception, regex: re.Pattern | None = None) -> str:
+    """Los errores más comunes de las expresiones regulares, en castellano."""
+    texto = str(exc)
+    if m := re.match(r"invalid group reference (\d+)", texto):
+        grupos = regex.groups if regex is not None else 0
+        return f"usa \\{m[1]}, pero el patrón tiene {cuantos(grupos, 'grupo')} entre paréntesis."
+    traducciones = {
+        "missing ), unterminated subpattern": "falta cerrar un paréntesis «)».",
+        "unbalanced parenthesis": "sobra un paréntesis «)».",
+        "nothing to repeat": "un *, + o ? no tiene nada delante.",
+        "unterminated character set": "falta cerrar un corchete «]».",
+        "bad escape (end of pattern)": "acaba en «\\» y detrás no hay nada.",
+    }
+    for ingles, castellano in traducciones.items():
+        if texto.startswith(ingles):
+            return castellano
+    return texto
+
+
 def avanzado(
     patron: str = typer.Argument(..., help="Expresión regular a buscar."),
     reemplazo: str = typer.Argument(..., help="Texto de reemplazo. Usa \\1, \\2… para los grupos."),
@@ -441,13 +512,19 @@ def avanzado(
     try:
         regex = re.compile(patron)
     except re.error as exc:
-        error_console.print(f"[error]Expresión regular inválida:[/] {escape(str(exc))}")
+        error_console.print(
+            f"[error]El patrón no es una expresión regular válida:[/] {escape(error_de_regex(exc))}",
+            soft_wrap=True,
+        )
         raise typer.Exit(2)
 
     def con_regex(archivo: Path, n: int) -> str:
-        if completo:
-            return regex.sub(reemplazo, archivo.name)
-        return regex.sub(reemplazo, archivo.stem) + archivo.suffix
+        try:
+            if completo:
+                return regex.sub(reemplazo, archivo.name)
+            return regex.sub(reemplazo, archivo.stem) + archivo.suffix
+        except (re.error, IndexError) as exc:
+            raise ValueError(f"El reemplazo «{reemplazo}» no vale: {error_de_regex(exc, regex)}") from None
 
     renombrar(
         con_regex, carpeta, Filtro(solo, contiene, desde, hasta, recursivo, ocultos), simular, si
@@ -455,13 +532,13 @@ def avanzado(
 
 
 def deshacer(si: bool = OPCION_SI) -> None:
-    """Revierte el último renombrado."""
+    """Deja los nombres como estaban antes del último renombrado."""
     acciones = cargar_acciones("renombra")
     if not acciones:
         console.print("[aviso]No hay ningún renombrado que deshacer.[/]")
         return
 
-    console.print(f"Se devolverían [bold]{len(acciones)}[/] nombres.")
+    console.print(f"Se devolverían [bold]{cuantos(len(acciones), 'nombre')}[/] a como estaban.")
     if not confirmar("¿Deshacer el último renombrado?", saltar=si, por_defecto=False):
         console.print("[aviso]Cancelado.[/]")
         return
@@ -482,9 +559,9 @@ def deshacer(si: bool = OPCION_SI) -> None:
             )
 
     limpiar_acciones("renombra")
-    console.print(f"[ok]Restaurados {devueltos} nombres.[/]")
+    console.print(f"[ok]{'Devuelto' if devueltos == 1 else 'Devueltos'} {cuantos(devueltos, 'nombre')}.[/]")
     if errores:
-        console.print(f"[aviso]{errores} nombres no se pudieron restaurar.[/]")
+        console.print(f"[aviso]No se pudo devolver: {cuantos(errores, 'nombre')}.[/]")
 
 
 def registrar(app: typer.Typer) -> None:
@@ -502,5 +579,5 @@ def registrar(app: typer.Typer) -> None:
     )
     sub.command("plantilla", help="Tú decides el formato con huecos ({fecha}_{n:03}{ext}).")(plantilla)
     sub.command("avanzado", help="Con expresiones regulares, para casos difíciles.")(avanzado)
-    sub.command("deshacer", help="Revierte el último renombrado.")(deshacer)
+    sub.command("deshacer", help="Deja los nombres como estaban antes del último renombrado.")(deshacer)
     app.add_typer(sub, name="renombra")

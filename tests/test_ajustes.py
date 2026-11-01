@@ -53,12 +53,12 @@ def test_sin_argumentos_muestra_bienvenida():
     assert "duplicados" in resultado.output
 
 
-def test_fijar_tema_y_nombre_desde_la_cli():
-    assert runner.invoke(app, ["tema", "fijar", "Morado"]).exit_code == 0
+def test_elegir_tema_y_nombre_desde_la_cli():
+    assert runner.invoke(app, ["tema", "elegir", "Morado"]).exit_code == 0
     assert runner.invoke(app, ["config", "nombre", "[Sergio]"]).exit_code == 0
     assert cargar_config() == {"nombre": "[Sergio]", "tema": "morado"}
 
     resultado = runner.invoke(app, [])
     assert "[Sergio]" in resultado.output
 
-    assert runner.invoke(app, ["tema", "fijar", "inventado"]).exit_code == 1
+    assert runner.invoke(app, ["tema", "elegir", "inventado"]).exit_code == 1

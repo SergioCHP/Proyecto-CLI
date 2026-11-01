@@ -153,3 +153,13 @@ def test_minimo_invalido_es_error_de_uso(tmp_path, datos_temporales):
         app, ["duplicados", "buscar", str(tmp_path), "--minimo", "diez"]
     )
     assert resultado.exit_code == 2
+
+
+def test_buscar_dice_la_orden_exacta_para_borrar(tmp_path, datos_temporales):
+    _crear(tmp_path, "a.txt", b"igual")
+    _crear(tmp_path, "sub/b.txt", b"igual")
+    resultado = CliRunner().invoke(app, ["duplicados", "buscar", str(tmp_path), "-r"])
+    texto = " ".join(resultado.output.split())
+    assert "navaja duplicados borrar" in texto and "-r" in texto
+    resultado = CliRunner().invoke(app, ["duplicados", "borrar", str(tmp_path), "-r", "--si"])
+    assert "Movida 1 copia" in resultado.output

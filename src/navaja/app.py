@@ -23,7 +23,9 @@ app = typer.Typer(
     ),
     add_completion=False,
     rich_markup_mode="rich",
+    context_settings={"help_option_names": ["-h", "--help"]},
 )
+ayuda.instalar_en_castellano()
 
 
 def saludo(hora: int, nombre: str) -> str:
@@ -38,12 +40,9 @@ def saludo(hora: int, nombre: str) -> str:
 
 
 def resumen_comandos(raiz: typer.Typer) -> list[tuple[str, str]]:
-    """Nombre y ayuda corta de cada comando registrado, en orden."""
-    filas = [(c.name or "", c.help or "") for c in raiz.registered_commands]
-    filas += [
-        (g.name or "", g.typer_instance.info.help or "") for g in raiz.registered_groups
-    ]
-    return filas
+    """Nombre y ayuda corta de cada comando, en el mismo orden que el menú."""
+    grupo = typer.main.get_command(raiz)
+    return [(nombre, comando.help or "") for nombre, comando in ayuda.subcomandos(grupo)]
 
 
 def _mostrar_cabecera(config: dict[str, str]) -> None:
@@ -62,7 +61,9 @@ def _mostrar_bienvenida(config: dict[str, str]) -> None:
     for nombre, texto in resumen_comandos(app):
         tabla.add_row(nombre, texto)
     console.print(tabla)
-    console.print("\n[pista]navaja <comando> --help para más detalles[/]")
+    console.print(
+        "\n[pista]Ayuda de un comando: navaja <comando> --help · Todo explicado: navaja manual[/]"
+    )
 
 
 def _mostrar_version(valor: bool) -> None:

@@ -149,15 +149,6 @@ def aplicar_tema(nombre: str) -> None:
 PALABRAS_VOLVER = {"volver", "atrás", "atras"}
 """En el modo interactivo, a la pregunta anterior."""
 
-se_puede_volver = False
-"""Lo activa el modo interactivo mientras ejecuta una orden que ha preguntado
-(o elegido) desde el menú: entonces las confirmaciones son ``[s/n/volver]``."""
-
-
-class Volver(Exception):
-    """En una confirmación se ha contestado «volver»: el modo interactivo vuelve a
-    la última pregunta (o al menú). Se lanza antes de cambiar nada."""
-
 
 class Confirmar(Confirm):
     """Pregunta de sí o no en castellano: ``[s/n]``; también acepta «sí», «no» e «y»."""
@@ -174,20 +165,22 @@ class Confirmar(Confirm):
             return True
         if respuesta in ("n", "no"):
             return False
-        if se_puede_volver and respuesta in PALABRAS_VOLVER:
-            raise Volver
         raise InvalidResponse(self.validate_error_message)
+
+
+def como_se_escribe(texto: str) -> str:
+    """Cómo se escribe una orden donde estás: «navaja ordena deshacer» en la terminal,
+    «ordena deshacer» dentro del modo interactivo."""
+    from . import interactivo  # aquí y no arriba: interactivo importa este módulo
+
+    return texto if interactivo.activo else f"navaja {texto}"
 
 
 def confirmar(mensaje: str, saltar: bool = False, por_defecto: bool = False) -> bool:
     """Pide confirmación salvo que se haya pasado ``--si``."""
     if saltar:
         return True
-    pregunta = Confirmar(mensaje, console=console)
-    if se_puede_volver:
-        pregunta.choices = ["s", "n", "volver"]
-        pregunta.validate_error_message = "[aviso]Responde s, n o volver.[/]"
-    return pregunta(default=por_defecto)
+    return Confirmar.ask(mensaje, default=por_defecto, console=console)
 
 
 def ruta_libre(destino: Path) -> Path:

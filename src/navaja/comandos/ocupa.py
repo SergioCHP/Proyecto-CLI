@@ -15,33 +15,54 @@ from ..comun import (
     confirmar,
     console,
     crear_tabla,
+    cuantos,
     error_console,
     tamano_legible,
 )
 
 BASURA_DIRS = {
-    "__pycache__",
-    ".pytest_cache",
-    ".mypy_cache",
-    ".ruff_cache",
-    ".tox",
-    ".nox",
-    "node_modules",
-    ".next",
-    ".parcel-cache",
-    ".turbo",
-    "dist",
-    "build",
-    "target",
-    "htmlcov",
-    ".cache",
-    ".gradle",
-    "coverage",
+    "__pycache__": "caché de Python",
+    ".pytest_cache": "caché de Python",
+    ".mypy_cache": "caché de Python",
+    ".ruff_cache": "caché de Python",
+    ".tox": "entornos de prueba de Python",
+    ".nox": "entornos de prueba de Python",
+    "node_modules": "paquetes de Node (se reinstalan con npm install)",
+    ".next": "caché de Next.js",
+    ".parcel-cache": "caché de Parcel",
+    ".turbo": "caché de Turbo",
+    "htmlcov": "informe de cobertura de tests",
+    ".cache": "caché",
+    ".gradle": "caché de Gradle",
+}
+"""Carpetas que siempre son caché: se vuelven a crear solas."""
+
+BASURA_EN_PROYECTOS = {
+    "dist": "programa compilado (se vuelve a generar)",
+    "build": "programa compilado (se vuelve a generar)",
+    "target": "programa compilado (se vuelve a generar)",
+    "coverage": "informe de cobertura de tests",
+}
+"""Solo son basura dentro de un proyecto de programación (junto a un archivo de
+MARCAS_DE_PROYECTO). En otro sitio pueden ser tuyas: «build» con planos,
+«coverage» con la póliza del seguro…"""
+
+MARCAS_DE_PROYECTO = {
+    "package.json", "pyproject.toml", "setup.py", "setup.cfg", "Cargo.toml", "pom.xml",
+    "build.gradle", "build.gradle.kts", "CMakeLists.txt", "Makefile", "go.mod",
+    "composer.json",
 }
 
-BASURA_ARCHIVOS = {".DS_Store", "Thumbs.db", "desktop.ini"}
+BASURA_ARCHIVOS = {".DS_Store": "archivo de macOS", "Thumbs.db": "miniaturas de Windows"}
 
-BASURA_PATRONES = {"*.pyc", "*.pyo", "*.tmp", "*.swp", "*.swo", "*.~"}
+BASURA_PATRONES = {
+    "*.pyc": "caché de Python",
+    "*.pyo": "caché de Python",
+    "*.tmp": "temporal",
+    "*.swp": "temporal de Vim",
+    "*.swo": "temporal de Vim",
+    "*~": "copia de seguridad de un editor",
+}
 
 DIRS_IGNORADOS = {".git", ".hg", ".svn", "venv", ".venv"}
 
@@ -107,21 +128,19 @@ def ocupa(
         Path("."), help="Carpeta que se quiere analizar.", show_default=True
     ),
     mayores: int = typer.Option(
-        15, "--mayores", "-n", help="Número de entradas a mostrar.", show_default=True
+        15, "--mayores", "-n", min=1, help="Cuántas entradas enseñar (las que más ocupan)."
     ),
     profundidad: int = typer.Option(
         1,
         "--profundidad",
         "-p",
-        help="Niveles de carpetas que se muestran.",
-        show_default=True,
+        min=1,
+        help="Cuántos niveles de subcarpetas enseñar (1 = solo lo de esta carpeta).",
     ),
 ) -> None:
     """Muestra qué archivos y carpetas ocupan más espacio."""
-    if profundidad < 1:
-        raise typer.BadParameter("La profundidad debe ser como mínimo 1.")
     if not ruta.exists():
-        error_console.print(f"[error]La ruta no existe:[/] {escape(str(ruta))}")
+        error_console.print(f"[error]La ruta no existe:[/] {escape(str(ruta))}", soft_wrap=True)
         raise typer.Exit(1)
 
     if ruta.is_file():
@@ -166,38 +185,59 @@ def ocupa(
 
     if len(entradas) > len(visibles):
         console.print(
-            f"[pista]Mostrando {len(visibles)} de {len(entradas)} entradas. "
-            "Usa --mayores para ver más.[/]"
+            f"[pista]Mostrando {len(visibles)} de {len(entradas)}. "
+            "Para ver más: --mayores 50[/]"
         )
 
 
-def _buscar_basura(raiz: Path) -> list[tuple[Path, int, int, str]]:
-    candidatos: list[tuple[Path, int, int, str]] = []
+def es_proyecto(carpeta: Path) -> bool:
+    """Tiene un archivo de proyecto de programación (package.json, pyproject.toml…)."""
+    return any((carpeta / marca).is_file() for marca in MARCAS_DE_PROYECTO)
+
+
+def que_basura(nombre: str) -> str | None:
+    """Qué es un archivo de basura («temporal»…), o None si no lo es."""
+    if nombre in BASURA_ARCHIVOS:
+        return BASURA_ARCHIVOS[nombre]
+    for patron, que in BASURA_PATRONES.items():
+        if fnmatch.fnmatch(nombre, patron):
+            return que
+    return None
+
+
+def _buscar_basura(raiz: Path) -> list[tuple[Path, int, str, bool]]:
+    """(ruta, tamaño, qué es, es carpeta) de lo que se puede borrar sin perder nada."""
+    candidatos: list[tuple[Path, int, str, bool]] = []
     for actual, dirs, archivos in os.walk(raiz):
         actual_path = Path(actual)
+        proyecto = None  # se mira solo si hace falta
 
         for nombre in list(dirs):
             ruta_dir = actual_path / nombre
             if nombre in DIRS_IGNORADOS:
                 dirs.remove(nombre)
                 continue
-            if nombre in BASURA_DIRS:
-                tam, num = _tamano_ruta(ruta_dir)
-                candidatos.append((ruta_dir, tam, num, "carpeta"))
+            que = BASURA_DIRS.get(nombre)
+            if que is None and nombre in BASURA_EN_PROYECTOS:
+                if proyecto is None:
+                    proyecto = es_proyecto(actual_path)
+                if proyecto:
+                    que = BASURA_EN_PROYECTOS[nombre]
+            if que is not None:
+                tam, _ = _tamano_ruta(ruta_dir)
+                candidatos.append((ruta_dir, tam, que, True))
                 dirs.remove(nombre)
 
         for nombre in archivos:
-            coincide = nombre in BASURA_ARCHIVOS or any(
-                fnmatch.fnmatch(nombre, patron) for patron in BASURA_PATRONES
-            )
-            if not coincide:
+            que = que_basura(nombre)
+            if que is None:
                 continue
             ruta_archivo = actual_path / nombre
             try:
                 tam = ruta_archivo.stat().st_size
             except OSError:
                 continue
-            candidatos.append((ruta_archivo, tam, 1, "archivo"))
+            candidatos.append((ruta_archivo, tam, que, False))
     return candidatos
 
 
@@ -205,63 +245,65 @@ def limpia(
     ruta: Path = typer.Argument(
         Path("."), help="Carpeta donde buscar archivos temporales.", show_default=True
     ),
-    seco: bool = typer.Option(
-        False, "--seco", help="Solo muestra lo que se borraría, sin borrar nada."
+    simular: bool = typer.Option(
+        False, "--simular", help="Solo enseña lo que borraría, sin borrar nada."
     ),
     si: bool = typer.Option(
         False, "--si", "-s", help="No pide confirmación antes de borrar."
     ),
 ) -> None:
-    """Busca y elimina cachés y archivos temporales (node_modules, __pycache__…)."""
-    if not ruta.exists() or not ruta.is_dir():
-        error_console.print(f"[error]La carpeta no existe:[/] {escape(str(ruta))}")
+    """Busca y borra cachés y archivos temporales (node_modules, __pycache__…)."""
+    if not ruta.is_dir():
+        error_console.print(f"[error]La carpeta no existe:[/] {escape(str(ruta))}", soft_wrap=True)
         raise typer.Exit(1)
 
     candidatos = _buscar_basura(ruta)
     if not candidatos:
-        console.print("[ok]No se encontró basura.[/]")
+        console.print(f"[ok]No hay nada que limpiar en[/] {escape(str(ruta.resolve()))}", soft_wrap=True)
         return
 
     candidatos.sort(key=lambda item: item[1], reverse=True)
     total = sum(tam for _, tam, _, _ in candidatos)
 
-    tabla = crear_tabla(["Tamaño", "Tipo", "Ruta"], titulo="Candidatos a borrar")
-    for ruta_candidata, tam, _, tipo in candidatos:
-        tabla.add_row(
-            tamano_legible(tam),
-            tipo,
-            escape(str(ruta_candidata)),
-        )
+    console.print(f"[pista]En[/] {escape(str(ruta.resolve()))}", soft_wrap=True)
+    tabla = crear_tabla(["Tamaño", "Qué es", "Se borraría"])
+    for ruta_candidata, tam, que, es_carpeta in candidatos:
+        relativa = os.path.relpath(ruta_candidata, ruta) + ("/" if es_carpeta else "")
+        tabla.add_row(tamano_legible(tam), que, escape(relativa))
     console.print(tabla)
     console.print(
         f"Se liberarían [logro]{tamano_legible(total)}[/] "
-        f"en {len(candidatos)} entradas."
+        f"({cuantos(len(candidatos), 'cosa')}). Son cachés y temporales: lo que haga falta, "
+        "los programas lo vuelven a crear."
     )
 
-    if seco:
-        console.print("[aviso]Modo seco: no se borró nada.[/]")
+    if simular:
+        console.print("[pista]Simulación: no se ha borrado nada. Sin --simular, lo hace.[/]")
         return
 
-    if not confirmar("¿Borrar todo lo anterior?", saltar=si, por_defecto=False):
+    if not confirmar("¿Borrar todo lo de la lista? No va a la papelera.", saltar=si, por_defecto=False):
         console.print("[aviso]Cancelado.[/]")
         return
 
     liberado = 0
     errores = 0
-    for ruta_candidata, tam, _, tipo in candidatos:
+    for ruta_candidata, tam, _, es_carpeta in candidatos:
         try:
-            if tipo == "carpeta":
+            if es_carpeta:
                 shutil.rmtree(ruta_candidata)
             else:
                 ruta_candidata.unlink()
             liberado += tam
         except OSError as exc:
             errores += 1
-            error_console.print(f"[error]No se pudo borrar[/] {escape(str(ruta_candidata))}: {escape(str(exc))}")
+            error_console.print(
+                f"[error]No se pudo borrar[/] {escape(str(ruta_candidata))}: {escape(str(exc))}",
+                soft_wrap=True,
+            )
 
     console.print(f"[ok]Liberados {tamano_legible(liberado)}.[/]")
     if errores:
-        console.print(f"[aviso]{errores} entradas no se pudieron borrar.[/]")
+        console.print(f"[aviso]No se pudo borrar: {cuantos(errores, 'cosa')}.[/]")
 
 
 def registrar(app: typer.Typer) -> None:

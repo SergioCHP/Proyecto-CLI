@@ -10,6 +10,7 @@ from ..comun import (
     TEMAS,
     aplicar_tema,
     cargar_config,
+    como_se_escribe,
     console,
     directorio_datos,
     error_console,
@@ -26,24 +27,26 @@ def muestra_tema(nombre: str, actual: bool = False) -> str:
     )
 
 
-def listar() -> None:
-    """Muestra los temas disponibles con una muestra de sus colores."""
+def ver() -> None:
+    """Muestra los temas con una muestra de sus colores; ✔ el que tienes."""
     actual = cargar_config()["tema"]
     for nombre, estilos in TEMAS.items():
         with console.use_theme(Theme(estilos)):
             console.print(muestra_tema(nombre, nombre == actual))
-    console.print("\n[pista]Cambiar: navaja tema fijar <nombre>[/]")
+    console.print(f"\n[pista]Para cambiarlo: {como_se_escribe('tema elegir')} <nombre>[/]")
 
 
-def fijar(
-    nombre: str = typer.Argument(..., help="Nombre del tema (ver: navaja tema listar)."),
+def elegir(
+    nombre: str = typer.Argument(
+        ..., help=f"Qué tema: {', '.join(TEMAS)} (los ves con «tema ver»)."
+    ),
 ) -> None:
-    """Guarda el tema elegido."""
+    """Cambia los colores de navaja."""
     nombre = nombre.strip().lower()
     if nombre not in TEMAS:
         error_console.print(
-            f"[error]No existe el tema[/] {escape(nombre)}. "
-            f"Disponibles: {', '.join(TEMAS)}."
+            f"[error]No hay ningún tema «{escape(nombre)}».[/] "
+            f"Elige uno de estos: {', '.join(TEMAS)}."
         )
         raise typer.Exit(1)
     config = cargar_config()
@@ -54,12 +57,16 @@ def fijar(
     console.print(f"[ok]Tema cambiado a[/] [titulo]{nombre}[/].")
 
 
-def ver() -> None:
-    """Muestra la configuración actual."""
+def ver_config() -> None:
+    """Muestra tu nombre, tu tema y dónde guarda navaja tus datos."""
     config = cargar_config()
     console.print(f"Nombre: [acento]{escape(config['nombre'])}[/]")
     console.print(f"Tema:   [acento]{config['tema']}[/]")
-    console.print(f"[pista]Guardada en {escape(str(directorio_datos() / 'config.json'))}[/]")
+    console.print(
+        f"Datos:  [acento]{escape(str(directorio_datos()))}[/] "
+        "[pista](configuración, notas, lo de deshacer y la papelera)[/]",
+        soft_wrap=True,
+    )
 
 
 def nombre(
@@ -78,11 +85,13 @@ def nombre(
 
 def registrar(app: typer.Typer) -> None:
     tema = typer.Typer(help="Elige los colores de navaja.", no_args_is_help=True)
-    tema.command("listar", help="Muestra los temas con una muestra de colores.")(listar)
-    tema.command("fijar", help="Guarda el tema elegido.")(fijar)
+    tema.command("ver", help="Muestra los temas con una muestra de sus colores.")(ver)
+    tema.command("elegir", help="Cambia los colores de navaja.")(elegir)
     app.add_typer(tema, name="tema")
 
-    config = typer.Typer(help="Ajustes personales: nombre y tema.", no_args_is_help=True)
-    config.command("ver", help="Muestra la configuración actual.")(ver)
-    config.command("nombre", help="Cambia el nombre del saludo.")(nombre)
+    config = typer.Typer(
+        help="Tu nombre para el saludo y dónde guarda navaja tus datos.", no_args_is_help=True
+    )
+    config.command("ver", help="Muestra tu nombre, tu tema y dónde están tus datos.")(ver_config)
+    config.command("nombre", help="Cambia el nombre con el que te saluda.")(nombre)
     app.add_typer(config, name="config")

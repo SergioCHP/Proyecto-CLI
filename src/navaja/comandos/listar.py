@@ -8,7 +8,8 @@ from pathlib import Path
 import typer
 from rich.markup import escape
 
-from ..comun import console, crear_tabla, error_console, es_oculto, tamano_legible
+from ..comun import console, crear_tabla, cuantos, error_console, es_oculto, tamano_legible
+from ..filtros import sin_tildes
 
 
 def tipo_de(ruta: Path) -> str:
@@ -19,9 +20,10 @@ def tipo_de(ruta: Path) -> str:
 
 
 def contenido(carpeta: Path, ocultos: bool = False) -> list[Path]:
-    """Entradas de la carpeta: primero las carpetas y luego alfabético sin mayúsculas."""
+    """Entradas de la carpeta: primero las carpetas y luego alfabético (sin mirar
+    mayúsculas ni tildes: «Álbum» va con la A)."""
     entradas = [e for e in carpeta.iterdir() if ocultos or not es_oculto(e)]
-    return sorted(entradas, key=lambda e: (not e.is_dir(), e.name.lower()))
+    return sorted(entradas, key=lambda e: (not e.is_dir(), sin_tildes(e.name).lower()))
 
 
 def listar(
@@ -29,29 +31,28 @@ def listar(
         Path("."), help="Carpeta que quieres ver.", show_default=True
     ),
     ocultos: bool = typer.Option(
-        False, "--ocultos", help="Incluir archivos ocultos."
+        False, "--ocultos", help="Incluir archivos ocultos y de sistema (desktop.ini…)."
     ),
 ) -> None:
     """Muestra el contenido de una carpeta: nombre, tipo, tamaño y fecha."""
     if not ruta.is_dir():
         error_console.print(
-            f"[error]No existe o no es una carpeta:[/] {escape(str(ruta))}"
+            f"[error]No existe o no es una carpeta:[/] {escape(str(ruta))}", soft_wrap=True
         )
         raise typer.Exit(1)
 
     try:
         entradas = contenido(ruta, ocultos)
     except OSError as exc:
-        error_console.print(f"[error]No se puede leer la carpeta:[/] {escape(str(exc))}")
+        error_console.print(f"[error]No se puede leer la carpeta:[/] {escape(str(exc))}", soft_wrap=True)
         raise typer.Exit(1)
 
     if not entradas:
-        console.print(f"[aviso]La carpeta está vacía:[/] {escape(str(ruta.resolve()))}")
+        console.print(f"[aviso]La carpeta está vacía:[/] {escape(str(ruta.resolve()))}", soft_wrap=True)
         return
 
-    tabla = crear_tabla(
-        ["Nombre", "Tipo", "Tamaño", "Modificado"], titulo=escape(str(ruta.resolve()))
-    )
+    console.print(f"[pista]En[/] {escape(str(ruta.resolve()))}", soft_wrap=True)
+    tabla = crear_tabla(["Nombre", "Tipo", "Tamaño", "Modificado"])
     tabla.columns[2].justify = "right"
     carpetas = archivos = 0
     for entrada in entradas:
@@ -72,10 +73,7 @@ def listar(
         tabla.add_row(nombre, tipo_de(entrada), tamano, fecha)
 
     console.print(tabla)
-    console.print(
-        f"[pista]{carpetas} carpeta{'' if carpetas == 1 else 's'} · "
-        f"{archivos} archivo{'' if archivos == 1 else 's'}[/]"
-    )
+    console.print(f"[pista]{cuantos(carpetas, 'carpeta')} · {cuantos(archivos, 'archivo')}[/]")
 
 
 def registrar(app: typer.Typer) -> None:

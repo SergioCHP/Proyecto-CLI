@@ -28,6 +28,7 @@ from ..comun import (
     error_console,
     guardar_acciones,
     limpiar_acciones,
+    como_se_escribe,
     ruta_libre,
 )
 from ..filtros import (
@@ -104,7 +105,9 @@ def mostrar_plan(movimientos: list[dict], carpeta: Path, base: Path, limite: int
     conteo = Counter(m["carpeta"] for m in movimientos)
     n = len(movimientos)
     resumen = (
-        f"[bold]{cuantos(n, 'archivo')}[/] → [bold]{cuantos(len(conteo), 'carpeta')}[/]\n"
+        f"[pista]En[/] {escape(str(carpeta.resolve()))}\n"
+        + (f"[pista]Las carpetas, en[/] {escape(str(base.resolve()))}\n" if base != carpeta else "")
+        + f"[bold]{cuantos(n, 'archivo')}[/] → [bold]{cuantos(len(conteo), 'carpeta')}[/]\n"
         + "  ·  ".join(f"{escape(c)}: [bold]{k}[/]" for c, k in sorted(conteo.items()))
     )
     console.print(Panel(resumen, title="Ordenar", border_style="marco", expand=False))
@@ -156,7 +159,10 @@ def ordenar(
     if not movimientos:
         detalle = filtro.describir()
         extra = f" ({detalle})" if detalle else ""
-        console.print(f"[aviso]No hay nada que ordenar{escape(extra)}.[/]")
+        console.print(
+            f"[aviso]No hay nada que ordenar{escape(extra)}[/] [pista](en {escape(str(carpeta.resolve()))})[/]",
+            soft_wrap=True,
+        )
         return
 
     mostrar_plan(movimientos, carpeta, base)
@@ -190,7 +196,7 @@ def ordenar(
     if errores:
         console.print(f"[aviso]No se pudo mover: {cuantos(errores, 'archivo')}.[/]")
     if realizados:
-        console.print("[pista]Para deshacerlo: ordena deshacer[/]")
+        console.print(f"[pista]Para deshacerlo: {como_se_escribe('ordena deshacer')}[/]")
 
 
 # ── A qué carpeta va cada archivo ──────────────────────────────────────────
@@ -215,9 +221,12 @@ def carpeta_por_fecha(agrupar: Agrupar) -> Carpeta:
 
 
 def nombre_del_tramo(desde: str, hasta: str) -> str:
-    """«del 2026-09-01 al 2026-10-31»: se ordena bien y no lleva barras."""
+    """«del 2026-09-01 al 2026-10-31» (o «2026-11-01» si es un solo día): se ordena
+    bien y no lleva barras."""
     inicio, fin = rango(desde, hasta)
     assert inicio and fin
+    if inicio.date() == fin.date():
+        return f"{inicio:%Y-%m-%d}"
     return f"del {inicio:%Y-%m-%d} al {fin:%Y-%m-%d}"
 
 

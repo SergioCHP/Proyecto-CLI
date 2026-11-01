@@ -225,6 +225,84 @@ Documentación y calidad:
 - Las preguntas guiadas pasan a ser pasos (`Paso`) en `interactivo.py`.
 - 156 tests pasando en Python 3.10 y 3.13.
 
+### 2026-11-01 — Elegir la carpeta en ordena y renombra
+
+- Desde el menú, ordena y renombra preguntan primero «¿En qué carpeta?»
+  (Intro = la actual, que se enseña con su ruta). Vale una ruta completa,
+  relativa (`..\Documents`), `~\Documents` o arrastrar la carpeta desde el
+  explorador. Si no existe o es un archivo, lo dice y la vuelve a pedir.
+- Si en el texto del nombre se escribe una ruta (`C:\Users\...`), avisa de que
+  la carpeta se elige en la primera pregunta y vuelve a preguntar.
+- El plan de ordena y renombra dice en qué carpeta trabaja («En C:\...»), y
+  en ordena con `--destino`, dónde se crean las carpetas.
+- 160 tests pasando en Python 3.10 y 3.13.
+
+### 2026-11-01 — renombra cambiar sin preguntas de más
+
+- `renombra cambiar` y `avanzado` y `ordena nombre` ya no preguntan «¿Con qué
+  archivos?» en el menú: el texto que se escribe ya dice qué archivos se tocan
+  (los demás se quedan igual). Los filtros siguen valiendo escritos.
+- `renombra cambiar` no mira mayúsculas («gemini» encuentra «Gemini_…») y acepta
+  el nombre entero con su extensión: `cambiar informe.pdf final` (o `final.pdf`)
+  deja `final.pdf`. La pregunta dice ahora «Qué texto del nombre quieres cambiar
+  (ej.: IMG_, o el nombre entero)».
+- 165 tests pasando en Python 3.10 y 3.13.
+
+### 2026-11-01 — Repaso completo: fallos, coherencia y claridad
+
+Fallos arreglados:
+
+- `renombra avanzado` con un reemplazo que usa un grupo que no existe (`\\3` con
+  dos paréntesis) reventaba con un traceback. Ahora lo explica y sale con código 2.
+  Los errores de expresión regular más comunes salen en castellano.
+- `limpia` borraba carpetas tuyas que se llamaran `build`, `dist`, `target` o
+  `coverage` (por ejemplo, «Seguro/coverage» con una póliza) y `desktop.ini`.
+  Ahora esas cuatro solo cuentan dentro de un proyecto de programación (si al
+  lado hay package.json, pyproject.toml, Cargo.toml…) y `desktop.ini` nunca.
+  El patrón `*.~` era un error: ahora `*~` (copias de seguridad de editores).
+- `ocupa -n 0`, `-n -2`, `--cifras 0`… se aceptaban o daban mensajes raros:
+  ahora las opciones numéricas tienen mínimo y el error lo dice en castellano.
+- `renombra fecha` con un formato de fecha que no vale ya no da un error en inglés.
+- Plurales: «Movidas 1 copias», «Se devolverían 1 archivos», «en 1 entradas»…
+- Python 3.10: una f-string con comillas anidadas solo valía en 3.12+.
+
+En castellano y coherente:
+
+- `--help` (y ahora también `-h`) y los errores de uso («Missing argument»,
+  «No such option», «Invalid value»…) salían en inglés. Ahora son los de navaja:
+  la ayuda de un comando es su parte del manual, y un error dice qué pasa, cómo
+  se escribe la orden y dónde está la ayuda. «Cancelado.» en vez de «Aborted!».
+- La confirmación vuelve a ser `[s/n]` (sin «volver»): con «n» no se hace nada.
+- `limpia --seco` pasa a `--simular`, como en ordena y renombra.
+- `duplicados --conservar` ya no tiene `-c`: en ordena y renombra `-c` es la carpeta.
+- `tema listar` / `tema fijar` pasan a `tema ver` / `tema elegir`; `config` dice
+  ahora dónde están todos tus datos.
+- Los consejos con una orden («Para deshacerlo: …») llevan «navaja» delante en la
+  terminal y no dentro del modo interactivo (antes iba al revés en unos y otros).
+- `--ocultos` dice lo mismo en todos los comandos.
+- La bienvenida (sin terminal) sigue el mismo orden que el menú.
+
+Más claro:
+
+- `limpia` dice qué es cada cosa («caché de Python», «paquetes de Node»…) y que no
+  va a la papelera; `listar`, `limpia`, `duplicados` y los planes dicen en qué
+  carpeta trabajan; `listar` ya no corta la ruta a la mitad y ordena sin mirar tildes.
+- `renombra`: si el texto no está, «Ningún nombre lleva «xyz».» sin tabla; si un
+  nombre no vale, dice por qué («no puede llevar /») y enseña el nombre que saldría.
+- `ordena tramo` de un solo día crea «2026-11-01» y no «del 2026-11-01 al
+  2026-11-01»; si «desde» va después de «hasta», dice las dos fechas.
+- `duplicados buscar` termina con la orden exacta para borrar esas copias.
+- `notas agregar TÍTULO [CONTENIDO]`: si el contenido empieza por https:// o www.
+  es un enlace (ya no hace falta `--url`); las etiquetas se preguntan en el menú.
+  `notas buscar` no mira tildes. `notas listar` enseña la dirección de los enlaces.
+  Si una nota no existe, dice dónde ver los números.
+- Modo interactivo: `limpia` y `duplicados borrar` también preguntan la carpeta;
+  `duplicados` pregunta si mirar las subcarpetas y cuál conservar; `notas abrir` y
+  `notas borrar` enseñan la lista antes de pedir el número; «salir» en una pregunta
+  cancela sin hacer nada.
+- Se quitan las referencias a un `acciones.json` que ya no existe.
+- 187 tests pasando en Python 3.10 y 3.13.
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.

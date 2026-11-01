@@ -25,8 +25,7 @@ from .comandos.ayuda import (
     valor_texto,
 )
 from .comandos.ayuda import subcomandos as opciones_de
-from . import comun
-from .comun import AJUSTE, PALABRAS_VOLVER, Volver, console, error_console
+from .comun import AJUSTE, PALABRAS_VOLVER, console, error_console
 from .filtros import (
     CATEGORIAS,
     EJEMPLOS_FECHA,
@@ -51,6 +50,16 @@ PREFIJOS = {"navaja", "nav"}
 CD = re.compile(r"^cd(?=$|[\s./\\])(.*)$", re.IGNORECASE)
 AYUDA_DE = re.compile(r"^(?:ayuda|help|\?)\s+(.+)$|^(.+?)\s+\?$", re.IGNORECASE)
 
+ANTES_DE_PREGUNTAR = {
+    "notas abrir": ["notas", "listar"],
+    "notas borrar": ["notas", "listar"],
+}
+"""Lo que se enseña antes de las preguntas: para elegir una nota hay que ver sus números."""
+
+EL_TEXTO_YA_ELIGE = {"renombra cambiar", "renombra avanzado", "ordena nombre"}
+"""Aquí el texto (o el patrón) ya dice qué archivos se tocan: no se pregunta «¿Con qué
+archivos?» (los filtros siguen valiendo escritos: --solo, --desde…)."""
+
 AYUDA = (
     "[pista]Elige un número o escribe un comando · [/][acento]ayuda[/][pista] te explica "
     "lo que puedes hacer aquí · [/][acento]salir[/]"
@@ -69,7 +78,11 @@ class Atras(Exception):
 
 
 def es_volver(crudo: str) -> bool:
-    return crudo.strip().lower() in PALABRAS_VOLVER
+    """«volver» o «atrás» (a la pregunta anterior). «salir» en una pregunta cancela."""
+    palabra = crudo.strip().lower()
+    if palabra in SALIR:
+        raise KeyboardInterrupt  # como Ctrl+C: se cancela sin hacer nada
+    return palabra in PALABRAS_VOLVER
 
 
 def puede_iniciar() -> bool:
@@ -137,16 +150,10 @@ def mostrar_menu(grupo: Any, camino: list[str]) -> None:
         console.print(f"\n{AYUDA}\n")
 
 
-def ejecutar(raiz: Any, argumentos: list[str], volver: bool = False) -> int:
-    """Ejecuta una orden como si se escribiera en la terminal y devuelve su código.
-
-    Con ``volver``, sus confirmaciones aceptan «volver» y lanzan ``Volver``.
-    """
-    comun.se_puede_volver = volver
+def ejecutar(raiz: Any, argumentos: list[str]) -> int:
+    """Ejecuta una orden como si se escribiera en la terminal y devuelve su código."""
     try:
         raiz.main(args=argumentos, prog_name="navaja", standalone_mode=True)
-    except Volver:
-        raise
     except SystemExit as salida:
         codigo = salida.code
         return codigo if isinstance(codigo, int) else (0 if codigo is None else 1)
@@ -159,8 +166,6 @@ def ejecutar(raiz: Any, argumentos: list[str], volver: bool = False) -> int:
             soft_wrap=True,
         )
         return 1
-    finally:
-        comun.se_puede_volver = False
     return 0
 
 
@@ -177,6 +182,65 @@ def leer_texto(leer: Lector, prompt: str, defecto: str) -> str:
     if not crudo.strip():
         return crudo
     return expandir(quitar_comillas(crudo.strip()))
+
+
+def pasos_carpeta(comando: Any, leer: Lector) -> list[Paso]:
+    """Si la orden cambia archivos de una carpeta, lo primero es preguntar cuál.
+
+    Son las que tienen --carpeta (ordena, renombra) y las que piden confirmación
+    (--si) y reciben la carpeta como primer argumento (limpia, duplicados borrar).
+    Las que solo miran (listar, ocupa…) trabajan en la actual sin preguntar.
+    """
+    opciones = {o for p in comando.params for o in getattr(p, "opts", ())}
+    if "--carpeta" in opciones:
+        return [functools.partial(preguntar_carpeta, leer, True)]
+    argumentos = [p for p in comando.params if p.param_type_name == "argument"]
+    if (
+        "--si" in opciones
+        and argumentos
+        and not argumentos[0].required
+        and getattr(argumentos[0].type, "name", "") == "path"
+    ):
+        return [functools.partial(preguntar_carpeta, leer, False)]
+    return []
+
+
+def preguntar_carpeta(leer: Lector, como_opcion: bool = True) -> list[str]:
+    """Intro = la carpeta actual. Vale una ruta completa, ~\\Documents, «..» o arrastrarla.
+
+    Devuelve ``--carpeta RUTA`` o, si la orden la recibe como argumento, ``RUTA``.
+    """
+    try:
+        actual = Path.cwd()
+    except OSError:
+        actual = Path(".")
+    while True:
+        valor = leer_texto(
+            leer, f"  ¿En qué carpeta? [pista](Intro = esta: {escape(str(actual))})[/]: ", ""
+        )
+        if not valor:
+            return []
+        ruta = Path(valor)
+        if ruta.is_dir():
+            if ruta.resolve() == actual.resolve():
+                return []
+            return ["--carpeta", valor] if como_opcion else [valor]
+        if ruta.exists():
+            console.print("  [aviso]Eso es un archivo, no una carpeta.[/]")
+        else:
+            console.print(
+                f"  [aviso]No existe la carpeta «{escape(valor)}».[/] [pista]Escribe la ruta "
+                "completa (C:\\Users\\tu_usuario\\Documents), ~\\Documents, o arrastra la "
+                "carpeta aquí desde el explorador.[/]",
+                soft_wrap=True,
+            )
+
+
+def parece_carpeta(valor: str) -> bool:
+    """«C:\\Users\\…», «~\\Documents» o una carpeta que existe con barras: no es un texto del nombre."""
+    if re.match(r"^[a-zA-Z]:[\\/]", valor) or valor.startswith(("~/", "~\\", "\\\\", "/")):
+        return True
+    return ("/" in valor or "\\" in valor) and Path(valor).is_dir()
 
 
 def pasos_obligatorios(comando: Any, leer: Lector) -> list[Paso]:
@@ -208,11 +272,20 @@ def preguntar_argumento(param: Any, leer: Lector, delante: list[str]) -> list[st
     texto = escape((getattr(param, "help", None) or param.name or "").rstrip("."))
     es_fecha = param.name in ("desde", "hasta")
     es_lista = getattr(param, "nargs", 1) == -1
+    es_ruta = getattr(getattr(param, "type", None), "name", "") == "path"
     if param.required:
         while True:
             valor = leer_texto(leer, f"  {texto}: ", "")
             if not valor:
                 console.print("  [aviso]Hace falta un valor.[/]")
+                continue
+            if not es_ruta and parece_carpeta(valor):
+                console.print(
+                    "  [aviso]Eso parece una carpeta.[/] [pista]Aquí va un texto del nombre; la "
+                    "carpeta se elige en «¿En qué carpeta?» (escribe volver para ir a ella) "
+                    "o con cd en el menú.[/]",
+                    soft_wrap=True,
+                )
                 continue
             if es_fecha:
                 try:
@@ -249,7 +322,8 @@ def preguntar_ajuste(param: Any, leer: Lector) -> list[str]:
         if es_volver(respuesta):
             raise Atras
         return [nombre] if respuesta.strip().lower() in ("s", "si", "sí", "y") else []
-    defecto = "" if param.default is None else valor_texto(param.default)
+    vacio = param.default is None or getattr(param, "multiple", False)
+    defecto = "" if vacio else valor_texto(param.default)
     elecciones = [valor_texto(c) for c in getattr(param.type, "choices", None) or []]
     if elecciones:
         pista = f"{', '.join(elecciones[:-1])} o {elecciones[-1]} · Intro = {defecto}"
@@ -393,44 +467,39 @@ def guiado(
 ) -> None:
     """Pregunta solo lo necesario, ejecuta en la carpeta actual y dice qué más se puede ajustar.
 
-    «volver» repite la pregunta anterior; en la primera, vuelve al menú. En la
-    confirmación de la orden ([s/n/volver]) vuelve a la última pregunta.
+    «volver» repite la pregunta anterior; en la primera, vuelve al menú. La
+    confirmación de la orden es [s/n]: con «n» no se hace nada y se vuelve al menú.
     """
     pasos = (
-        pasos_obligatorios(comando, leer)
+        pasos_carpeta(comando, leer)
+        + pasos_obligatorios(comando, leer)
         + pasos_ajustes(comando, leer)
-        + pasos_filtro(comando, leer)
+        + ([] if " ".join(camino) in EL_TEXTO_YA_ELIGE else pasos_filtro(comando, leer))
     )
+    antes = ANTES_DE_PREGUNTAR.get(" ".join(camino))
+    if antes:
+        ejecutar(raiz, antes)
     if pasos:
-        console.print("  [pista]volver: a la pregunta anterior · Ctrl+C: cancelar[/]")
+        console.print("  [pista]volver: a la pregunta anterior · salir: cancelar[/]")
     respuestas: list[list[str]] = []
-    while True:
-        try:
-            while len(respuestas) < len(pasos):
-                try:
-                    respuestas.append(pasos[len(respuestas)]())
-                except Atras:
-                    if not respuestas:
-                        console.print("[pista]Vuelves al menú.[/]")
-                        return
-                    respuestas.pop()
-        except (KeyboardInterrupt, EOFError):
-            console.print("\n[aviso]Cancelado.[/]")
-            return
-        valores = [valor for respuesta in respuestas for valor in respuesta]
-        argumentos = camino + valores
-        if valores:
-            orden = " ".join(citar(a) for a in argumentos)
-            console.print(f"[pista]→ navaja {escape(orden)}[/]", soft_wrap=True)
-        try:
-            ejecutar(raiz, argumentos, volver=True)
-        except Volver:
-            if not respuestas:
-                console.print("[pista]Vuelves al menú.[/]")
-                return
-            respuestas.pop()
-            continue
-        break
+    try:
+        while len(respuestas) < len(pasos):
+            try:
+                respuestas.append(pasos[len(respuestas)]())
+            except Atras:
+                if not respuestas:
+                    console.print("[pista]Vuelves al menú.[/]")
+                    return
+                respuestas.pop()
+    except (KeyboardInterrupt, EOFError):
+        console.print("\n[aviso]Cancelado.[/]")
+        return
+    valores = [valor for respuesta in respuestas for valor in respuesta]
+    argumentos = camino + valores
+    if valores:
+        orden = " ".join(citar(a) for a in argumentos)
+        console.print(f"[pista]→ navaja {escape(orden)}[/]", soft_wrap=True)
+    ejecutar(raiz, argumentos)
     pista_opciones(escribir or camino, comando)
 
 

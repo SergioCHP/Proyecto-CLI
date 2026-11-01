@@ -8,17 +8,20 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
 | --- | --- |
 | `navaja listar [ruta]` | Muestra qué hay en una carpeta: nombre, tipo, tamaño y fecha. |
 | `navaja ocupa [ruta]` | Muestra qué archivos y carpetas ocupan más espacio. |
-| `navaja limpia [ruta]` | Busca y borra cachés y temporales (`node_modules`, `__pycache__`, `dist`…). |
+| `navaja limpia [ruta]` | Busca y borra cachés y temporales (`node_modules`, `__pycache__`…). `dist`, `build`, `target` y `coverage` solo dentro de un proyecto de programación. |
 | `navaja ordena` | Ordena una carpeta: por tipo, por fecha (mes, año o día), los archivos de unas fechas a una carpeta, por un texto del nombre o por letra. Con deshacer. |
 | `navaja renombra` | Renombrado masivo sin saber regex: cambiar texto, añadir delante o detrás, numerar, poner la fecha, arreglar nombres o una plantilla. Con deshacer. |
 | `navaja duplicados` | Encuentra archivos repetidos por contenido y los manda a una papelera recuperable. |
-| `navaja notas` | Notas y enlaces con etiquetas, guardados en SQLite. |
-| `navaja tema` | Elige los colores (clasico, morado, terminal, pastel). |
-| `navaja config` | Tu nombre para el saludo y el tema actual. |
+| `navaja notas` | Notas y enlaces con etiquetas, guardados en SQLite. Lo que empieza por `https://` o `www.` es un enlace. |
+| `navaja tema` | `ver` los temas y `elegir` uno (clasico, morado, terminal, pastel). |
+| `navaja config` | Tu nombre para el saludo y dónde guarda navaja tus datos. |
 | `navaja manual [comando]` | El manual completo: cómo se usa, todos los comandos con sus opciones, atajos, seguridad y datos. Con un comando, solo su parte. |
 
 `nav` es un alias corto: `nav ocupa` es lo mismo que `navaja ocupa`. (No es `nv` porque en
 PowerShell `nv` ya es un atajo de `New-Variable` y se adelantaría a navaja.)
+
+Toda la ayuda está en castellano: `navaja ocupa --help` (o `-h`) enseña lo mismo que
+`navaja manual ocupa`, y los errores de uso dicen qué falta y cómo se escribe.
 
 ## Modo interactivo
 
@@ -41,7 +44,9 @@ Descargas> 2                       ← un número: lo ejecuta aquí mismo
 Más opciones: --mayores --profundidad · ayuda ocupa explica cada una
 Descargas> ocupa -n 5              ← o escribe el comando con sus opciones
 Descargas> renombra cambiar        ← si falta algo, lo pregunta
-  Texto que buscas en el nombre (sin contar la extensión): IMG_
+  volver: a la pregunta anterior · salir: cancelar
+  ¿En qué carpeta? (Intro = esta: C:\Users\sergi\Descargas):
+  Qué texto del nombre quieres cambiar (ej.: IMG_, o el nombre entero): IMG_
   Texto nuevo. Vacío para borrar el que buscas (Intro = vacío): foto_
 → navaja renombra cambiar IMG_ foto_
 Descargas> cd ..
@@ -51,11 +56,11 @@ PS C:\Users\sergi\Descargas>
 
 | Dentro de navaja | Qué hace |
 | --- | --- |
-| un número | Elige esa opción. Si es un grupo (`ordena`, `notas`…) abre su submenú; si no, lo ejecuta en la carpeta actual y pregunta solo lo necesario. En `ordena` y `renombra` pregunta también «¿Con qué archivos?» (todos, de un tipo, los que llevan un texto o los de unas fechas). Debajo te dice qué opciones tiene. |
+| un número | Elige esa opción. Si es un grupo (`ordena`, `notas`…) abre su submenú; si no, lo ejecuta en la carpeta actual y pregunta solo lo necesario. Lo que cambia archivos (`ordena`, `renombra`, `limpia`, `duplicados borrar`) pregunta primero «¿En qué carpeta?» (Intro = la actual; vale una ruta completa, `~\Documents` o arrastrar la carpeta desde el explorador). En `ordena` y `renombra` pregunta al final «¿Con qué archivos?» (todos, de un tipo, los que llevan un texto o los de unas fechas), salvo en `renombra cambiar` y `avanzado` y en `ordena nombre`, donde el texto ya dice qué archivos se tocan. Debajo te dice qué opciones tiene. |
 | un comando | Igual que en la terminal, sin escribir `navaja` delante: `ocupa -n 5`, `ordena tipo --solo imagenes`. Si le falta algo obligatorio, lo pregunta. |
 | `ayuda` · `?` | Explica lo que puedes hacer donde estás: en el menú principal, todas las opciones; dentro de una opción (`config`, `ordena`…), esa opción con las suyas, su uso y sus parámetros. |
 | `menu` | Vuelve a enseñar el menú (en un submenú, el de ese grupo). |
-| `volver` · `atrás` | En medio de las preguntas, repite la anterior; en la primera, vuelves al menú sin hacer nada. En las listas numeradas también vale `0`. Al confirmar, `[s/n/volver]` vuelve a la última pregunta para cambiarla. |
+| `volver` · `atrás` | En medio de las preguntas, repite la anterior; en la primera, vuelves al menú sin hacer nada. En las listas numeradas también vale `0`. `salir` en una pregunta cancela sin hacer nada. Al confirmar (`[s/n]`), `n` no hace nada y sigues en el menú. |
 | `ayuda ocupa` · `ocupa ?` · `? 2` | Ayuda corta: qué hace un comando, cómo se escribe y sus opciones con su valor por defecto. |
 | `manual` | El manual completo de navaja. `manual ocupa` enseña solo la parte de ese comando. |
 | `cd RUTA` · `cd ..` · `cd` | Cambia de carpeta (`cd` solo enseña dónde estás). Al salir vuelves a la carpeta de antes. |
@@ -100,7 +105,7 @@ navaja listar ~/Descargas
 navaja ocupa ~/Descargas -n 20 -p 2
 
 # Previsualizar la basura y luego borrarla
-navaja limpia ~/Proyectos --seco
+navaja limpia ~/Proyectos --simular
 navaja limpia ~/Proyectos
 
 # Ordenar: enseña «archivo → carpeta» y pregunta [s/n] (--simular solo mira)
@@ -118,6 +123,7 @@ navaja ordena deshacer
 # Renombrar: enseña «antes → después» y pregunta [s/n] (--simular solo mira)
 navaja renombra cambiar IMG_ foto_                   # IMG_1234.jpg → foto_1234.jpg
 navaja renombra cambiar " (1)" ""                    # informe (1).pdf → informe.pdf
+navaja renombra cambiar informe.pdf final            # un solo archivo: informe.pdf → final.pdf
 navaja renombra delante 2026_ --solo pdf             # informe.pdf → 2026_informe.pdf
 navaja renombra detras _v2                           # informe.pdf → informe_v2.pdf
 navaja renombra numerar playa --solo jpg,png --orden fecha   # playa_001.jpg, playa_002.png…
@@ -137,16 +143,16 @@ navaja duplicados restaurar
 navaja duplicados vaciar        # libera el espacio de verdad (no se puede deshacer)
 
 # Notas y enlaces
-navaja notas agregar "Repasar Python" --texto "Decoradores y generadores" -e estudio -e python
-navaja notas agregar "Docs de Typer" --url https://typer.tiangolo.com -e docs
+navaja notas agregar "Repasar Python" "Decoradores y generadores" -e estudio,python
+navaja notas agregar "Docs de Typer" https://typer.tiangolo.com -e docs   # es un enlace
 navaja notas listar -e python
-navaja notas buscar generadores
-navaja notas abrir 1
+navaja notas buscar generadores     # sin mirar mayúsculas ni tildes
+navaja notas abrir 1                # el 1 es la columna ID de «notas listar»
 navaja notas etiquetas
 
 # Personalizar
-navaja tema listar              # muestra cada tema con sus colores
-navaja tema fijar morado
+navaja tema ver                 # muestra cada tema con sus colores
+navaja tema elegir morado
 navaja config nombre Sergio
 navaja config ver
 ```
@@ -156,7 +162,7 @@ navaja config ver
 - `ordena` y `renombra` enseñan siempre el plan y preguntan `[s/n]` antes de tocar nada; con `--simular` solo miran. Los dos tienen `deshacer`.
 - Nunca se sobrescribe un archivo, y se saltan los ocultos y los de sistema de Windows (`desktop.ini`, `Thumbs.db`), salvo con `--ocultos`.
 - Fechas fáciles en `--desde`, `--hasta` y `ordena tramo`: `1/9/2026`, `septiembre 2026`, `2026`, `hoy`, `hace 30 días`. Un mes o un año valen enteros.
-- `limpia` muestra los candidatos y pide confirmación; usa `--seco` para solo mirar y `--si` para no preguntar.
+- `limpia` dice qué es cada cosa que borraría y pide confirmación; `--simular` solo mira y `--si` no pregunta. Solo borra lo que se vuelve a crear solo: `build`, `dist`, `target` y `coverage` únicamente dentro de un proyecto de programación (fuera pueden ser tuyas), y nunca `desktop.ini`. Lo que borra no va a la papelera.
 - `duplicados borrar` no borra: mueve las copias a la papelera de navaja. Compara el
   contenido completo (SHA-256), no solo el nombre o el tamaño, y nunca toca el archivo
   que se conserva. El espacio solo se libera con `duplicados vaciar`.

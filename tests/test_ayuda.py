@@ -1,3 +1,4 @@
+import pytest
 import typer
 from typer.testing import CliRunner
 
@@ -48,7 +49,7 @@ def test_el_manual_explica_el_modo_interactivo_y_los_alias():
     )
     for palabra in palabras:
         assert palabra in texto, palabra
-    for cosa in ("NAVAJA_DATOS", "[s/n]", "[s/n/volver]", "--version", "notas.db", "papelera", "código 2"):
+    for cosa in ("NAVAJA_DATOS", "[s/n]", "--version", "notas.db", "papelera", "código 2"):
         assert cosa in texto, cosa
 
 
@@ -76,3 +77,55 @@ def test_manual_de_algo_que_no_existe():
 
 def test_manual_va_el_ultimo_del_menu():
     assert subcomandos(RAIZ)[-1][0] == "manual"
+
+
+# ── --help y errores en castellano ─────────────────────────────────────────
+
+
+def plano(texto):
+    """Sin los saltos de línea que pone Rich al ajustar al ancho."""
+    return " ".join(texto.split())
+
+
+@pytest.mark.parametrize("pedido", [["ocupa", "--help"], ["ocupa", "-h"]])
+def test_help_de_un_comando_en_castellano(pedido):
+    resultado = runner.invoke(app, pedido)
+    assert resultado.exit_code == 0
+    texto = plano(resultado.output)
+    assert "Uso: navaja ocupa [RUTA] [opciones]" in texto
+    assert "--mayores" in texto and "por defecto: 15" in texto
+    for ingles in ("Usage", "Options", "Show this message"):
+        assert ingles not in texto
+
+
+def test_help_de_un_grupo_y_de_navaja():
+    texto = plano(runner.invoke(app, ["ordena", "--help"]).output)
+    assert "Uso: navaja ordena <subcomando>" in texto
+    assert "tramo" in texto and "letra" in texto
+    assert "Commands" not in texto
+
+    texto = plano(runner.invoke(app, ["--help"]).output)
+    assert "navaja manual" in texto and "duplicados" in texto
+    assert "Usage" not in texto
+
+
+@pytest.mark.parametrize(
+    "pedido, esperado",
+    [
+        (["ocupa", "-n", "abc"], "--mayores: «abc» no es un número entero."),
+        (["ocupa", "-n", "0"], "--mayores: 0 no vale: tiene que ser 1 o más."),
+        (["ordena", "tipo", "--xyz"], "No existe la opción --xyz."),
+        (["renombra", "cambiar"], "Falta BUSCAR: Qué texto del nombre quieres cambiar"),
+        (["ordena", "tipo", "sobra"], "Sobra «sobra»."),
+        (["ordena", "fecha", "--por", "semana"], "«semana» no vale; elige mes, año o día."),
+        (["ordna"], "No existe «ordna». ¿Querías decir ordena?"),
+    ],
+)
+def test_errores_de_uso_en_castellano(pedido, esperado):
+    resultado = runner.invoke(app, pedido)
+    assert resultado.exit_code == 2
+    texto = plano(resultado.output)
+    assert esperado in texto
+    assert "Uso: navaja" in texto and "--help" in texto
+    for ingles in ("Usage", "Invalid value", "Missing", "No such", "Error"):
+        assert ingles not in texto

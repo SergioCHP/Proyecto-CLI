@@ -45,3 +45,12 @@ def test_listar_errores_salen_con_1(tmp_path):
     archivo.write_text("x")
     assert runner.invoke(app, ["listar", str(tmp_path / "no-existe")]).exit_code == 1
     assert runner.invoke(app, ["listar", str(archivo)]).exit_code == 1
+
+
+def test_listar_ordena_sin_mirar_tildes(tmp_path):
+    carpeta = tmp_path / "fotos"
+    carpeta.mkdir()
+    for nombre in ("zeta.jpg", "Álbum.jpg", "boda.jpg"):
+        (carpeta / nombre).write_text("x")
+    salida = runner.invoke(app, ["listar", str(carpeta)]).output
+    assert salida.index("Álbum.jpg") < salida.index("boda.jpg") < salida.index("zeta.jpg")

@@ -198,7 +198,10 @@ def rango(desde: str, hasta: str) -> tuple[datetime | None, datetime | None]:
     inicio = datetime.combine(periodo(desde)[0], time.min) if desde.strip() else None
     fin = datetime.combine(periodo(hasta)[1], time.max) if hasta.strip() else None
     if inicio and fin and inicio > fin:
-        raise ValueError("La fecha «desde» es posterior a «hasta». Revisa el orden.")
+        raise ValueError(
+            f"La fecha «desde» ({inicio:%d/%m/%Y}) es posterior a «hasta» ({fin:%d/%m/%Y}). "
+            "Revisa el orden."
+        )
     return inicio, fin
 
 
@@ -254,7 +257,7 @@ def seleccionar(carpeta: Path, filtro: Filtro) -> list[Path]:
             if (inicio and momento < inicio) or (fin and momento > fin):
                 continue
         elegidos.append(archivo)
-    return sorted(elegidos, key=lambda a: (str(a.parent).lower(), a.name.lower()))
+    return sorted(elegidos, key=lambda a: (str(a.parent).lower(), sin_tildes(a.name).lower()))
 
 
 # ── Opciones de Typer que comparten ordena y renombra ──────────────────────

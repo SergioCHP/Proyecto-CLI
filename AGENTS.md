@@ -45,7 +45,7 @@ src/navaja/
     ├── renombra.py     # sub-app: cambiar / delante / detras / numerar / fecha / arreglar / plantilla / avanzado / deshacer
     ├── duplicados.py   # sub-app: buscar / borrar (a papelera) / restaurar / vaciar
     ├── notas.py        # sub-app SQLite: agregar / listar / buscar / abrir / borrar / etiquetas
-    └── ajustes.py      # sub-apps tema (listar / fijar) y config (ver / nombre)
+    └── ajustes.py      # sub-apps tema (ver / elegir) y config (ver / nombre)
 tests/                  # un archivo por módulo
 ```
 
@@ -74,13 +74,33 @@ uno a uno, sino con una sola pregunta, «¿Con qué archivos?» (todos / de un t
 con un texto / de unas fechas). Las fechas se leen con `filtros.periodo()`; un
 argumento que se llame `desde` o `hasta` se valida igual al preguntarlo.
 
+Si la orden tiene `--carpeta` (ordena y renombra), o pide confirmación (`--si`)
+y recibe la carpeta como primer argumento (limpia, duplicados borrar), la primera
+pregunta es «¿En qué carpeta?» (`pasos_carpeta`), con Intro para la actual. Las
+que solo miran (listar, ocupa, duplicados buscar) no la preguntan. Un texto
+obligatorio que parece una ruta (`C:\...`, `~/...`) se rechaza con un aviso:
+es el error típico de escribir la carpeta donde va el texto del nombre.
+
+En las órdenes de `EL_TEXTO_YA_ELIGE` (`renombra cambiar`, `renombra avanzado`,
+`ordena nombre`) no se pregunta «¿Con qué archivos?»: el texto que se escribe ya
+dice qué archivos se tocan.
+
 Cada pregunta del modo guiado es un paso (`Paso` en `interactivo.py`):
 `guiado()` los hace en orden y, si en uno se escribe «volver» (o `0` en una
 lista numerada), el paso lanza `Atras` y se repite el anterior; en el primero,
-se vuelve al menú. Mientras ejecuta la orden, `comun.se_puede_volver` hace que
-`confirmar()` acepte `[s/n/volver]` y lance `Volver` (antes de cambiar nada),
-que devuelve a la última pregunta. Una pregunta nueva debe leer con
-`leer_texto()` o `elegir_numero()`, que ya saben volver.
+se vuelve al menú. La confirmación de la orden es siempre `[s/n]`: con «n» no se
+hace nada y se sigue en el menú. Una pregunta nueva debe leer con
+`leer_texto()` o `elegir_numero()`, que ya saben volver (y cancelar con «salir»).
+`ANTES_DE_PREGUNTAR` enseña algo antes de las preguntas (la lista de notas antes
+de pedir su número).
+
+`--help` y los errores de uso no son los de Typer (en inglés): `ayuda.py` cambia
+`typer.rich_utils.rich_format_help`, `rich_format_error` y `rich_abort_error` por
+los suyos (`instalar_en_castellano()`, llamada en `app.py`). La ayuda de un comando
+es la misma que su parte del manual. Para que un error salga bien traducido, usa
+`min=` en las opciones numéricas y `typer.BadParameter` con el mensaje en castellano.
+Los consejos que nombran una orden («Para deshacerlo: …») usan
+`comun.como_se_escribe()`: con «navaja» delante en la terminal y sin él dentro.
 
 El manual (`navaja manual`) también se genera de los comandos registrados. Todo
 comando, argumento y opción necesita un `help` en castellano
@@ -104,8 +124,9 @@ considera basura `limpia`, cómo compara `duplicados`…) va en `EXTRA` de
 - **Idioma:** comandos, opciones, ayuda y mensajes en castellano. Los
   identificadores de Python no llevan acentos (`previsualizar`, `deshacer`).
 - **Comandos destructivos:** deben tener previsualización, confirmación
-  (`--si` para saltarla) y deshacer cuando sea posible. Usa `--seco` para
-  simular sin tocar nada.
+  (`--si` para saltarla) y deshacer cuando sea posible. Usa `--simular` para
+  enseñar lo que haría sin tocar nada (el mismo nombre en todos los comandos).
+  Los plurales, con `cuantos()` («1 archivo», «3 archivos»).
 - **Seguridad de rutas:** usa `ruta_libre()` para evitar sobrescribir archivos,
   `iterar_archivos()` para listar (no sigue enlaces simbólicos) y
   `guardar_acciones()` / `cargar_acciones()` / `limpiar_acciones()` para el
@@ -134,5 +155,5 @@ considera basura `limpia`, cómo compara `duplicados`…) va en `EXTRA` de
 ## Estado actual
 
 Resumen y bitácora en [ESTADO.md](ESTADO.md). Última verificación conocida
-(2026-11-01): 156 tests pasando (Python 3.10 y 3.13) y modo interactivo probado
+(2026-11-01): 187 tests pasando (Python 3.10 y 3.13) y modo interactivo probado
 en una terminal real (menú, submenús, preguntas guiadas, cd, errores y salida).

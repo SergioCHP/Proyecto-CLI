@@ -53,6 +53,20 @@ def test_cambiar_trata_los_simbolos_como_texto(tmp_path):
     assert "a.b.txt" in nombres(tmp_path)
 
 
+def test_cambiar_no_mira_mayusculas(tmp_path):
+    crear(tmp_path, "Gemini_Generated_Image_a.png", "otro.png")
+    renombra("cambiar", "gemini_generated_image_", "gemini ", "-c", str(tmp_path))
+    assert nombres(tmp_path) == {"gemini a.png", "otro.png"}
+
+
+@pytest.mark.parametrize("por", ["final", "final.pdf"])
+def test_cambiar_un_nombre_entero_con_extension(tmp_path, por):
+    crear(tmp_path, "informe.pdf", "informe.docx", "notas.txt")
+    resultado = renombra("cambiar", "informe.pdf", por, "-c", str(tmp_path))
+    assert resultado.exit_code == 0, resultado.output
+    assert nombres(tmp_path) == {"final.pdf", "informe.docx", "notas.txt"}
+
+
 def test_delante_y_detras(fotos):
     renombra("delante", "2026_", "-c", str(fotos), "--solo", "txt")
     renombra("detras", "_v2", "-c", str(fotos), "--solo", "txt")
@@ -160,8 +174,22 @@ def test_conflictos_no_se_tocan(tmp_path):
 def test_nombres_que_no_valen_en_windows(tmp_path):
     crear(tmp_path, "a.txt")
     resultado = renombra("delante", "12:30 ", "-c", str(tmp_path), "--si")
-    assert "nombre no válido" in resultado.output
+    assert "no puede llevar :" in resultado.output
+    assert "12:30 a.txt" in resultado.output  # enseña el nombre que saldría
     assert nombres(tmp_path) == {"a.txt"}
+
+
+def test_cambiar_un_texto_que_no_esta_lo_dice(fotos):
+    resultado = renombra("cambiar", "xyz", "abc", "-c", str(fotos))
+    assert "Ningún nombre lleva «xyz»" in resultado.output
+    assert "Renombrar" not in resultado.output  # sin tabla
+
+
+def test_avanzado_con_un_grupo_que_no_existe_no_revienta(fotos):
+    resultado = renombra("avanzado", r"IMG_(\d+)", r"foto_\2", "-c", str(fotos))
+    assert resultado.exit_code == 2
+    assert "el patrón tiene 1 grupo entre paréntesis" in resultado.output
+    assert nombres(fotos) == {"IMG_1234.jpg", "IMG_1235.jpg", "notas.txt"}
 
 
 def test_contiene_solo_coge_esos_archivos(tmp_path):

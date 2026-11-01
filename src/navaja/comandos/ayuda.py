@@ -9,6 +9,7 @@ datos, códigos de salida) va escrito aquí.
 from __future__ import annotations
 
 import difflib
+import re
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -20,7 +21,7 @@ from rich.table import Table
 
 from .. import __version__
 from ..comun import TEMAS, console, directorio_datos, error_console
-from .ocupa import BASURA_ARCHIVOS, BASURA_DIRS, BASURA_PATRONES
+from .ocupa import BASURA_ARCHIVOS, BASURA_DIRS, BASURA_EN_PROYECTOS, BASURA_PATRONES
 from ..filtros import EJEMPLOS_FECHA, NOMBRES
 
 # ── Lectura de los comandos ────────────────────────────────────────────────
@@ -85,7 +86,7 @@ def uso(nombres: list[str], comando: Any) -> str:
     """``ocupa [RUTA] [opciones]``: <> obligatorio, [] opcional."""
     partes = list(nombres)
     if es_grupo(comando):
-        return " ".join(partes + ["<subcomando>"])
+        return " ".join(partes + ["<subcomando>" if partes else "<comando>"])
     for param in argumentos(comando):
         nombre = (param.name or "").upper()
         if getattr(param, "nargs", 1) == -1:
@@ -162,13 +163,16 @@ EXTRA: dict[str, str] = {
     "listar": "Primero las carpetas y luego los archivos, por orden alfabético.",
     "ocupa": "Suma el tamaño de cada carpeta con todo lo que tiene dentro.",
     "limpia": (
-        "Considera basura las carpetas "
+        "Borra solo lo que se vuelve a crear solo: las carpetas "
         + ", ".join(sorted(BASURA_DIRS))
-        + "; los archivos "
+        + "; "
+        + ", ".join(sorted(BASURA_EN_PROYECTOS))
+        + " solo dentro de un proyecto de programación (si al lado hay un package.json, "
+        "pyproject.toml, Cargo.toml…; fuera pueden ser carpetas tuyas); los archivos "
         + ", ".join(sorted(BASURA_ARCHIVOS))
         + "; y los que encajan con "
         + ", ".join(sorted(BASURA_PATRONES))
-        + "."
+        + ". No toca .git ni los entornos virtuales (venv). Lo borrado no va a la papelera."
     ),
     "ordena": (
         "Todas las opciones trabajan en la carpeta actual (o la de --carpeta), enseñan "
@@ -188,7 +192,8 @@ EXTRA: dict[str, str] = {
     ),
     "ordena nombre": (
         "Sin mirar mayúsculas: «factura» junta factura_enero.pdf y Factura luz.pdf en la "
-        "carpeta «factura» (o la que digas con --nombre). Los demás no se tocan. Para un "
+        "carpeta «factura» (o la que digas con --nombre). Los demás no se tocan, así que en "
+        "el menú no pregunta «¿Con qué archivos?». Para un "
         "texto con espacios, entre comillas: nombre \"mi viaje\"."
     ),
     "ordena letra": (
@@ -206,7 +211,12 @@ EXTRA: dict[str, str] = {
         "con el mismo nombre, el nombre ya existe o no vale en Windows, lo marca y no lo "
         "toca. Para un texto con espacios, entre comillas: cambiar \" (1)\" \"\"."
     ),
-    "renombra cambiar": "Cambia el texto tal cual (sin regex): «(1)» o «.» son texto normal.",
+    "renombra cambiar": (
+        "Solo cambian los archivos que llevan ese texto; los demás se quedan igual (por eso "
+        "en el menú no pregunta «¿Con qué archivos?»). No mira mayúsculas: «gemini» encuentra "
+        "«Gemini_…». Vale el nombre entero, con o sin extensión: cambiar informe.pdf final "
+        "deja final.pdf. El texto va tal cual (sin regex): «(1)» o «.» son texto normal."
+    ),
     "renombra numerar": (
         "Cuenta por separado en cada carpeta. Con --orden fecha, la más antigua es la 001."
     ),
@@ -218,8 +228,7 @@ EXTRA: dict[str, str] = {
     "renombra plantilla": (
         "Huecos: {nombre} (el nombre sin extensión), {ext} (la extensión con punto, en "
         "minúsculas), {n} (contador; {n:03} → 001) y {fecha} (fecha de modificación; "
-        "{fecha:%Y-%m-%d} → 2026-10-26). Pon {ext} para no perder la extensión. Son los "
-        "mismos huecos que «plantilla» en acciones.json."
+        "{fecha:%Y-%m-%d} → 2026-10-26). Pon {ext} para no perder la extensión."
     ),
     "renombra avanzado": (
         "El patrón es una expresión regular de Python. Ejemplo: IMG_(\\d+) → foto_\\1 "
@@ -230,12 +239,14 @@ EXTRA: dict[str, str] = {
         "Compara el contenido de los archivos (SHA-256), no el nombre: dos archivos son "
         "duplicados aunque se llamen distinto. Los enlaces duros no cuentan dos veces."
     ),
+    "duplicados buscar": "Al acabar te dice la orden exacta para quitar esas copias.",
     "duplicados borrar": "No borra: mueve las copias a la papelera de navaja.",
     "duplicados vaciar": "Esto sí borra para siempre; no se puede deshacer.",
     "notas": (
-        "Una nota con --url es un enlace: «notas abrir» lo abre en el navegador. Sin "
-        "--texto ni --url, «notas agregar» abre tu editor (Bloc de notas en Windows, o "
-        "el de la variable EDITOR)."
+        "Si lo que guardas empieza por https:// o www., es un enlace: «notas abrir» lo abre "
+        "en el navegador. Si no escribes el texto, «notas agregar» abre tu editor (Bloc de "
+        "notas en Windows, o el de la variable EDITOR). Cada nota tiene un número (ID): es "
+        "el que piden abrir y borrar."
     ),
     "tema": "Temas disponibles: " + ", ".join(TEMAS) + ".",
     "manual": "Sin nada, este manual entero. Con un comando, solo su parte.",
@@ -245,8 +256,11 @@ EXTRA: dict[str, str] = {
 # ── Pintar ─────────────────────────────────────────────────────────────────
 
 
-def describir(nombres: list[str], comando: Any, sangria: int = 0) -> None:
-    """Un comando con su uso, parámetros y notas; si es un grupo, también sus subcomandos."""
+def describir(nombres: list[str], comando: Any, sangria: int = 0, prefijo: str = "") -> None:
+    """Un comando con su uso, parámetros y notas; si es un grupo, también sus subcomandos.
+
+    ``prefijo`` va delante del uso: «navaja » en la terminal.
+    """
     clave = " ".join(nombres)
 
     def imprimir(cosa: Any, extra: int = 0) -> None:
@@ -254,7 +268,7 @@ def describir(nombres: list[str], comando: Any, sangria: int = 0) -> None:
 
     ayuda = escape((comando.help or "").strip())
     imprimir(f"[titulo]{escape(clave)}[/] [pista]—[/] {ayuda}")
-    imprimir(f"Uso: [acento]{escape(uso(nombres, comando))}[/]", 2)
+    imprimir(f"Uso: [acento]{escape(prefijo + uso(nombres, comando))}[/]", 2)
     tabla = tabla_parametros(comando)
     if tabla is not None:
         imprimir(tabla, 4)
@@ -263,7 +277,7 @@ def describir(nombres: list[str], comando: Any, sangria: int = 0) -> None:
     console.print()
     if es_grupo(comando):
         for nombre, sub in subcomandos(comando):
-            describir(nombres + [nombre], sub, sangria + 2)
+            describir(nombres + [nombre], sub, sangria + 2, prefijo)
 
 
 def seccion(titulo: str) -> None:
@@ -285,8 +299,12 @@ MODO_INTERACTIVO = [
     ("1, 2, 3…", "Elige una opción del menú. Si es un grupo (ordena, notas…) abre su "
      "submenú; si no, lo ejecuta en la carpeta actual y pregunta lo que hace falta y los "
      "ajustes que importan (en renombra numerar: separador, cifras y orden), con Intro para "
-     "dejarlos como están. En ordena y renombra pregunta además «¿Con qué archivos?»: "
-     "todos, de un tipo, los que llevan un texto o los de unas fechas. Debajo del "
+     "dejarlos como están. Lo que cambia archivos (ordena, renombra, limpia y duplicados "
+     "borrar) pregunta primero «¿En qué carpeta?» (Intro = la actual; vale una ruta "
+     "completa, ~\\Documents o arrastrar la carpeta desde el explorador). En ordena y "
+     "renombra pregunta al final «¿Con qué archivos?»: todos, de un tipo, los que llevan un "
+     "texto o los de unas fechas (no en renombra cambiar y avanzado ni en ordena nombre, "
+     "donde el texto ya dice qué archivos). El plan dice en qué carpeta va a trabajar. Debajo del "
      "resultado te dice qué más opciones tiene."),
     ("un comando", "Igual que en la terminal pero sin «navaja» delante: ocupa -n 5, "
      "ordena tipo --solo imagenes. Si le falta algo obligatorio, lo pregunta."),
@@ -306,11 +324,12 @@ MODO_INTERACTIVO = [
     ("Intro · 0 · volver", "En un submenú, vuelve al menú principal."),
     ("volver · atrás", "En medio de las preguntas de una opción, repite la anterior; en la "
      "primera, vuelve al menú sin hacer nada. En las listas numeradas («¿Con qué "
-     "archivos?», «¿Qué tipo?») también vale 0. Al confirmar, [s/n/volver] vuelve a la "
-     "última pregunta para cambiarla. Atrás vale con o sin tilde (atras). Entre comillas "
-     "(«\"volver\"») es el texto volver."),
+     "archivos?», «¿Qué tipo?») también vale 0. Al confirmar ([s/n]), «n» no hace "
+     "nada y vuelves al menú. Atrás vale con o sin tilde (atras). Entre comillas "
+     "(«\"volver\"») es el texto volver. En una pregunta, «salir» cancela y te deja en el "
+     "menú sin hacer nada."),
     ("salir · exit · quit · 0", "Termina y vuelve a la terminal normal (0 solo en el menú principal)."),
-    ("Ctrl+C", "Cancela la pregunta o la orden en curso; en el menú principal, sale."),
+    ("Ctrl+C", "Cancela las preguntas o la orden en curso; en el menú principal, sale."),
     ("↑ ↓", "Recuperan lo que escribiste antes."),
 ]
 
@@ -387,9 +406,9 @@ def manual(raiz: Any) -> None:
             [
                 ("[s/n]", "Nada se borra ni se mueve sin enseñarte antes qué va a pasar y "
                  "preguntarte. Vale s, sí, n o no. Con --si no pregunta."),
-                ("--simular", "En ordena y renombra enseña el plan sin tocar nada."),
+                ("--simular", "En ordena, renombra y limpia enseña lo que haría sin tocar nada."),
                 ("deshacer", "ordena y renombra revierten su última operación."),
-                ("--seco", "limpia solo enseña lo que borraría."),
+
                 ("papelera", "duplicados borrar mueve las copias a la papelera de navaja; "
                  "duplicados restaurar las devuelve; duplicados vaciar las borra para siempre."),
                 ("sin sobrescribir", "ordena y duplicados añaden (1), (2)… si el nombre ya "
@@ -427,8 +446,8 @@ def manual(raiz: Any) -> None:
                 ("código 2", "Uso incorrecto: falta un argumento, una opción no existe o la "
                  "expresión regular no es válida."),
                 ("-v · --version", "Muestra la versión: navaja --version."),
-                ("--help", "En cualquier comando, la ayuda técnica en el formato estándar "
-                 "de Typer: navaja ocupa --help."),
+                ("-h · --help", "En cualquier comando, su ayuda: navaja ocupa --help (lo mismo "
+                 "que «manual ocupa»)."),
                 ("navaja manual > manual.txt", "Guarda este manual en un archivo de texto."),
             ]
         )
@@ -499,7 +518,7 @@ def aqui_submenu(grupo: Any) -> list[tuple[str, str]]:
         ("1, 2…", "Ejecuta esa opción aquí mismo; si le falta algo obligatorio, lo pregunta. "
          "Sigues en este submenú hasta que vuelvas."),
         ("volver", "En medio de las preguntas, repite la anterior; en la primera, vuelves "
-         "aquí. Al confirmar, [s/n/volver] vuelve a la última pregunta."),
+         "aquí. Al confirmar ([s/n]), «n» no hace nada y vuelves aquí."),
         (f"{ejemplo} …", "Escribe la opción con sus argumentos y opciones."),
         (f"ayuda {ejemplo} · ? 1", "La ayuda de una opción concreta."),
         ("menu", "Vuelve a enseñar este submenú."),
@@ -601,3 +620,173 @@ def registrar(app: typer.Typer) -> None:
     app.command(
         "manual", help="El manual completo: cómo se usa todo navaja, con opciones y atajos."
     )(manual_cmd)
+
+
+# ── --help y errores en castellano ─────────────────────────────────────────
+#
+# Typer los escribe en inglés («Usage», «Missing argument»…). navaja cambia sus
+# funciones por estas, que usan lo mismo que el manual. Se instalan en app.py.
+
+
+def _prefijo() -> str:
+    """En la terminal se escribe «navaja ocupa»; dentro del modo interactivo, «ocupa»."""
+    from .. import interactivo
+
+    return "" if interactivo.activo else "navaja "
+
+
+def ayuda_terminal(obj: Any, ctx: Any, markup_mode: Any = None) -> None:
+    """Lo que enseña ``--help``: lo mismo que el manual de ese comando."""
+    nombres = ctx.command_path.split()[1:]
+    prefijo = _prefijo()
+    if not nombres:
+        console.print(
+            "[titulo]navaja[/] [pista]—[/] Caja de herramientas de terminal, en castellano."
+        )
+        console.print(
+            "Uso: [acento]navaja[/] abre el menú · [acento]navaja <comando> \\[opciones][/] "
+            "hace una cosa y vuelve a la terminal\n"
+        )
+        tabla = Table.grid(padding=(0, 2))
+        tabla.add_column(style="acento", no_wrap=True)
+        tabla.add_column()
+        for nombre, comando in subcomandos(obj):
+            tabla.add_row(nombre, escape(comando.get_short_help_str(90)))
+        console.print(tabla)
+        console.print(
+            "\n[pista]Ayuda de un comando: navaja ocupa --help · Todo explicado: navaja manual "
+            "· Versión: navaja --version[/]"
+        )
+        return
+    if es_grupo(obj):
+        clave = " ".join(nombres)
+        console.print(
+            f"[titulo]{escape(clave)}[/] [pista]—[/] {escape((obj.help or '').strip())}",
+            soft_wrap=True,
+        )
+        console.print(f"  Uso: [acento]{escape(prefijo + uso(nombres, obj))}[/]")
+        if clave in EXTRA:
+            console.print(Padding(f"[pista]{escape(EXTRA[clave])}[/]", (0, 0, 0, 2)))
+        console.print()
+        tabla = Table.grid(padding=(0, 2))
+        tabla.add_column(style="acento", no_wrap=True)
+        tabla.add_column()
+        for nombre, comando in subcomandos(obj):
+            tabla.add_row(nombre, escape(comando.get_short_help_str(90)))
+        console.print(Padding(tabla, (0, 0, 0, 2)))
+        primero = subcomandos(obj)[0][0] if subcomandos(obj) else "…"
+        console.print(
+            f"\n[pista]Ayuda de una: {escape(prefijo + clave)} {escape(primero)} --help[/]"
+        )
+        return
+    describir(nombres, obj, prefijo=prefijo)
+
+
+def _nombre_param(param: Any) -> str:
+    if param.param_type_name == "argument":
+        return (param.name or "").upper()
+    return max(param.opts, key=len)
+
+
+def _lista(cosas: list[str]) -> str:
+    """«a», «a o b», «a, b o c»."""
+    if len(cosas) < 2:
+        return "".join(cosas)
+    return f"{', '.join(cosas[:-1])} o {cosas[-1]}"
+
+
+def _rango(texto: str) -> str:
+    if m := re.fullmatch(r"x>=?(\S+)", texto):
+        return f"tiene que ser {m[1]} o más"
+    if m := re.fullmatch(r"x<=?(\S+)", texto):
+        return f"tiene que ser {m[1]} o menos"
+    if m := re.fullmatch(r"(\S+?)<=?x<=?(\S+)", texto):
+        return f"tiene que estar entre {m[1]} y {m[2]}"
+    return f"fuera de rango ({texto})"
+
+
+def _traducir_valor(texto: str) -> str:
+    if m := re.fullmatch(r"'(.*)' is not a valid (?:int|integer)(?: range)?\.", texto):
+        return f"«{m[1]}» no es un número entero."
+    if m := re.fullmatch(r"'(.*)' is not a valid float(?: range)?\.", texto):
+        return f"«{m[1]}» no es un número."
+    if m := re.fullmatch(r"'(.*)' is not one of (.*)\.", texto):
+        opciones = re.findall(r"'([^']*)'", m[2])
+        return f"«{m[1]}» no vale; elige {_lista(opciones)}."
+    if m := re.fullmatch(r"(.*) is not in the range (.*)\.", texto):
+        return f"{m[1]} no vale: {_rango(m[2])}."
+    return texto
+
+
+def mensaje_de_error(error: Any) -> str:
+    """El mensaje de un error de uso de Typer, en castellano."""
+    clase = type(error).__name__
+    param = getattr(error, "param", None)
+    texto = getattr(error, "message", "") or ""
+    if clase == "MissingParameter":
+        if param is None:
+            return "Falta un valor obligatorio."
+        if param.param_type_name == "argument":
+            ayuda = (getattr(param, "help", None) or "").rstrip(".")
+            return f"Falta {_nombre_param(param)}" + (f": {ayuda}." if ayuda else ".")
+        return f"Falta la opción {_nombre_param(param)}."
+    if clase == "NoSuchOption":
+        mensaje = f"No existe la opción {error.option_name}."
+        if error.possibilities:
+            mensaje += f" ¿Querías decir {_lista(sorted(error.possibilities))}?"
+        return mensaje
+    if clase == "BadOptionUsage":
+        if "does not take a value" in texto:
+            return f"{error.option_name} no lleva valor: se pone o no se pone."
+        if "requires" in texto:
+            return f"Falta el valor de {error.option_name}."
+        return texto
+    if param is not None or clase == "BadParameter":
+        detalle = _traducir_valor(texto)
+        pista = getattr(error, "param_hint", None)
+        if param is not None:
+            return f"{_nombre_param(param)}: {detalle}"
+        if pista:
+            return f"{pista if isinstance(pista, str) else ' / '.join(pista)}: {detalle}"
+        return detalle
+    if m := re.fullmatch(r"Got unexpected extra arguments?(?:\(s\))? \((.*)\)", texto):
+        return f"Sobra «{m[1]}». Si es un texto con espacios, ponlo entre comillas."
+    if m := re.fullmatch(r"No such command '(.*?)'\.(?: Did you mean .*)?", texto):
+        ctx = getattr(error, "ctx", None)
+        posibles = list(ctx.command.list_commands(ctx)) if ctx is not None else []
+        parecido = difflib.get_close_matches(m[1], posibles, n=1)
+        return f"No existe «{m[1]}»." + (f" ¿Querías decir {parecido[0]}?" if parecido else "")
+    if texto == "Missing command.":
+        return "Falta elegir una opción."
+    return texto
+
+
+def error_terminal(error: Any) -> None:
+    """Un error de uso: qué pasa, cómo se escribe y dónde está la ayuda."""
+    if type(error).__name__ == "NoArgsIsHelpError":
+        return  # ya se ha enseñado la ayuda
+    error_console.print(f"[error]{escape(mensaje_de_error(error))}[/]", soft_wrap=True)
+    ctx = getattr(error, "ctx", None)
+    if ctx is None:
+        return
+    nombres = ctx.command_path.split()[1:]
+    prefijo = _prefijo()
+    ayuda = " ".join([*nombres, "--help"])
+    error_console.print(
+        f"[pista]Uso: {escape(prefijo + uso(nombres, ctx.command))} · "
+        f"Ayuda: {escape(prefijo + ayuda)}[/]",
+        soft_wrap=True,
+    )
+
+
+def cancelado() -> None:
+    error_console.print("[aviso]Cancelado.[/]")
+
+
+def instalar_en_castellano() -> None:
+    """Cambia la ayuda y los errores de Typer (en inglés) por los de navaja."""
+    from typer import rich_utils
+
+    rich_utils.rich_format_help = ayuda_terminal
+    rich_utils.rich_format_error = error_terminal
+    rich_utils.rich_abort_error = cancelado

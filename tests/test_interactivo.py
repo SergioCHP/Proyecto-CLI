@@ -128,7 +128,7 @@ def test_comando_del_menu_principal_desde_un_submenu(carpeta, capsys, linea):
 
 def test_comando_con_obligatorios_sin_argumentos_pregunta(carpeta, capsys, monkeypatch):
     monkeypatch.setattr("builtins.input", lambda *_: "n")  # a «¿Renombrar…? [s/n]»
-    interactivo.iniciar(app, lector("renombra cambiar", "apuntes", "notas", ""))
+    interactivo.iniciar(app, lector("renombra cambiar", "", "apuntes", "notas", ""))
     texto = salida(capsys)
     assert "→ navaja renombra cambiar apuntes notas" in texto
     assert "notas.pdf" in texto
@@ -139,8 +139,9 @@ def test_comando_con_obligatorios_sin_argumentos_pregunta(carpeta, capsys, monke
 def test_texto_opcional_se_pregunta_y_vacio_borra(carpeta, capsys, monkeypatch):
     monkeypatch.setattr("builtins.input", lambda *_: "s")
     (carpeta / "informe (1).pdf").write_text("x")
-    # renombra → 1 (cambiar) → buscar « (1)» (con comillas, para el espacio) → Intro (nada)
-    interactivo.iniciar(app, lector("renombra", "1", '" (1)"', "", ""))
+    # renombra → 1 (cambiar) → carpeta (Intro) → buscar « (1)» (con comillas, para el espacio)
+    # → Intro (nada)
+    interactivo.iniciar(app, lector("renombra", "1", "", '" (1)"', "", ""))
     salida(capsys)
     assert (carpeta / "informe.pdf").exists()
 
@@ -149,10 +150,10 @@ def test_renombrar_las_imagenes_de_gemini_desde_el_menu(carpeta, capsys, monkeyp
     monkeypatch.setattr("builtins.input", lambda *_: "s")
     for codigo in ("4ll5w74ll5w74ll5", "jx2wlfjx2wlfjx2w", "yz08iryz08iryz08"):
         (carpeta / f"Gemini_Generated_Image_{codigo}.png").write_text("x")
-    # renombra → 4 (numerar) → nombre → separador (un espacio) → cifras → orden (mal y bien)
-    # → ¿con qué archivos? 3 (los que llevan un texto) → gemini
+    # renombra → 4 (numerar) → carpeta (Intro) → nombre → separador (un espacio) → cifras
+    # → orden (mal y bien) → ¿con qué archivos? 3 (los que llevan un texto) → gemini
     interactivo.iniciar(
-        app, lector("renombra", "4", "gemini", " ", "1", "por tamaño", "", "3", "gemini")
+        app, lector("renombra", "4", "", "gemini", " ", "1", "por tamaño", "", "3", "gemini")
     )
     texto = salida(capsys)
     assert "Escribe nombre o fecha" in texto
@@ -169,11 +170,11 @@ def test_ordenar_un_tramo_de_fechas_desde_el_menu(carpeta, capsys, monkeypatch):
         archivo.write_text("x")
         marca = datetime(2026, 9, 1).timestamp() + dia * 86400
         os.utime(archivo, (marca, marca))
-    # ordena → 3 (tramo) → desde (mal y bien) → hasta → nombre (Intro) → ¿con qué archivos?
-    # → 2 (de un tipo) → 2 (Documentos)
+    # ordena → 3 (tramo) → carpeta (Intro) → desde (mal y bien) → hasta → nombre (Intro)
+    # → ¿con qué archivos? 2 (de un tipo) → 2 (Documentos)
     interactivo.iniciar(
         app,
-        lector("ordena", "3", "mañana", "septiembre 2026", "septiembre 2026", "", "2", "2"),
+        lector("ordena", "3", "", "mañana", "septiembre 2026", "septiembre 2026", "", "2", "2"),
     )
     texto = salida(capsys)
     assert "No entiendo la fecha «mañana»" in texto
@@ -184,9 +185,10 @@ def test_ordenar_un_tramo_de_fechas_desde_el_menu(carpeta, capsys, monkeypatch):
 
 def test_filtro_de_fechas_desde_el_menu(carpeta, capsys, monkeypatch):
     monkeypatch.setattr("builtins.input", lambda *_: "n")
-    # ordena → 1 (tipo) → ¿con qué archivos? 4 (fechas) → desde → hasta (antes que desde) → otra vez
+    # ordena → 1 (tipo) → carpeta (Intro) → ¿con qué archivos? 4 (fechas) → desde
+    # → hasta (antes que desde) → otra vez
     interactivo.iniciar(
-        app, lector("ordena", "1", "4", "1/10/2026", "1/9/2026", "1/9/2026", "hoy")
+        app, lector("ordena", "1", "", "4", "1/10/2026", "1/9/2026", "1/9/2026", "hoy")
     )
     texto = salida(capsys)
     assert "posterior" in texto
@@ -197,8 +199,9 @@ def test_ordenar_por_nombre_desde_el_menu(carpeta, capsys, monkeypatch):
     monkeypatch.setattr("builtins.input", lambda *_: "s")
     for nombre in ("factura_enero.pdf", "Factura luz.pdf"):
         (carpeta / nombre).write_text("x")
-    # ordena → 4 (nombre) → texto (vacío y bien) → carpeta (Intro) → ¿con qué archivos? (Intro)
-    interactivo.iniciar(app, lector("ordena", "4", "", "factura", "", ""))
+    # ordena → 4 (nombre) → carpeta (Intro) → texto (vacío y bien) → nombre de la carpeta
+    # (Intro) → ¿con qué archivos? (Intro)
+    interactivo.iniciar(app, lector("ordena", "4", "", "", "factura", "", ""))
     texto = salida(capsys)
     assert "Hace falta un valor" in texto
     assert "Los que llevan un texto" not in texto  # el texto ya lo ha dicho
@@ -209,8 +212,8 @@ def test_ordenar_por_nombre_desde_el_menu(carpeta, capsys, monkeypatch):
 def test_ordenar_por_letra_desde_el_menu(carpeta, capsys, monkeypatch):
     monkeypatch.setattr("builtins.input", lambda *_: "s")
     (carpeta / "boletin.pdf").write_text("x")
-    # ordena → 5 (letra) → ¿con qué archivos? 2 (de un tipo) → 2 (Documentos)
-    interactivo.iniciar(app, lector("ordena", "5", "2", "2"))
+    # ordena → 5 (letra) → carpeta (Intro) → ¿con qué archivos? 2 (de un tipo) → 2 (Documentos)
+    interactivo.iniciar(app, lector("ordena", "5", "", "2", "2"))
     salida(capsys)
     assert (carpeta / "A" / "apuntes.pdf").exists()
     assert (carpeta / "B" / "boletin.pdf").exists()
@@ -225,10 +228,13 @@ def respuestas(*lineas):
 
 @pytest.mark.parametrize("volver", ["0", "volver", "atrás"])
 def test_volver_en_la_primera_pregunta_vuelve_al_menu(carpeta, capsys, volver):
-    # ordena → 1 (tipo) → ¿con qué archivos? volver → seguimos en el submenú de ordena
-    interactivo.iniciar(app, lector("ordena", "1", volver, "ayuda"))
+    # ordena → 1 (tipo) → carpeta (Intro) → ¿con qué archivos? volver (a la carpeta)
+    # → volver → seguimos en el submenú de ordena
+    interactivo.iniciar(app, lector("ordena", "1", "", volver, "volver", "ayuda", eco=True))
     texto = salida(capsys)
     assert "volver: a la pregunta anterior" in texto
+    assert texto.count("¿En qué carpeta?") == 2
+    assert texto.count("  ¿Con qué archivos?\n") == 1
     assert "Vuelves al menú." in texto
     assert "Ordenar" not in texto
     assert "Uso: tipo [opciones]" in texto  # la «ayuda» de después es la del submenú
@@ -241,7 +247,7 @@ def test_volver_repite_la_pregunta_anterior(carpeta, capsys, monkeypatch):
     # → otro nombre → separador → cifras → orden → todos
     interactivo.iniciar(
         app,
-        lector("renombra", "4", "gemini", " ", "volver", "volver", "foto", "-", "1", "", "", eco=True),
+        lector("renombra", "4", "", "gemini", " ", "volver", "volver", "foto", "-", "1", "", "", eco=True),
     )
     texto = salida(capsys)
     assert texto.count("Nombre común") == 2
@@ -250,11 +256,14 @@ def test_volver_repite_la_pregunta_anterior(carpeta, capsys, monkeypatch):
 
 
 def test_volver_dentro_de_con_que_archivos(carpeta, capsys):
-    # ordena → 1 (tipo) → 4 (fechas) → desde → volver (otra vez desde) → volver (a la lista)
-    # → 2 (de un tipo) → volver (a la lista) → 0 (al menú)
+    # ordena → 1 (tipo) → carpeta (Intro) → 4 (fechas) → desde → volver (otra vez desde)
+    # → volver (a la lista) → 2 (de un tipo) → volver (a la lista) → 0 (a la carpeta) → volver
     interactivo.iniciar(
         app,
-        lector("ordena", "1", "4", "1/9/2026", "volver", "volver", "2", "volver", "0", eco=True),
+        lector(
+            "ordena", "1", "", "4", "1/9/2026", "volver", "volver", "2", "volver", "0", "volver",
+            eco=True,
+        ),
     )
     texto = salida(capsys)
     assert texto.count("Desde qué fecha") == 2
@@ -263,36 +272,87 @@ def test_volver_dentro_de_con_que_archivos(carpeta, capsys):
     assert "Ordenar" not in texto
 
 
-def test_volver_en_la_confirmacion_vuelve_a_la_ultima_pregunta(carpeta, capsys, monkeypatch):
+def test_la_confirmacion_es_s_n_y_n_vuelve_al_submenu(carpeta, capsys, monkeypatch):
     (carpeta / "foto.jpg").write_text("x")
-    monkeypatch.setattr("builtins.input", respuestas("volver", "s"))
-    # ordena → 1 (tipo) → todos → [s/n/volver] volver → ¿con qué archivos? 2 (tipo) → 1 (imágenes)
-    interactivo.iniciar(app, lector("ordena", "1", "", "2", "1"))
+    monkeypatch.setattr("builtins.input", respuestas("n"))
+    # ordena → 1 (tipo) → carpeta (Intro) → todos → [s/n] n → seguimos en ordena
+    interactivo.iniciar(app, lector("ordena", "1", "", "", "ayuda"))
     texto = salida(capsys)
-    assert "[s/n/volver]" in texto
-    assert texto.count("¿Con qué archivos?") == 2
-    assert (carpeta / "Imagenes" / "foto.jpg").exists()
-    assert (carpeta / "apuntes.pdf").exists()  # el primer plan (todos) no se hizo
-
-
-def test_volver_en_la_confirmacion_sin_preguntas_vuelve_al_menu(carpeta, capsys, monkeypatch):
-    (carpeta / "foto.jpg").write_text("x")
-    monkeypatch.setattr("builtins.input", respuestas("volver"))
-    interactivo.iniciar(app, lector("ordena tipo --si", "ordena", numero_de_ordena("deshacer")))
-    texto = salida(capsys)
-    assert "Vuelves al menú." in texto
-    assert (carpeta / "Imagenes" / "foto.jpg").exists()  # no se ha deshecho
-
-
-def numero_de_ordena(nombre):
-    grupo = typer.main.get_command(app).commands["ordena"]
-    return str([n for n, _ in subcomandos(grupo)].index(nombre) + 1)
+    assert "[s/n]" in texto and "volver]" not in texto
+    assert "Cancelado" in texto
+    assert "Uso: tipo [opciones]" in texto  # la «ayuda» de después es la del submenú
+    assert (carpeta / "foto.jpg").exists()
 
 
 def test_volver_entre_comillas_es_el_texto_volver(carpeta, capsys, monkeypatch):
     monkeypatch.setattr("builtins.input", lambda *_: "n")
-    interactivo.iniciar(app, lector("renombra cambiar", '"volver"', "x", ""))
+    interactivo.iniciar(app, lector("renombra cambiar", "", '"volver"', "x", ""))
     assert "→ navaja renombra cambiar volver x" in salida(capsys)
+
+
+@pytest.mark.parametrize("orden", ["renombra cambiar", "ordena nombre"])
+def test_si_el_texto_ya_elige_los_archivos_no_pregunta_con_cuales(carpeta, capsys, monkeypatch, orden):
+    monkeypatch.setattr("builtins.input", lambda *_: "n")
+    # carpeta (Intro) → texto → (renombra: texto nuevo · ordena: nombre de la carpeta) → y ya
+    interactivo.iniciar(app, lector(orden, "", "apuntes", ""))
+    texto = salida(capsys)
+    assert "  ¿Con qué archivos?\n" not in texto
+    assert "apuntes" in texto and "Cancelado" in texto
+
+
+def test_elegir_otra_carpeta(carpeta, capsys, monkeypatch):
+    monkeypatch.setattr("builtins.input", lambda *_: "s")
+    # ordena → 1 (tipo) → carpeta: no existe, un archivo, y bien → todos
+    interactivo.iniciar(app, lector("ordena", "1", "no-existe", "apuntes.pdf", "sub", ""))
+    texto = salida(capsys)
+    assert "No existe la carpeta «no-existe»" in texto
+    assert "Eso es un archivo" in texto
+    assert "→ navaja ordena tipo --carpeta sub" in texto
+    assert (carpeta / "sub" / "Documentos" / "dentro.txt").exists()
+    assert (carpeta / "apuntes.pdf").exists()  # la de fuera no se toca
+
+
+@pytest.mark.parametrize("ruta", [r"C:\Users\sergi\Documents", "~/Documents", "sub/"])
+def test_una_carpeta_en_el_texto_del_nombre_avisa(carpeta, capsys, monkeypatch, ruta):
+    monkeypatch.setattr("builtins.input", lambda *_: "n")
+    interactivo.iniciar(app, lector("renombra cambiar", "", ruta, "apuntes", "x", ""))
+    texto = salida(capsys)
+    assert "Eso parece una carpeta" in texto
+    assert "→ navaja renombra cambiar apuntes x" in texto
+
+
+def test_limpia_desde_el_menu_pregunta_la_carpeta(carpeta, capsys, monkeypatch):
+    (carpeta / "sub" / "borrar.tmp").write_text("x")
+    monkeypatch.setattr("builtins.input", lambda *_: "s")
+    interactivo.iniciar(app, lector(numero_de("limpia"), "sub"))
+    texto = salida(capsys)
+    assert "→ navaja limpia sub" in texto
+    assert not (carpeta / "sub" / "borrar.tmp").exists()
+
+
+def test_duplicados_desde_el_menu_pregunta_si_mirar_subcarpetas(carpeta, capsys):
+    # apuntes.pdf y sub/dentro.txt tienen el mismo contenido
+    interactivo.iniciar(app, lector("duplicados", "1", "s"))
+    texto = salida(capsys)
+    assert "→ navaja duplicados buscar --recursivo" in texto
+    assert "dentro.txt" in texto
+
+
+def test_abrir_una_nota_desde_el_menu_ensena_antes_la_lista(carpeta, capsys):
+    interactivo.iniciar(
+        app, lector('notas agregar Apunte "Hola mundo"', "notas", "4", "1", "", eco=True)
+    )
+    texto = salida(capsys)
+    assert texto.index("Número de la nota") > texto.index("Apunte")  # la lista va antes
+    assert "nº 1" in texto
+
+
+def test_salir_en_una_pregunta_cancela_y_sigue_en_navaja(carpeta, capsys):
+    interactivo.iniciar(app, lector("renombra cambiar", "salir", "listar"))
+    texto = salida(capsys)
+    assert "Cancelado" in texto
+    assert "apuntes.pdf" in texto  # el «listar» de después funciona
+    assert (carpeta / "apuntes.pdf").exists()
 
 
 def test_volver_en_el_menu_principal(carpeta, capsys):
@@ -307,7 +367,8 @@ def test_ayuda_de_un_comando(carpeta, capsys, pedido):
     interactivo.iniciar(app, lector(pedido))
     texto = salida(capsys)
     assert "Uso: ocupa [RUTA] [opciones]" in texto
-    assert "--mayores" in texto and "por defecto: 15" in texto
+    plano = " ".join(texto.split())  # sin los saltos de línea de la tabla
+    assert "--mayores" in plano and "por defecto: 15" in plano
 
 
 def test_ayuda_de_un_grupo_muestra_sus_opciones(carpeta, capsys):
