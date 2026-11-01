@@ -377,6 +377,13 @@ Más claro:
 - [ ] Comando `tarea` (tareas pendientes) reutilizando la base de notas.
 - [ ] Historial de deshacer (varias operaciones, no solo la última).
 - [x] ADR-0001 (por qué acciones.json) y `docs/prompts.md`.
+- [ ] Mejoras que dejó el revisor (de `src/navaja/motor.py`) y no he arreglado todavía:
+  - `filtros.py:256`: el `stat()` del filtro de fechas no está protegido. Si un archivo
+    desaparece mientras se elige (una descarga a medias), sale una traza. Es muy raro y
+    no hace daño: no se toca nada ni se pierde nada.
+  - `motor.py:112`: `except ValueError` es demasiado amplio y el mensaje no dice qué
+    campo falla. Hoy solo lo provocan plantillas de nombre malas, que ya se comprueban
+    antes al validar; tocarlo ahora arriesga más de lo que arregla.
 - [ ] En una rutina simulada, cada paso se calcula con la carpeta como está ahora (no
   con lo que habrían cambiado los pasos de antes).
 - [ ] Autocompletado de shell.

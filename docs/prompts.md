@@ -129,14 +129,48 @@ usará, por qué JSON y no YAML, y qué sale mal si lo escribes a mano.
 
 **Qué aprendí:** _(escríbelo tú)_
 
-## Pendiente de rellenar: revisor
+## 2026-11-01 · Revisión de motor.py con el subagente revisor
 
 **Herramienta:** subagente `revisor` (Claude Code)
 
-**Prompt:** `usa el subagente revisor para revisar src/navaja/motor.py`
+**Prompt (tal cual lo envié):**
+> usa el subagente revisor para revisar src/navaja/motor.py
 
-**Qué señaló el revisor:** _(apunta aquí sus puntos)_
+**Qué señaló el revisor:**
+- **Rutas relativas (`motor.py:58`):** sin carpeta, se trabaja con `Path(".")` y los archivos
+  salen como rutas relativas. Al compararlas con el destino, que es absoluto, nunca
+  coinciden: un `mover` a la carpeta donde ya estás renombra a «x (1).ext», y `deshacer` no
+  encuentra los archivos si cambias de carpeta.
+- **Destino por encima de la carpeta (`motor.py:86`):** con `"destino": ".."` se descartaban
+  todos los archivos y decía «ningún archivo cumple el filtro».
+- **`isdigit` con `²` (`motor.py:34`):** `acciones ejecutar ²` terminaba en traza.
+- **Otros:** `stat()` sin proteger en `filtros.py:256`, `except ValueError` demasiado amplio
+  (`motor.py:112`), y detalles menores (nombre `empiezan`, importar `a_bytes` desde
+  `duplicados.py`, el `assert` desaparece con `python -O`) y sospechas sobre Windows
+  (caracteres no válidos en rutas, `\\?\`).
 
-**Qué arreglé y qué descarté, y por qué:** _(escríbelo tú)_
+**Qué arreglé (cada uno con su test):**
+- `carpeta.resolve()` en `Motor.carpeta`: ahora las rutas son absolutas y comparables.
+- El destino solo se excluye si está dentro de la carpeta de trabajo.
+- `isdecimal()` en vez de `isdigit()`.
 
-**Su pregunta, y mi respuesta:** _(escríbelo tú)_
+**Qué dejé y por qué:**
+- `stat()` de `filtros.py:256`: solo falla si un archivo desaparece mientras se elige. Es muy
+  raro y no pierde nada. Apuntado en ESTADO.md.
+- `except ValueError` demasiado amplio: solo lo provocan plantillas de nombre malas, que ya
+  se comprueban al validar; cambiarlo arriesga más de lo que arregla. Apuntado en ESTADO.md.
+- Los menores (`empiezan`, `a_bytes`, `assert` con `-O`): no son errores.
+- Las sospechas de Windows: las probaré en mi Windows antes de tocar nada.
+
+**Su pregunta, y mi respuesta:** no hizo ninguna pregunta: terminó con «No he cambiado nada.
+Si quieres, empiezo por la línea 58 con sus tests, que es lo que más se nota». Le contesté:
+
+> arregla la línea 58 con resolve(), el destino por encima de la carpeta (línea 86) y el isdigit (línea 34), cada uno con su test. Explícame antes qué vas a cambiar
+
+Una pregunta que yo debo saber responder: ¿por qué fallaba la línea 58? Porque sin carpeta se
+trabajaba con `Path(".")` y los archivos salían como rutas relativas (`a.txt`), mientras que el
+destino es absoluto. Python las compara tal cual, nunca coinciden, y por eso trataba como
+distintos archivos que ya estaban en su sitio. `resolve()` convierte la carpeta en absoluta
+y ya se pueden comparar; además el deshacer guarda rutas que no dependen de dónde estés.
+
+**Qué aprendí:** _(escríbelo tú)_
