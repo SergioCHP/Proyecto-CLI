@@ -13,3 +13,6 @@ htmlcov/
 .env
 .env.*
 !.env.example
+
+# Ajustes personales de Claude Code (los del proyecto, .claude/settings.json, sí se suben)
+.claude/settings.local.json

@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(uv run navaja --help)",
+      "Bash(uv run navaja acciones validar:*)",
+      "Bash(uv run --extra dev pytest:*)"
+    ],
+    "ask": [
+      "Bash(git commit:*)",
+      "Bash(uv run navaja acciones ejecutar:*)"
+    ],
+    "deny": [
+      "Bash(git push:*)",
+      "Bash(git reset:*)",
+      "Bash(rm:*)",
+      "Read(./.env)",
+      "Read(./.env.*)"
+    ]
+  }
+}

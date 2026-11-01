@@ -308,3 +308,6 @@ La estructura está en `src/navaja/` y cada utilidad vive en `src/navaja/comando
 - [AGENTS.md](AGENTS.md): guía para agentes y desarrolladores (estructura,
   convenciones y cómo añadir comandos).
 - [ESTADO.md](ESTADO.md): bitácora de lo implementado, decisiones y pendientes.
+- Agente de programación: las normas están en [AGENTS.md](AGENTS.md). Para OpenCode,
+  `opencode.json` y `.opencode/`; para Claude Code, `CLAUDE.md` y `.claude/`. En los dos:
+  la skill `acciones-json`, el comando `/nueva-accion` y el subagente `revisor` (solo lee).
