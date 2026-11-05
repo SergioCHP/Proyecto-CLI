@@ -22,3 +22,14 @@ def test_se_instalan_navaja_y_nav():
 
 def test_ningun_comando_choca_con_un_alias_de_powershell():
     assert not ordenes_instaladas() & ALIAS_DE_POWERSHELL
+
+
+def test_orden_version():
+    from typer.testing import CliRunner
+
+    from navaja import __version__
+    from navaja.app import app
+
+    resultado = CliRunner().invoke(app, ["version"])
+    assert resultado.exit_code == 0
+    assert resultado.output.strip() == f"navaja {__version__}"

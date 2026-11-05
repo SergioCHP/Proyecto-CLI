@@ -107,6 +107,12 @@ def principal(
             _mostrar_bienvenida(config)
 
 
+@app.command("version", hidden=True)
+def version_orden() -> None:
+    """Muestra la versión (lo mismo que navaja --version)."""
+    typer.echo(f"navaja {__version__}")
+
+
 for modulo in (listar, ocupa, ordena, renombra, duplicados, notas, mis_acciones, ajustes, ayuda):
     modulo.registrar(app)
 

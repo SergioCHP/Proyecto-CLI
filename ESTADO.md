@@ -6,7 +6,7 @@ Bitácora de lo implementado y de lo que queda pendiente.
 
 - **Producto:** `navaja`, CLI de utilidades de terminal.
 - **Versión:** 0.1.0.
-- **Stack:** Python 3.10, Typer, Rich, SQLite (stdlib), setuptools.
+- **Stack:** Python 3.12+, Typer, Rich, SQLite (stdlib), setuptools.
 - **Estado:** funcional y probado localmente.
 
 ## Hecho
@@ -345,6 +345,18 @@ Más claro:
 - Manual: sección «acciones.json» con el esquema (`manual acciones` también la enseña)
   y código de salida 3.
 - 262 tests pasando en Python 3.10 y 3.13.
+
+### 2026-11-05 — Al día con las instrucciones nuevas (sesiones 1 y 2)
+
+- **AGENTS.md corto:** solo stack, órdenes y normas (lo que el agente lee siempre). El
+  detalle técnico pasa a `docs/arquitectura.md` y el reparto del código de acciones, a
+  la skill `acciones-json` (las dos copias).
+- **opencode.json:** el agente `explore` tampoco puede editar, como `plan`.
+- **`navaja version`:** orden oculta (no cambia los números del menú) que hace lo mismo
+  que `--version`.
+- **Python 3.12+:** `requires-python = ">=3.12"`, `.python-version` con 3.12 y
+  `uv.lock` regenerado. Hay que reinstalar: `uv tool install --editable . --force`.
+- 270 tests pasando en Python 3.12.
 
 ## Decisiones técnicas
 

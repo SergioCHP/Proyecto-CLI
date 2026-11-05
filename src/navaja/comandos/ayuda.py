@@ -483,7 +483,7 @@ def manual(raiz: Any) -> None:
                  "expresión regular no es válida."),
                 ("código 3", "acciones.json no existe o está mal escrito (el mensaje dice qué "
                  "acción y qué campo)."),
-                ("-v · --version", "Muestra la versión: navaja --version."),
+                ("version · -v · --version", "Muestra la versión: navaja version (o navaja --version)."),
                 ("-h · --help", "En cualquier comando, su ayuda: navaja ocupa --help (lo mismo "
                  "que «manual ocupa»)."),
                 ("navaja manual > manual.txt", "Guarda este manual en un archivo de texto."),
