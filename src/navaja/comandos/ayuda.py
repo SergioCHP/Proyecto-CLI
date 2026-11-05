@@ -259,7 +259,8 @@ EXTRA: dict[str, str] = {
         "Una acción es una tarea que repites, guardada con un nombre en acciones.json "
         "(ordenar-descargas, imagenes-ia…): la escribes una vez y la haces cuando quieras. "
         "navaja usa el acciones.json de la carpeta actual y, si no hay, el de tus datos (o el "
-        "que digas con --config). Antes de hacer nada comprueba el archivo entero; si algo está "
+        "que digas con --config, antes o después de la orden: «acciones --config X ver» o "
+        "«acciones ver --config X»). Antes de hacer nada comprueba el archivo entero; si algo está "
         "mal, dice qué acción y qué campo y sale con el código 3. Cómo se escribe el archivo: "
         "«manual acciones»."
     ),

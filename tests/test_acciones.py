@@ -572,3 +572,28 @@ def test_acciones_en_el_menu_interactivo(tmp_path, descargas, monkeypatch, capsy
     texto = capsys.readouterr().out
     assert "Prueba pdf" in texto  # enseña la lista antes de preguntar
     assert (descargas / "PDF" / "factura.pdf").exists()
+
+
+@pytest.mark.parametrize(
+    "orden",
+    [
+        ["acciones", "--config", str(REPO / "pruebas" / "roto-tipo.json"), "validar"],
+        ["acciones", "validar", "--config", str(REPO / "pruebas" / "roto-tipo.json")],
+    ],
+)
+def test_config_antes_o_despues_de_la_orden(orden):
+    resultado = runner.invoke(app, orden)
+    assert resultado.exit_code == 3
+    assert "«tipo»" in plano(resultado.output)
+
+
+def test_el_config_de_la_orden_gana_al_del_grupo():
+    resultado = runner.invoke(
+        app,
+        [
+            "acciones", "--config", str(REPO / "pruebas" / "roto-tipo.json"),
+            "validar", "--config", str(REPO / "pruebas" / "acciones-prueba.json"),
+        ],
+    )
+    assert resultado.exit_code == 0, resultado.output
+    assert "5 acciones válidas" in plano(resultado.output)

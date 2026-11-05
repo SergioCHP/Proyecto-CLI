@@ -97,7 +97,13 @@ navaja acciones editar                               # lo abre en el Bloc de not
 ```
 
 navaja usa el `acciones.json` de la carpeta en la que estás y, si no hay, el de tus datos
-(`%LOCALAPPDATA%\navaja\acciones.json` en Windows). Con `--config RUTA` usa otro.
+(`%LOCALAPPDATA%\navaja\acciones.json` en Windows). Con `--config RUTA` usa otro, escrito
+antes o después de la orden (si van los dos, gana el de después):
+
+```bash
+navaja acciones --config pruebas/acciones-prueba.json validar
+navaja acciones validar --config pruebas/acciones-prueba.json
+```
 
 Antes de hacer nada comprueba el archivo **entero**. Si algo está mal, dice qué acción y
 qué campo fallan y sale con el código 3, sin trazas de Python:

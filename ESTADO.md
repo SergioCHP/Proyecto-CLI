@@ -358,6 +358,14 @@ Más claro:
   `uv.lock` regenerado. Hay que reinstalar: `uv tool install --editable . --force`.
 - 270 tests pasando en Python 3.12.
 
+### 2026-11-05 — `--config` antes de la orden
+
+- `navaja acciones --config RUTA ver|ejecutar|validar|editar`, como lo escribe el
+  profesor (opción del grupo, guardada en `ctx.obj`). La forma de antes,
+  `navaja acciones validar --config RUTA`, sigue valiendo; si van las dos, gana la de
+  la orden, que es la más concreta.
+- 273 tests pasando en Python 3.12.
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.

@@ -44,6 +44,30 @@ OPCION_CONFIG = typer.Option(
 )
 
 
+def elegir_config(ctx: typer.Context, config: Path | None) -> Path | None:
+    """El --config de la orden y, si no hay, el del grupo (``navaja acciones --config X ver``),
+    guardado en ``ctx.obj``. El de la orden gana porque es el más concreto."""
+    if config is not None:
+        return config
+    datos = ctx.obj if isinstance(ctx.obj, dict) else {}
+    return datos.get("config")
+
+
+def grupo(
+    ctx: typer.Context,
+    config: Path | None = typer.Option(
+        None,
+        "--config",
+        help="Usar este archivo de acciones en la orden que va detrás: "
+        "navaja acciones --config pruebas/acciones-prueba.json ver.",
+        show_default=False,
+    ),
+) -> None:
+    """Guarda el --config escrito antes de la orden para que lo usen todas."""
+    datos = ctx.ensure_object(dict)
+    datos["config"] = config
+
+
 def fallar(error: NavajaError, ruta: Path | None = None) -> NoReturn:
     """Un error previsible: el mensaje en rojo (sin traza) y su código de salida."""
     error_console.print(f"[error]✘ {escape(str(error))}[/]", soft_wrap=True)
@@ -79,9 +103,9 @@ def donde(accion: Accion) -> str:
 # ── ver y validar ──────────────────────────────────────────────────────────
 
 
-def ver(config: Path | None = OPCION_CONFIG) -> None:
+def ver(ctx: typer.Context, config: Path | None = OPCION_CONFIG) -> None:
     """Lista tus acciones: número, nombre, tipo y qué hace."""
-    ruta, motor = cargar(config)
+    ruta, motor = cargar(elegir_config(ctx, config))
     tabla = crear_tabla(["#", "Nombre", "Tipo", "Qué hace", "Dónde"])
     for numero, (nombre, accion) in enumerate(motor.acciones.items(), start=1):
         tabla.add_row(
@@ -115,10 +139,10 @@ def comprobar_y_contar(ruta: Path) -> None:
         console.print(f"[aviso]Ojo: {escape(aviso)}[/]", soft_wrap=True)
 
 
-def validar(config: Path | None = OPCION_CONFIG) -> None:
+def validar(ctx: typer.Context, config: Path | None = OPCION_CONFIG) -> None:
     """Comprueba que acciones.json está bien escrito, sin tocar ningún archivo."""
     try:
-        ruta = esquema.buscar(config)
+        ruta = esquema.buscar(elegir_config(ctx, config))
     except ConfigError as error:
         fallar(error)
     comprobar_y_contar(ruta)
@@ -164,6 +188,7 @@ def mostrar_plan(accion: AccionDeArchivos, carpeta: Path, plan: list[Resultado])
 
 
 def ejecutar(
+    ctx: typer.Context,
     nombre: str = typer.Argument(
         ..., help="Nombre de la acción, o su número en «acciones ver»."
     ),
@@ -177,7 +202,7 @@ def ejecutar(
     config: Path | None = OPCION_CONFIG,
 ) -> None:
     """Hace una de tus acciones: enseña qué va a pasar y pregunta [s/n]."""
-    _, motor = cargar(config)
+    _, motor = cargar(elegir_config(ctx, config))
     try:
         accion = motor.buscar(nombre)
     except NavajaError as error:
@@ -322,8 +347,9 @@ def deshacer(si: bool = OPCION_SI) -> None:
         raise typer.Exit(1)
 
 
-def editar(config: Path | None = OPCION_CONFIG) -> None:
+def editar(ctx: typer.Context, config: Path | None = OPCION_CONFIG) -> None:
     """Abre acciones.json en tu editor y, al cerrarlo, comprueba que está bien."""
+    config = elegir_config(ctx, config)
     if config is not None:
         ruta = config.expanduser()
     else:
@@ -354,6 +380,7 @@ def registrar(app: typer.Typer) -> None:
     sub = typer.Typer(
         help="Tus acciones guardadas en acciones.json: verlas, comprobarlas y hacerlas.",
         no_args_is_help=True,
+        callback=grupo,
     )
     sub.command("ver", help="Lista tus acciones: nombre, tipo y qué hace.")(ver)
     sub.command("ejecutar", help="Hace una acción (o una rutina): enseña el plan y pregunta.")(ejecutar)

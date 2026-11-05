@@ -30,5 +30,6 @@ description: Reglas del archivo acciones.json de navaja (campos, tipos, filtro, 
 - `planificar` no toca el disco (ni mkdir): es lo que enseña `--simular`. Nunca sobrescribir (`destino_libre`, `ruta_libre`).
 - pathlib, `encoding="utf-8"`, nada de `shell=True`. Funciona en Windows.
 - Si cambias el esquema: actualiza `DOC_CAMPOS`/`DOC_FILTRO` de `esquema.py`, el README y esta skill (las dos copias: `.opencode/` y `.claude/`).
+- `--config` vale en el grupo (`navaja acciones --config X ver`, guardado en `ctx.obj`) y en cada orden (`navaja acciones ver --config X`); si van los dos, gana el de la orden (`elegir_config`). Cada orden nueva del grupo recibe `ctx` y usa `elegir_config(ctx, config)`.
 - Probar siempre con `--config pruebas/acciones-prueba.json` (todo en `~/pruebas-navaja`) y `--simular`. Nunca ejecutar acciones sobre carpetas reales.
 - Tests: `uv run --extra dev pytest`.
