@@ -6,6 +6,7 @@ from datetime import datetime
 
 import typer
 from rich.markup import escape
+from typer.completion import completion_init
 from rich.panel import Panel
 from rich.table import Table
 
@@ -36,6 +37,7 @@ app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
 )
 ayuda.instalar_en_castellano()
+completion_init()  # Tab en PowerShell y bash: ver «config autocompletar»
 
 
 def saludo(hora: int, nombre: str) -> str:

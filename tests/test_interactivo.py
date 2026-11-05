@@ -115,7 +115,7 @@ def test_submenu_sigue_abierto_despues_de_ejecutar(carpeta, capsys):
 
 def test_numero_fuera_de_rango_en_submenu(carpeta, capsys):
     interactivo.iniciar(app, lector("config", "7"))
-    assert "Elige un número del 1 al 2 (0 para volver)." in salida(capsys)
+    assert "Elige un número del 1 al 3 (0 para volver)." in salida(capsys)
 
 
 @pytest.mark.parametrize("linea", ["listar", "ls", "navaja listar"])

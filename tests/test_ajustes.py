@@ -113,3 +113,55 @@ def test_config_ver_dice_si_es_tu_usuario(monkeypatch):
     runner.invoke(app, ["config", "nombre", "Sergio"])
     texto = runner.invoke(app, ["config", "ver"]).output
     assert "Nombre: Sergio" in texto and "tu usuario" not in texto
+
+
+def test_autocompletar_sin_perfil_solo_lo_ensena():
+    from typer.testing import CliRunner
+
+    from navaja.app import app
+
+    resultado = CliRunner().invoke(app, ["config", "autocompletar", "--shell", "powershell"])
+    assert resultado.exit_code == 0, resultado.output
+    assert "Register-ArgumentCompleter -Native -CommandName navaja, nav" in resultado.output
+
+
+def test_autocompletar_lo_anade_una_sola_vez(tmp_path):
+    from typer.testing import CliRunner
+
+    from navaja.app import app
+    from navaja.comandos.ajustes import MARCA
+
+    perfil = tmp_path / "carpeta nueva" / "perfil.ps1"
+    perfil.parent.mkdir()
+    perfil.write_text("# lo que ya tenía", encoding="utf-8")
+    for _ in range(2):
+        resultado = CliRunner().invoke(
+            app, ["config", "autocompletar", str(perfil), "--shell", "powershell"]
+        )
+        assert resultado.exit_code == 0, resultado.output
+    texto = perfil.read_text(encoding="utf-8")
+    assert texto.startswith("# lo que ya tenía\n")
+    assert texto.count(MARCA) == 2  # el principio y el fin, una sola vez
+    assert "Ya estaba" in resultado.output
+
+
+def test_autocompletar_no_toca_un_perfil_utf16(tmp_path):
+    from typer.testing import CliRunner
+
+    from navaja.app import app
+
+    perfil = tmp_path / "perfil.ps1"
+    perfil.write_text("Write-Host hola", encoding="utf-16")
+    antes = perfil.read_bytes()
+    resultado = CliRunner().invoke(app, ["config", "autocompletar", str(perfil)])
+    assert resultado.exit_code == 1
+    assert perfil.read_bytes() == antes
+
+
+def test_autocompletar_shell_que_no_existe():
+    from typer.testing import CliRunner
+
+    from navaja.app import app
+
+    resultado = CliRunner().invoke(app, ["config", "autocompletar", "--shell", "cmd"])
+    assert resultado.exit_code == 1
