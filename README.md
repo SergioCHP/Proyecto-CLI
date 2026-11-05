@@ -2,6 +2,43 @@
 
 Caja de herramientas de terminal con utilidades cotidianas, con todos los comandos en castellano.
 
+## Spec
+
+1. **Problema que se repite:** copiar y ordenar archivos. La carpeta Descargas siempre
+   tiene de todo, copio y pego los archivos de clase del USB al PC de casa y renombro
+   muchas fotos una a una.
+2. **Para quién:** para mí, y quizás para mi mujer, para que ordene los archivos de su PC.
+3. **Uso:** `navaja ORDEN [CARPETA] [opciones]`. Sin orden (`navaja`), abre un menú
+   interactivo. Alias corto: `nav`.
+4. **Órdenes que ya tiene:** `listar`, `ocupa`, `limpia`, `ordena`, `renombra`,
+   `duplicados`, `notas`, `acciones` (`ver`, `ejecutar`, `validar`, `editar`,
+   `deshacer`), `tema`, `config`, `manual` y `version`.
+5. **Órdenes previstas:**
+   - `navaja busca`: un buscador de texto dentro de archivos.
+   - `navaja extrae` / `navaja comprime`: para unificar la compresión y descompresión
+     de archivos.
+   - Autocompletado.
+   - Cambiar formatos de imagen o documentos.
+6. **Acciones:** `ordenar-descargas`, `imagenes-ia`, `instaladores-viejos`,
+   `fotos-con-fecha` y la rutina `limpieza-semanal`. La que más uso es
+   `ordenar-descargas`, porque me gusta tenerlo todo en orden.
+7. **Lo que nunca hará:**
+   - Tocar nada sin enseñar antes qué va a hacer y preguntar `[s/n]` (salvo con `--si`).
+   - Sobrescribir un archivo: si el nombre ya existe, añade « (1)».
+   - Tocar archivos fuera de la carpeta que le digo.
+   - Borrar para siempre sin avisar: `acciones` y `duplicados` mandan lo borrado a una
+     papelera recuperable; `limpia` y `duplicados vaciar` sí borran de verdad, pero
+     solo después de preguntar.
+   - Con `--simular`, cambiar nada (ni siquiera crear carpetas).
+8. **Plataformas:** Windows en mi PC y Linux en clase. Python 3.12 o superior.
+9. **Códigos de salida:**
+   - 0: todo bien (también si respondo «n» a una confirmación).
+   - 1: fallo al ejecutar (una carpeta o una acción que no existe).
+   - 2: uso incorrecto (falta un argumento o una opción no existe).
+   - 3: `acciones.json` no existe o está mal escrito.
+10. **Instalación:** `uv tool install --editable .` desde la carpeta del repo (más
+    detalles en [Instalación](#instalación)).
+
 ## Utilidades
 
 | Comando | Qué hace |

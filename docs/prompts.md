@@ -174,3 +174,57 @@ distintos archivos que ya estaban en su sitio. `resolve()` convierte la carpeta 
 y ya se pueden comparar; además el deshacer guarda rutas que no dependen de dónde estés.
 
 **Qué aprendí:** _(escríbelo tú)_
+
+## 2026-11-05 · Al día con las instrucciones nuevas (sesiones 1 y 2)
+
+**Herramienta:** Claude (Claude Code)
+
+**Prompt (tal cual lo envié):**
+> el profesor ha cambiado las instrucciones del proyecto, [...] te pongo en enlace de las dos pagina donde estan las nuevas instrucciones, [...] revisa el proyecto por si ha cambiado algo, recuerda que el pone ejemplos pero el proyecto tiene que ser con las ideas del alumno, igual que el nombre de la CLI, y se puede trabajar con claude, no solo con opencode
+
+**Qué hizo:** comparó el proyecto con las páginas de las sesiones 1 y 2. Casi todo estaba
+ya; me propuso 7 cambios y yo elegí cuáles hacer:
+- AGENTS.md corto (de unas 190 líneas a 31): solo stack, órdenes y normas. El detalle
+  pasa a `docs/arquitectura.md` y el reparto del código de acciones, a la skill.
+- `opencode.json`: el agente `explore` tampoco puede editar.
+- Orden `navaja version` (oculta, para no cambiar los números del menú).
+- Python 3.12+: `requires-python`, `.python-version` y `uv.lock`.
+- `--config` también antes de la orden (`navaja acciones --config X validar`), guardado
+  en `ctx.obj`, como lo escribe el profesor. Si van los dos, gana el de la orden.
+- La spec de 10 puntos en el README.
+
+**Qué corregí / decidí yo:**
+- Elegí qué cambios hacer; el de prohibir del todo que el agente ejecute acciones lo dejo
+  para más adelante.
+- La spec la respondí yo (problema, para quién, órdenes previstas, mi acción favorita y
+  plataformas); el punto 7, «lo que nunca hará», lo redactó el agente y lo revisé.
+- El agente no puede escribir en `.claude/`, así que copié yo la skill de `.opencode/` a
+  `.claude/` y pasé los tests en mi Windows (272 bien, 1 saltado que en Windows no aplica).
+- La acción para copiar los archivos de clase del USB al PC la dejo para la próxima vez.
+
+**Qué aprendí:** _(escríbelo tú)_
+
+## 2026-11-05 · Revisión del `--config` del grupo (mis_acciones.py)
+
+**Herramienta:** Claude (revisión con el formato del subagente `revisor`)
+
+**Prompt:** revisar `src/navaja/comandos/mis_acciones.py` después del cambio de `--config`.
+
+**Qué señaló:**
+1. **Errores seguros:** ninguno. Probado: delante, detrás, los dos (gana el de detrás),
+   `--config` sin valor («Falta el valor de --config.») y archivo que no existe (código 3).
+2. **Casos feos:** `navaja acciones --help` y su «Uso:» no enseñan `--config` del grupo;
+   solo lo explica el texto del manual. `navaja acciones --config X` sin orden dice
+   «Falta elegir una opción», que está bien.
+3. **Windows / permisos:** la regla `uv run navaja acciones validar *` de `opencode.json` y
+   `.claude/settings.json` no cubre la forma nueva (`acciones --config X validar`), así que
+   el agente pedirá permiso. No es un fallo: pide permiso, no lo hace solo.
+4. **Pregunta:** ¿cómo llega el `--config` escrito antes de la orden hasta `validar`, y por
+   qué gana el de detrás?
+
+**Qué decidí:** no arreglo nada ahora; lo del «Uso:» y los permisos son mejoras pequeñas,
+apuntadas en ESTADO.md.
+
+**Mi respuesta a la pregunta:** _(escríbela tú)_ Pista: `grupo()` lo guarda en `ctx.obj` y
+`elegir_config()` mira primero el de la orden.
+

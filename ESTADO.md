@@ -407,6 +407,13 @@ Más claro:
 - [ ] En una rutina simulada, cada paso se calcula con la carpeta como está ahora (no
   con lo que habrían cambiado los pasos de antes).
 - [ ] Autocompletado de shell.
+- [ ] Acción `copiar` para pasar los archivos de clase del USB al PC de casa.
+- [ ] `navaja busca` (texto dentro de archivos), `navaja extrae` / `navaja comprime` y cambiar
+  formatos de imagen o documentos (órdenes previstas en la spec).
+- [ ] Mejoras de la revisión del `--config` del grupo: que «Uso:» de `navaja acciones`
+  enseñe `[--config RUTA]`, y permitir también `acciones --config * validar` en los
+  permisos del agente.
+- [ ] Que el agente no pueda ejecutar acciones en ningún caso (ahora pide permiso).
 - [ ] Linter/formateador (ruff) y CI (GitHub Actions).
 - [ ] Empaquetado y publicación (pipx / PyPI).
 
