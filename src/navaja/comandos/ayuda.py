@@ -253,7 +253,9 @@ EXTRA: dict[str, str] = {
     "tema": "Temas disponibles: " + ", ".join(TEMAS) + ".",
     "config": (
         "La primera vez que abres navaja te pregunta cómo quieres que te llame (Intro = tu "
-        "usuario de Windows). Lo que pongas en «config nombre» se guarda y te llama así siempre."
+        "usuario de Windows). Lo que pongas en «config nombre» se guarda y te llama así siempre. "
+        "«config autocompletar $PROFILE» añade a PowerShell el Tab de navaja (y de nav); abre "
+        "una terminal nueva para que funcione."
     ),
     "acciones": (
         "Una acción es una tarea que repites, guardada con un nombre en acciones.json "
@@ -360,7 +362,11 @@ MODO_INTERACTIVO = [
      "menú sin hacer nada."),
     ("salir · exit · quit · 0", "Termina y vuelve a la terminal normal (0 solo en el menú principal)."),
     ("Ctrl+C", "Cancela las preguntas o la orden en curso; en el menú principal, sale."),
-    ("↑ ↓", "Recuperan lo que escribiste antes."),
+    ("Tab", "Completa lo que escribes: comandos, subcomandos, opciones (escribe - y Tab) y "
+     "rutas (después de cd, de listar o de una opción como --carpeta). Si hay varias, las "
+     "enseña en una lista."),
+    ("↑ ↓", "Recuperan lo que escribiste antes, también de otras veces (se guarda en "
+     "historial.txt)."),
 ]
 
 
@@ -462,6 +468,7 @@ def manual(raiz: Any) -> None:
             [
                 ("config.json", "Tu nombre para el saludo y el tema."),
                 ("notas.db", "Las notas y enlaces (base de datos SQLite)."),
+                ("historial.txt", "Lo que escribes en el modo interactivo, para ↑ ↓."),
                 ("ordena_deshacer.json", "La última organización, para deshacerla."),
                 ("renombra_deshacer.json", "El último renombrado, para deshacerlo."),
                 ("duplicados_deshacer.json", "De dónde salió cada copia de la papelera, "

@@ -26,6 +26,7 @@ from .comandos.ayuda import (
 )
 from .comandos.ayuda import subcomandos as opciones_de
 from .comun import AJUSTE, PALABRAS_VOLVER, console, error_console
+from .entrada import crear_lector
 from .filtros import (
     CATEGORIAS,
     EJEMPLOS_FECHA,
@@ -576,7 +577,7 @@ def bucle(raiz: Any, grupo: Any, camino: list[str], leer: Lector) -> None:
             linea, pendiente = pendiente, None
         else:
             try:
-                linea = leer(texto_prompt(camino)).strip()
+                linea = leer_orden(leer, texto_prompt(camino), camino).strip()
             except (KeyboardInterrupt, EOFError):
                 console.print()
                 if camino:
@@ -680,8 +681,14 @@ def bucle(raiz: Any, grupo: Any, camino: list[str], leer: Lector) -> None:
             pendiente = reenviada
 
 
+def leer_orden(leer: Lector, prompt: str, camino: list[str]) -> str:
+    """El prompt del menú: con el lector de ``entrada`` completa con Tab según dónde estás."""
+    orden = getattr(leer, "orden", None)
+    return orden(prompt, camino) if orden is not None else leer(prompt)
+
+
 def _activar_historial() -> None:
-    """Flechas ↑/↓ en Linux y macOS (en Windows ya las da la consola)."""
+    """Si no se puede usar prompt_toolkit: flechas ↑/↓ con readline en Linux y macOS."""
     try:
         import readline  # noqa: F401
     except ImportError:
@@ -691,11 +698,14 @@ def _activar_historial() -> None:
 def iniciar(app: typer.Typer, leer: Lector | None = None) -> None:
     """Abre el modo interactivo. Al salir, vuelve a la carpeta desde la que se entró."""
     global activo
-    leer = leer or console.input
     raiz = typer.main.get_command(app)
+    if leer is None:
+        leer = crear_lector(raiz)
+        if leer is None:
+            leer = console.input
+            _activar_historial()
     original = Path.cwd()
     activo = True
-    _activar_historial()
     mostrar_menu(raiz, [])
     try:
         bucle(raiz, raiz, [], leer)
