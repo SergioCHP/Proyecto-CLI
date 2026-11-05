@@ -6,7 +6,7 @@ Reglas de `acciones.json`: la skill `acciones-json`.
 
 ## Stack y órdenes
 
-- Python 3.12+, Typer y Rich, gestionado con `uv`. Paquete en `src/navaja/`.
+- Python 3.12+, Typer, Rich y prompt_toolkit (solo para leer en el modo interactivo), gestionado con `uv`. Paquete en `src/navaja/`.
 - Ejecutar: `uv run navaja --help`
 - Validar acciones: `uv run navaja acciones validar --config pruebas/acciones-prueba.json`
 - Tests: `uv run --extra dev pytest` (y `uv run python -m compileall -q src tests`)

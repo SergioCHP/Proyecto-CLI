@@ -6,7 +6,7 @@ Bitácora de lo implementado y de lo que queda pendiente.
 
 - **Producto:** `navaja`, CLI de utilidades de terminal.
 - **Versión:** 0.1.0.
-- **Stack:** Python 3.12+, Typer, Rich, SQLite (stdlib), setuptools.
+- **Stack:** Python 3.12+, Typer, Rich, prompt_toolkit, SQLite (stdlib), setuptools.
 - **Estado:** funcional y probado localmente.
 
 ## Hecho
@@ -366,6 +366,28 @@ Más claro:
   la orden, que es la más concreta.
 - 273 tests pasando en Python 3.12.
 
+### 2026-11-05 — Tab y ↑ ↓
+
+- **Modo interactivo** (`entrada.py`, con prompt_toolkit): Tab completa comandos,
+  subcomandos, opciones y rutas según dónde estás (en un submenú, también los del menú
+  principal); con varias posibilidades enseña una lista. ↑ ↓ recuperan lo escrito, también
+  de otras veces (`historial.txt` en el directorio de datos). Las preguntas guiadas tienen
+  su propio historial y Tab completa rutas. Si prompt_toolkit no puede usar la terminal
+  (por ejemplo, Git Bash), se lee como antes.
+- **En PowerShell y bash:** `navaja config autocompletar $PROFILE` añade al perfil el
+  script de Typer para `navaja` y `nav` (una sola vez; no toca un perfil en UTF-16 ni
+  cambia la política de ejecución). Sin perfil, solo lo enseña. `app.py` llama a
+  `completion_init()` para que Typer conteste a PowerShell aunque `add_completion=False`.
+- Primera dependencia nueva desde Typer y Rich: `prompt_toolkit`.
+- Hay que reinstalar: `uv tool install --editable . --force`.
+- **Arreglo de velocidad:** dentro de navaja cada orden tardaba 1 segundo de más: tras
+  cada Intro, prompt_toolkit preguntaba a la terminal dónde está el cursor y, si no
+  contestaba, esperaba 1 s. Ahora no lo pregunta (`PROMPT_TOOLKIT_NO_CPR`): de ~1 s a
+  0,03 s. `NAVAJA_SIN_TAB=1` lee como antes, sin prompt_toolkit (para comparar).
+- **`ocupa`** recorre la carpeta una sola vez aunque se pida `-p 2` o más (antes medía
+  varias veces lo mismo) y enseña «Midiendo…» mientras trabaja: en la carpeta personal
+  tarda porque tiene muchísimos archivos (AppData, OneDrive…), no porque se cuelgue.
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.
@@ -374,7 +396,9 @@ Más claro:
   solo se guarda la última operación.
 - **Papelera propia para `duplicados`** en vez de borrar: es la única forma de
   poder deshacer un borrado sin añadir dependencias (como `send2trash`).
-- **Sin dependencias más allá de Typer/Rich**: la lógica usa stdlib.
+- **Sin dependencias más allá de Typer/Rich**: la lógica usa stdlib. Excepción:
+  `prompt_toolkit` para Tab y el historial del modo interactivo, porque `readline` no
+  existe en Windows y la consola de Windows no completa.
 - **Temas de Rich con estilos semánticos**: los comandos dicen qué es cada
   texto (`[ok]`, `[aviso]`) y el tema decide el color; cambiar paleta no toca
   los comandos.
@@ -406,7 +430,7 @@ Más claro:
     antes al validar; tocarlo ahora arriesga más de lo que arregla.
 - [ ] En una rutina simulada, cada paso se calcula con la carpeta como está ahora (no
   con lo que habrían cambiado los pasos de antes).
-- [ ] Autocompletado de shell.
+- [x] Autocompletado de shell.
 - [ ] Acción `copiar` para pasar los archivos de clase del USB al PC de casa.
 - [ ] `navaja busca` (texto dentro de archivos), `navaja extrae` / `navaja comprime` y cambiar
   formatos de imagen o documentos (órdenes previstas en la spec).

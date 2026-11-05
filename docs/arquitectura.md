@@ -10,6 +10,7 @@ Las reglas de `acciones.json` están en la skill `acciones-json`.
 src/navaja/
 ├── app.py              # Typer app raíz, version / --version y registro de comandos
 ├── interactivo.py      # `navaja` sin argumentos: menú, cd, preguntas guiadas
+├── entrada.py          # leer en el modo interactivo: Tab, ↑ ↓ e historial (prompt_toolkit)
 ├── comun.py            # console Rich, tamaños, rutas, undo, editor, iteradores
 ├── filtros.py          # qué archivos: tipos, texto, fechas fáciles (ordena y renombra)
 ├── errores.py          # NavajaError (1), ConfigError (3), AccionNoValida(accion, campo, motivo)
@@ -65,6 +66,13 @@ es el error típico de escribir la carpeta donde va el texto del nombre.
 En las órdenes de `EL_TEXTO_YA_ELIGE` (`renombra cambiar`, `renombra avanzado`,
 `ordena nombre`) no se pregunta «¿Con qué archivos?»: el texto que se escribe ya
 dice qué archivos se tocan.
+
+Lo que se escribe se lee con el lector de `entrada.py` (prompt_toolkit): el prompt del
+menú con `lector.orden(prompt, camino)`, que completa con Tab según el submenú y guarda
+`historial.txt`; las preguntas con `lector(prompt)`, que completan rutas. `sugerencias()`
+decide qué se puede escribir y se prueba sin terminal (`tests/test_entrada.py`). Si no se
+puede crear el lector, se usa `console.input`. El Tab de PowerShell/bash lo da Typer
+(`completion_init()` en `app.py`) y se instala con `config autocompletar`.
 
 Cada pregunta del modo guiado es un paso (`Paso` en `interactivo.py`):
 `guiado()` los hace en orden y, si en uno se escribe «volver» (o `0` en una

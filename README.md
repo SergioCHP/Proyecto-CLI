@@ -12,12 +12,12 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
    interactivo. Alias corto: `nav`.
 4. **Órdenes que ya tiene:** `listar`, `ocupa`, `limpia`, `ordena`, `renombra`,
    `duplicados`, `notas`, `acciones` (`ver`, `ejecutar`, `validar`, `editar`,
-   `deshacer`), `tema`, `config`, `manual` y `version`.
+   `deshacer`), `tema`, `config` (también `config autocompletar`, Tab en PowerShell),
+   `manual` y `version`. Dentro de navaja, Tab completa y ↑ ↓ recuperan lo de antes.
 5. **Órdenes previstas:**
    - `navaja busca`: un buscador de texto dentro de archivos.
    - `navaja extrae` / `navaja comprime`: para unificar la compresión y descompresión
      de archivos.
-   - Autocompletado.
    - Cambiar formatos de imagen o documentos.
 6. **Acciones:** `ordenar-descargas`, `imagenes-ia`, `instaladores-viejos`,
    `fotos-con-fecha` y la rutina `limpieza-semanal`. La que más uso es
@@ -52,7 +52,7 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
 | `navaja notas` | Notas y enlaces con etiquetas, guardados en SQLite. Lo que empieza por `https://` o `www.` es un enlace. |
 | `navaja acciones` | Tus tareas de siempre guardadas con un nombre en `acciones.json` (ordenar Descargas, copiar apuntes, quitar instaladores viejos…) para hacerlas con una orden. Con simulación, confirmación y deshacer. |
 | `navaja tema` | `ver` los temas y `elegir` uno (clasico, morado, terminal, pastel). |
-| `navaja config` | Tu nombre para el saludo y dónde guarda navaja tus datos. La primera vez que abres navaja te pregunta cómo llamarte (Intro = tu usuario de Windows); con `config nombre` lo cambias para siempre. |
+| `navaja config` | Tu nombre para el saludo y dónde guarda navaja tus datos. La primera vez que abres navaja te pregunta cómo llamarte (Intro = tu usuario de Windows); con `config nombre` lo cambias para siempre; con `config autocompletar $PROFILE`, Tab en PowerShell. |
 | `navaja manual [comando]` | El manual completo: cómo se usa, todos los comandos con sus opciones, atajos, seguridad y datos. Con un comando, solo su parte. |
 
 `navaja version` (o `navaja --version`) dice la versión.
@@ -107,6 +107,8 @@ PS C:\Users\sergi\Descargas>
 | `manual` | El manual completo de navaja. `manual ocupa` enseña solo la parte de ese comando. |
 | `cd RUTA` · `cd ..` · `cd` | Cambia de carpeta (`cd` solo enseña dónde estás). Al salir vuelves a la carpeta de antes. |
 | `ls` · `dir` | Atajos de `listar`. |
+| Tab | Completa lo que escribes: comandos, subcomandos, opciones (escribe `-` y Tab) y rutas (después de `cd`, de `listar` o de `--carpeta`). Si hay varias, sale una lista. |
+| ↑ ↓ | Recuperan lo que escribiste antes, también de otras veces (se guarda en `historial.txt`, en tus datos). |
 | `cls` | Limpia la pantalla. |
 | `salir` · `exit` · `0` · Ctrl+C | Vuelve a la terminal normal. Un submenú sigue abierto hasta que pulsas Intro o `0`; desde él también puedes escribir un comando del menú principal. |
 
@@ -260,6 +262,18 @@ navaja --help
 
 Si dice «orden no encontrada», ejecuta `uv tool update-shell` y abre otra terminal.
 
+Para tener Tab también en PowerShell (`navaja ord` y Tab → `navaja ordena`, y lo mismo con
+`nav`), una sola vez:
+
+```powershell
+navaja config autocompletar $PROFILE   # lo añade a tu perfil de PowerShell
+```
+
+Abre una terminal nueva. Si dice que la ejecución de scripts está deshabilitada:
+`Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`. Sin `$PROFILE`, solo enseña lo que
+habría que añadir. En Linux: `navaja config autocompletar ~/.bashrc`. Dentro del modo
+interactivo Tab funciona siempre, sin hacer nada.
+
 Sin instalar nada, para probar mientras desarrollas:
 
 ```bash
@@ -343,7 +357,8 @@ navaja config ver
 - `duplicados borrar` no borra: mueve las copias a la papelera de navaja. Compara el
   contenido completo (SHA-256), no solo el nombre o el tamaño, y nunca toca el archivo
   que se conserva. El espacio solo se libera con `duplicados vaciar`.
-- Las acciones para deshacer, la papelera, la base de datos de notas y `config.json`
+- Las acciones para deshacer, la papelera, la base de datos de notas, `config.json` y el
+  historial del modo interactivo
   se guardan en (o en la carpeta que indique la variable `NAVAJA_DATOS`):
   - Linux: `~/.local/share/navaja/`
   - macOS: `~/Library/Application Support/navaja/`
