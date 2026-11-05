@@ -91,30 +91,45 @@ def _tamano_ruta(ruta: Path) -> tuple[int, int]:
 
 
 def _recolectar(ruta: Path, profundidad: int, nivel: int = 0) -> list[tuple]:
+    """Cada archivo y carpeta hasta ``profundidad`` niveles, con su tamaño y archivos."""
+    return _medir(ruta, profundidad, nivel)[0]
+
+
+def _medir(ruta: Path, profundidad: int, nivel: int) -> tuple[list[tuple], int, int]:
+    """Lo de ``_recolectar`` más el total de la carpeta, recorriéndola una sola vez.
+
+    Las subcarpetas que se enseñan se miden por dentro y su tamaño es la suma de lo
+    suyo; así ``-p 3`` no vuelve a recorrer tres veces lo mismo.
+    """
     resultado: list[tuple] = []
+    total = num_total = 0
     try:
         with os.scandir(ruta) as entradas:
             ordenadas = sorted(entradas, key=lambda e: e.name.lower())
     except OSError as exc:
         error_console.print(f"[aviso]No se pudo leer {escape(str(ruta))}: {escape(str(exc))}[/]")
-        return resultado
+        return resultado, 0, 0
 
     for entrada in ordenadas:
         ruta_entrada = Path(entrada.path)
         try:
             if entrada.is_dir(follow_symlinks=False):
-                tam, num = _tamano_ruta(ruta_entrada)
-                resultado.append((ruta_entrada, tam, num, nivel, True))
                 if nivel + 1 < profundidad:
-                    resultado.extend(
-                        _recolectar(ruta_entrada, profundidad, nivel + 1)
-                    )
+                    dentro, tam, num = _medir(ruta_entrada, profundidad, nivel + 1)
+                else:
+                    dentro, (tam, num) = [], _tamano_ruta(ruta_entrada)
+                resultado.append((ruta_entrada, tam, num, nivel, True))
+                resultado.extend(dentro)
             elif entrada.is_file(follow_symlinks=False):
-                tam = entrada.stat(follow_symlinks=False).st_size
+                tam, num = entrada.stat(follow_symlinks=False).st_size, 1
                 resultado.append((ruta_entrada, tam, 1, nivel, False))
+            else:
+                continue
         except OSError:
             continue
-    return resultado
+        total += tam
+        num_total += num
+    return resultado, total, num_total
 
 
 def _barra(porcentaje: float, ancho: int = 18) -> str:
@@ -148,9 +163,9 @@ def ocupa(
         console.print(f"{escape(ruta.name)}: [bold]{tamano_legible(tam)}[/]")
         return
 
-    entradas = _recolectar(ruta, profundidad)
-    total = sum(tam for _, tam, _, nivel, _ in entradas if nivel == 0)
-    num_archivos = sum(num for _, _, num, nivel, _ in entradas if nivel == 0)
+    # En una carpeta grande (tu carpeta personal, C:\) tarda: que se vea que trabaja.
+    with console.status("[pista]Midiendo… (Ctrl+C para cancelar)[/]"):
+        entradas, total, num_archivos = _medir(ruta, profundidad, 0)
     libre = shutil.disk_usage(ruta).free
 
     resumen = (
