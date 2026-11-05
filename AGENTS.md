@@ -1,187 +1,31 @@
 # AGENTS.md
 
-Guía para agentes y desarrolladores que trabajen en este repositorio.
+Normas para el agente (OpenCode o Claude Code). Se leen siempre: aquí solo lo
+imprescindible. Cómo está hecho por dentro: [docs/arquitectura.md](docs/arquitectura.md).
+Reglas de `acciones.json`: la skill `acciones-json`.
 
-## Qué es este proyecto
+## Stack y órdenes
 
-`navaja` es una CLI en Python (Typer + Rich) con utilidades de terminal y todos
-los comandos en castellano. No hay servidor ni base de datos externa: todo es
-local y el estado se guarda en el directorio de datos del usuario.
+- Python 3.12+, Typer y Rich, gestionado con `uv`. Paquete en `src/navaja/`.
+- Ejecutar: `uv run navaja --help`
+- Validar acciones: `uv run navaja acciones validar --config pruebas/acciones-prueba.json`
+- Tests: `uv run --extra dev pytest` (y `uv run python -m compileall -q src tests`)
 
-## Puesta en marcha
+## Normas
 
-El proyecto se gestiona con `uv` (funciona igual en Linux, macOS y Windows).
-`uv run` crea `.venv/` la primera vez e instala el paquete en modo editable:
-
-```bash
-uv run navaja --help              # ejecutar la CLI con el código actual
-uv run --extra dev pytest         # tests
-```
-
-No hay linter/formateador configurado. Antes de terminar un cambio, ejecuta al
-menos:
-
-```bash
-uv run --extra dev pytest
-uv run python -m compileall -q src tests
-```
-
-Nunca ejecutes comandos destructivos (`aplicar`, `borrar`, `limpia`, `vaciar`)
-sobre carpetas reales del usuario: prueba en una carpeta temporal.
-
-## Estructura
-
-```
-src/navaja/
-├── app.py              # Typer app raíz, --version y registro de comandos
-├── interactivo.py      # `navaja` sin argumentos: menú, cd, preguntas guiadas
-├── comun.py            # console Rich, tamaños, rutas, undo, editor, iteradores
-├── filtros.py          # qué archivos: tipos, texto, fechas fáciles (ordena y renombra)
-├── errores.py          # NavajaError (1), ConfigError (3), AccionNoValida(accion, campo, motivo)
-├── esquema.py          # acciones.json: dónde está, leerlo y comprobarlo entero
-├── acciones.py         # clases Accion (registro + fábrica desde_config) y una por tipo
-├── motor.py            # Motor: elige carpeta y archivos, pide el plan a la acción
-└── comandos/
-    ├── listar.py       # listar (contenido de una carpeta en tabla)
-    ├── ayuda.py        # «ayuda» (lo de aquí), «ayuda ocupa» y la orden manual
-    ├── ocupa.py        # ocupa (analizar) y limpia (borrar basura)
-    ├── ordena.py       # sub-app: tipo / fecha / tramo / nombre / letra / tipos / deshacer
-    ├── renombra.py     # sub-app: cambiar / delante / detras / numerar / fecha / arreglar / plantilla / avanzado / deshacer
-    ├── duplicados.py   # sub-app: buscar / borrar (a papelera) / restaurar / vaciar
-    ├── notas.py        # sub-app SQLite: agregar / listar / buscar / abrir / borrar / etiquetas
-    ├── mis_acciones.py # sub-app acciones: ver / ejecutar / validar / editar / deshacer
-    └── ajustes.py      # sub-apps tema (ver / elegir) y config (ver / nombre)
-tests/                  # un archivo por módulo
-acciones.json           # las acciones de Sergio; pruebas/acciones-prueba.json, las mismas en ~/pruebas-navaja
-```
-
-Cada módulo de `comandos/` expone `registrar(app)` y se registra en el bucle de
-`app.py`. Los comandos de nivel superior se añaden con `app.command(...)`; los
-subcomandos con `app.add_typer(sub, name="...")`.
-
-El modo interactivo no tiene una lista propia de comandos: lee los registrados
-en la app (con `typer.main.get_command`), así que un comando nuevo aparece solo
-en el menú y sus preguntas guiadas salen de sus argumentos (`help` y valor por
-defecto). Por eso cada argumento debe tener un `help` claro. Las órdenes se
-ejecutan con `raiz.main(args, standalone_mode=True)` y se captura `SystemExit`,
-de modo que los errores salen igual que en la terminal y no cierran el bucle.
-Solo se abre si stdin y stdout son una terminal (`puede_iniciar()`).
-
-Al elegir un comando por número, el modo interactivo pregunta sus argumentos y,
-además, las opciones con `rich_help_panel=AJUSTE` (de `comun.py`), con Intro
-para dejar su valor por defecto. Marca así solo las que de verdad importan para
-ese comando (en `renombra`: `--contiene`, `--orden` y, en `numerar`,
-`--separador` y `--cifras`); las demás se escriben a mano. En `--help` salen en
-su propio panel «Ajustes».
-
-Los filtros (`--solo`, `--contiene`, `--desde`, `--hasta`) llevan
-`rich_help_panel=FILTRO` (de `filtros.py`): el modo interactivo no los pregunta
-uno a uno, sino con una sola pregunta, «¿Con qué archivos?» (todos / de un tipo /
-con un texto / de unas fechas). Las fechas se leen con `filtros.periodo()`; un
-argumento que se llame `desde` o `hasta` se valida igual al preguntarlo.
-
-Si la orden tiene `--carpeta` (ordena y renombra), o pide confirmación (`--si`)
-y recibe la carpeta como primer argumento (limpia, duplicados borrar), la primera
-pregunta es «¿En qué carpeta?» (`pasos_carpeta`), con Intro para la actual. Las
-que solo miran (listar, ocupa, duplicados buscar) no la preguntan. Un texto
-obligatorio que parece una ruta (`C:\...`, `~/...`) se rechaza con un aviso:
-es el error típico de escribir la carpeta donde va el texto del nombre.
-
-En las órdenes de `EL_TEXTO_YA_ELIGE` (`renombra cambiar`, `renombra avanzado`,
-`ordena nombre`) no se pregunta «¿Con qué archivos?»: el texto que se escribe ya
-dice qué archivos se tocan.
-
-Cada pregunta del modo guiado es un paso (`Paso` en `interactivo.py`):
-`guiado()` los hace en orden y, si en uno se escribe «volver» (o `0` en una
-lista numerada), el paso lanza `Atras` y se repite el anterior; en el primero,
-se vuelve al menú. La confirmación de la orden es siempre `[s/n]`: con «n» no se
-hace nada y se sigue en el menú. Una pregunta nueva debe leer con
-`leer_texto()` o `elegir_numero()`, que ya saben volver (y cancelar con «salir»).
-`ANTES_DE_PREGUNTAR` enseña algo antes de las preguntas (la lista de notas antes
-de pedir su número).
-
-`--help` y los errores de uso no son los de Typer (en inglés): `ayuda.py` cambia
-`typer.rich_utils.rich_format_help`, `rich_format_error` y `rich_abort_error` por
-los suyos (`instalar_en_castellano()`, llamada en `app.py`). La ayuda de un comando
-es la misma que su parte del manual. Para que un error salga bien traducido, usa
-`min=` en las opciones numéricas y `typer.BadParameter` con el mensaje en castellano.
-Los consejos que nombran una orden («Para deshacerlo: …») usan
-`comun.como_se_escribe()`: con «navaja» delante en la terminal y sin él dentro.
-
-El manual (`navaja manual`) también se genera de los comandos registrados. Todo
-comando, argumento y opción necesita un `help` en castellano
-(`tests/test_ayuda.py` falla si falta). Lo que no se deduce del código (qué
-considera basura `limpia`, cómo compara `duplicados`…) va en `EXTRA` de
-`comandos/ayuda.py`; si añades un atajo al modo interactivo, añádelo también a
-`MODO_INTERACTIVO` en ese archivo.
-
-## Cómo añadir una utilidad nueva
-
-1. Crea `src/navaja/comandos/<nombre>.py` con funciones puras para la lógica
-   (planificar, calcular) y comandos Typer finos encima.
-2. Añade `registrar(app)` al final del módulo.
-3. Importa el módulo y añádelo al bucle de `app.py`.
-4. Añade tests en `tests/test_<nombre>.py`. Pon `help` a cada argumento y
-   opción: así salen en el menú, en las preguntas guiadas, en `ayuda` y en `navaja manual`.
-5. Documenta el comando en `README.md` y actualiza `ESTADO.md`.
-
-## acciones.json
-
-El esquema está en el README («Acciones: acciones.json») y en `esquema.DOC_CAMPOS` /
-`DOC_FILTRO`, que pinta el manual. El reparto: `esquema.py` comprueba el archivo
-entero antes de tocar nada (campos comunes, filtro, nombres repetidos, pasos de
-rutinas); cada clase de `acciones.py` comprueba lo suyo en `comprobar_valores`; `Motor`
-elige la carpeta y los archivos; la acción hace el plan (`planificar`, sin tocar el
-disco) y lo ejecuta (`aplicar` por archivo). `mis_acciones.py` solo pinta y pregunta.
-
-Para añadir un **tipo** nuevo: una subclase de `AccionDeArchivos` en `acciones.py` con
-`tipo`, `explicacion`, `campos` (campo → obligatorio), `planificar` y `aplicar`. Se
-apunta sola en el registro: ni el motor ni `esquema.py` tienen `if tipo == …`.
-Documenta sus campos en `DOC_CAMPOS` y en el README. Si el formato del archivo cambia
-de forma incompatible, sube `esquema.VERSION`.
-
-Errores: lanza `NavajaError` (o `ConfigError` / `AccionNoValida`) con un mensaje en
-castellano que diga qué acción y qué campo; la orden lo captura y sale con
-`error.codigo_salida`. Nunca una traza ante algo previsible.
-
-Nunca ejecutes acciones sobre las carpetas reales del usuario: usa
-`--config pruebas/acciones-prueba.json` (todo en `~/pruebas-navaja`) y `--simular`.
-
-## Convenciones
-
-- **Idioma:** comandos, opciones, ayuda y mensajes en castellano. Los
-  identificadores de Python no llevan acentos (`previsualizar`, `deshacer`).
-- **Comandos destructivos:** deben tener previsualización, confirmación
-  (`--si` para saltarla) y deshacer cuando sea posible. Usa `--simular` para
-  enseñar lo que haría sin tocar nada (el mismo nombre en todos los comandos).
-  Los plurales, con `cuantos()` («1 archivo», «3 archivos»).
-- **Seguridad de rutas:** usa `ruta_libre()` para evitar sobrescribir archivos,
-  `iterar_archivos()` para listar (no sigue enlaces simbólicos) y
-  `guardar_acciones()` / `cargar_acciones()` / `limpiar_acciones()` para el
-  deshacer.
-- **Estado persistente:** siempre a través de `directorio_datos()`; nunca
-  escribas en el directorio del proyecto.
-- **Salida:** usa `console` para información y `error_console` para errores
-  (stderr). No uses `print()`.
-- **Colores:** nunca escribas colores fijos (`[green]`, `"cyan"`). Usa los
-  estilos del tema: `ok`, `error`, `aviso`, `pista`, `acento`, `titulo`,
-  `logro`, `marco` (bordes de paneles) y `borde` (tablas). `[bold]` sí vale.
-  Un estilo nuevo se añade a todos los temas de `TEMAS` en `comun.py`.
-- **Texto del usuario en Rich:** todo nombre de archivo, ruta, título o mensaje
-  de excepción que vaya dentro de markup se pasa por `rich.markup.escape()`
-  (si no, `[borrador].pdf` se pierde). Para un bloque de texto suelto, usa
-  `rich.text.Text`.
-- **Secretos:** nunca escribas claves en el código ni las subas; van en `.env`,
-  que está en `.gitignore`.
-- **Python 3.10:** evita APIs de 3.11+ (por ejemplo `tomllib`). Usa
-  `from __future__ import annotations`.
-- **Tests:** sin mocks de Rich/Typer; prueba la lógica pura con `tmp_path`.
-  No toques el directorio de datos real en tests (`tests/conftest.py` ya
-  apunta `NAVAJA_DATOS` a una carpeta temporal en cada test).
-- **Estilo:** docstrings concisas en castellano; sin comentarios obvios.
-
-## Estado actual
-
-Resumen y bitácora en [ESTADO.md](ESTADO.md). Última verificación conocida
-(2026-11-01): 262 tests pasando (Python 3.10 y 3.13) y modo interactivo probado
-en una terminal real (menú, submenús, preguntas guiadas, cd, errores y salida).
+- Mensajes, ayuda y comentarios en castellano. Código claro antes que astuto.
+- `pathlib` y `encoding="utf-8"`; nada de `os.system` ni `shell=True`. Debe funcionar
+  en Windows, Linux y macOS.
+- Nunca actuar sobre carpetas reales: solo en `~/pruebas-navaja`, con
+  `--config pruebas/acciones-prueba.json` y `--simular`. Las acciones sin `--simular`
+  las ejecuta Sergio, no el agente.
+- No tocar `.env` ni escribir claves en ningún archivo.
+- No hacer `git push` ni commits: los hace Sergio. Como mucho, proponer el mensaje.
+- Antes de cambiar un archivo, explicar en 2-3 líneas qué se va a hacer.
+- Errores previsibles: `NavajaError` / `ConfigError` / `AccionNoValida` con mensaje en
+  castellano; nunca una traza de Python.
+- Colores solo con los estilos del tema (`ok`, `error`, `aviso`…) y todo texto del
+  usuario dentro de markup Rich pasado por `escape()`.
+- Cada comando, argumento y opción con `help` en castellano (sale en el menú y en el
+  manual; `tests/test_ayuda.py` falla si falta).
+- Al terminar un cambio: tests en verde, y `README.md` y `ESTADO.md` al día.

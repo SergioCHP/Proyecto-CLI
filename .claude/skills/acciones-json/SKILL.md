@@ -16,6 +16,14 @@ description: Reglas del archivo acciones.json de navaja (campos, tipos, filtro, 
 - Las de archivos admiten `carpeta` (ruta con ~ y /) y `filtro`: `solo`, `contiene`, `patron`, `desde`, `hasta`, `mayor_que`, `recursivo`, `ocultos`.
 - Una ruta relativa en `destino` se cuenta desde la carpeta de la acción.
 
+## Cómo está repartido el código
+- `esquema.py` comprueba el archivo entero antes de tocar nada (campos comunes, filtro, nombres repetidos, pasos de rutinas); el esquema se documenta en `DOC_CAMPOS` / `DOC_FILTRO`, que pinta el manual.
+- Cada clase de `acciones.py` comprueba lo suyo en `comprobar_valores`.
+- `Motor` (`motor.py`) elige la carpeta y los archivos; la acción hace el plan (`planificar`, sin tocar el disco) y lo ejecuta (`aplicar` por archivo).
+- `comandos/mis_acciones.py` solo pinta y pregunta.
+- Tipo nuevo: subclase de `AccionDeArchivos` con `tipo`, `explicacion`, `campos` (campo → obligatorio), `planificar` y `aplicar`. Documenta sus campos en `DOC_CAMPOS` y en el README. Si el formato cambia de forma incompatible, sube `esquema.VERSION`.
+- Errores: `NavajaError` (1), `ConfigError` (3) o `AccionNoValida` diciendo qué acción y qué campo; la orden los captura y sale con `error.codigo_salida`.
+
 ## Reglas al programar
 - Todo se valida en `esquema.py` ANTES de ejecutar; lo propio de cada tipo, en `comprobar_valores` de su clase. Errores con `AccionNoValida(accion, campo, motivo)` en castellano.
 - Un tipo nuevo = una subclase de `AccionDeArchivos` en `acciones.py` (se registra sola). Nada de `if tipo == ...` en el motor.

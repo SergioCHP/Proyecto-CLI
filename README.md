@@ -18,6 +18,8 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
 | `navaja config` | Tu nombre para el saludo y dónde guarda navaja tus datos. La primera vez que abres navaja te pregunta cómo llamarte (Intro = tu usuario de Windows); con `config nombre` lo cambias para siempre. |
 | `navaja manual [comando]` | El manual completo: cómo se usa, todos los comandos con sus opciones, atajos, seguridad y datos. Con un comando, solo su parte. |
 
+`navaja version` (o `navaja --version`) dice la versión.
+
 `nav` es un alias corto: `nav ocupa` es lo mismo que `navaja ocupa`. (No es `nv` porque en
 PowerShell `nv` ya es un atajo de `New-Variable` y se adelantaría a navaja.)
 
@@ -314,8 +316,9 @@ La estructura está en `src/navaja/` y cada utilidad vive en `src/navaja/comando
 
 ## Documentación del proyecto
 
-- [AGENTS.md](AGENTS.md): guía para agentes y desarrolladores (estructura,
-  convenciones y cómo añadir comandos).
+- [AGENTS.md](AGENTS.md): normas cortas que el agente lee siempre.
+- [docs/arquitectura.md](docs/arquitectura.md): cómo está hecho por dentro (estructura,
+  modo interactivo, ayuda, convenciones y cómo añadir comandos).
 - [ESTADO.md](ESTADO.md): bitácora de lo implementado, decisiones y pendientes.
 - Agente de programación: las normas están en [AGENTS.md](AGENTS.md). Para OpenCode,
   `opencode.json` y `.opencode/`; para Claude Code, `CLAUDE.md` y `.claude/`. En los dos:
