@@ -31,3 +31,40 @@ def test_confirmar_en_castellano():
         assert pregunta.process_response(no) is False
     with pytest.raises(InvalidResponse):
         pregunta.process_response("quizá")
+
+
+def test_preparar_salida_en_git_bash_pasa_a_utf8():
+    import io
+
+    from navaja.comun import preparar_salida
+
+    crudo = io.BytesIO()
+    flujo = io.TextIOWrapper(crudo, encoding="cp1252")
+    preparar_salida(flujo, {"MSYSTEM": "MINGW64"})
+    flujo.write("✔ acción → …")
+    flujo.flush()
+    assert crudo.getvalue().decode("utf-8") == "✔ acción → …"
+
+
+def test_preparar_salida_redirigida_no_rompe_y_conserva_las_tildes():
+    import io
+
+    from navaja.comun import preparar_salida
+
+    crudo = io.BytesIO()
+    flujo = io.TextIOWrapper(crudo, encoding="cp1252")
+    preparar_salida(flujo, {})
+    flujo.write("✔ acción")  # antes: UnicodeEncodeError
+    flujo.flush()
+    assert crudo.getvalue().decode("cp1252") == "? acción"
+
+
+def test_preparar_salida_no_toca_lo_que_ya_es_utf8_ni_lo_que_no_se_puede_cambiar():
+    import io
+
+    from navaja.comun import preparar_salida
+
+    flujo = io.TextIOWrapper(io.BytesIO(), encoding="utf-8")
+    preparar_salida(flujo, {"MSYSTEM": "MINGW64"})
+    assert flujo.encoding == "utf-8" and flujo.errors == "strict"
+    preparar_salida(object(), {})  # sin reconfigure: no pasa nada

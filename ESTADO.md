@@ -448,6 +448,15 @@ Más claro:
 - Detrás del nombre, Tab vuelve a completar rutas (la CARPETA).
 - Manual, README y arquitectura al día. 316 tests pasando.
 
+### 2026-11-10 — Git Bash sin trazas de codificación
+
+- En Git Bash (o con la salida redirigida) Python escribía en cp1252 y `✔`, `→` o `…`
+  rompían navaja con una traza (`UnicodeEncodeError`); las tildes salían como `acci�n`.
+- `comun.preparar_salida()`, llamada en `main()` para stdout y stderr: si ya es UTF-8 no
+  toca nada; en Git Bash (`MSYSTEM`) pasa a UTF-8 (símbolos y tildes bien); en lo demás
+  (`navaja … > a.txt` en PowerShell) conserva la codificación y lo que no cabe sale «?».
+- 319 tests pasando.
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.
@@ -508,9 +517,7 @@ Más claro:
     solo lectura falla).
 - [ ] `excluir` compara el nombre tal cual: en macOS un nombre con tildes en NFD no coincide
   con el del JSON (en NFC).
-- [ ] Con la salida redirigida en una consola cp1252 (Git Bash), Rich falla al escribir
-  `✔` o `→` y sale una traza (`UnicodeEncodeError`). Con `PYTHONIOENCODING=utf-8` no pasa.
-  Arreglo posible: `sys.stdout.reconfigure(encoding="utf-8", errors="replace")` en `main`.
+- [x] Traza `UnicodeEncodeError` con `✔` o `→` en Git Bash o con la salida redirigida.
 - [ ] `navaja busca` (texto dentro de archivos), `navaja extrae` / `navaja comprime` y cambiar
   formatos de imagen o documentos (órdenes previstas en la spec).
 - [ ] Mejoras de la revisión del `--config` del grupo: que «Uso:» de `navaja acciones`

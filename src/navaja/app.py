@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from datetime import datetime
 
 import typer
@@ -22,7 +23,7 @@ from .comandos import (
     ordena,
     renombra,
 )
-from .comun import aplicar_tema, cargar_config, console, nombre_para_saludar
+from .comun import aplicar_tema, cargar_config, console, nombre_para_saludar, preparar_salida
 
 app = typer.Typer(
     name="navaja",
@@ -120,6 +121,8 @@ for modulo in (listar, ocupa, ordena, renombra, duplicados, notas, mis_acciones,
 
 
 def main() -> None:
+    preparar_salida(sys.stdout)  # Git Bash / salida redirigida: ✔ y → sin trazas
+    preparar_salida(sys.stderr)
     app()
 
 

@@ -76,6 +76,29 @@ AJUSTE = "Ajustes"
 """Panel de --help (``rich_help_panel``) de las opciones que el modo interactivo
 pregunta al elegir el comando por número, con Intro para dejar su valor."""
 
+def preparar_salida(flujo: object, entorno: dict[str, str] | None = None) -> None:
+    """Que escribir ✔, → o … nunca rompa navaja con una traza.
+
+    Con la salida redirigida o en Git Bash, Python escribe en la codificación de Windows
+    (cp1252), donde esos símbolos no existen. Git Bash (mintty, con ``MSYSTEM``) lee UTF-8:
+    ahí se pasa a UTF-8 y salen bien también las tildes. En lo demás (``navaja … > a.txt``
+    en PowerShell) se deja la codificación, para que las tildes sigan bien, y lo que no
+    cabe sale como «?».
+    """
+    entorno = os.environ if entorno is None else entorno
+    codificacion = (getattr(flujo, "encoding", None) or "").lower().replace("-", "")
+    reconfigurar = getattr(flujo, "reconfigure", None)
+    if codificacion == "utf8" or reconfigurar is None:
+        return
+    try:
+        if entorno.get("MSYSTEM"):
+            reconfigurar(encoding="utf-8", errors="replace")
+        else:
+            reconfigurar(errors="replace")
+    except (OSError, ValueError):
+        pass  # un flujo que no se deja cambiar: se queda como está
+
+
 console = Console(theme=Theme(TEMAS[TEMA_POR_DEFECTO]))
 error_console = Console(stderr=True, theme=Theme(TEMAS[TEMA_POR_DEFECTO]))
 
