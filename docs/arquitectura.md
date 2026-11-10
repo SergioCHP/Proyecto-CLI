@@ -69,7 +69,11 @@ dice qué archivos se tocan.
 
 Lo que se escribe se lee con el lector de `entrada.py` (prompt_toolkit): el prompt del
 menú con `lector.orden(prompt, camino)`, que completa con Tab según el submenú y guarda
-`historial.txt`; las preguntas con `lector(prompt)`, que completan rutas. `sugerencias()`
+`historial.txt`; las preguntas con `lector(prompt)`, que completan rutas. Un argumento
+con `autocompletion` (como `NOMBRE` de `acciones ejecutar`, con `nombres_para_tab`) se
+completa con lo suyo en los tres sitios: PowerShell/bash (Typer), el prompt del menú
+(`palabras_del_argumento()` llama a `shell_complete` del parámetro) y la pregunta guiada
+(`lector.con_palabras()`). `sugerencias()`
 decide qué se puede escribir y se prueba sin terminal (`tests/test_entrada.py`). Si no se
 puede crear el lector, se usa `console.input`. El Tab de PowerShell/bash lo da Typer
 (`completion_init()` en `app.py`) y se instala con `config autocompletar`.

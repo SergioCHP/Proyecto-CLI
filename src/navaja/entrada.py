@@ -11,8 +11,9 @@ interactivo lee como siempre (``console.input``).
 
 from __future__ import annotations
 
+import contextlib
 import os
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -71,9 +72,11 @@ def sugerencias(raiz: Any, camino: list[str], antes: list[str], palabra: str) ->
         return ([n for n, _ in opciones_de(actual)] if es_grupo(actual) else []), ""
 
     actual = grupo if antes[0] in grupo.commands else raiz
+    consumidos = 0  # cuántas palabras son el comando (y sus grupos); el resto, sus valores
     for nombre in antes:
         if es_grupo(actual) and nombre in actual.commands:
             actual = actual.commands[nombre]
+            consumidos += 1
             continue
         if es_grupo(actual):
             return [], ""  # un subcomando que no existe: nada que sugerir
@@ -87,8 +90,32 @@ def sugerencias(raiz: Any, camino: list[str], antes: list[str], palabra: str) ->
     if anterior is not None and not anterior.is_flag:
         return [], ("rutas" if es_ruta(anterior) else "")  # el valor de esa opción
     largas = [nombre for opcion in visibles for nombre in opcion.opts if nombre.startswith("--")]
+    propias = palabras_del_argumento(actual, antes[consumidos:], palabra)
+    if propias:  # p. ej. los nombres de tus acciones en «acciones ejecutar»
+        return propias + (largas if not palabra else []), ""
     argumentos = [p for p in actual.params if p.param_type_name == "argument"]
     return (largas if not palabra else []), ("rutas" if any(map(es_ruta, argumentos)) else "")
+
+
+def palabras_del_argumento(comando: Any, escritos: list[str], palabra: str) -> list[str]:
+    """Lo que sugiere el siguiente argumento por sí mismo (su ``autocompletion``, el mismo
+    que usa el Tab de PowerShell): por ejemplo, los nombres de las acciones. Las rutas no:
+    de eso se encarga el completador de rutas. Si algo falla, no se sugiere nada."""
+    try:
+        ctx = comando.make_context(comando.name, list(escritos), resilient_parsing=True)
+        siguiente = next(
+            (
+                p for p in comando.params
+                if p.param_type_name == "argument" and ctx.params.get(p.name) is None
+            ),
+            None,
+        )
+        if siguiente is None:
+            return []
+        posibles = siguiente.shell_complete(ctx, palabra)
+    except Exception:  # Tab nunca debe romper lo que se está escribiendo
+        return []
+    return [p.value for p in posibles if getattr(p, "type", "plain") == "plain"]
 
 
 def crear_lector(raiz: Any) -> Any | None:
@@ -139,10 +166,20 @@ def crear_lector(raiz: Any) -> Any | None:
                 yield from completar_ruta(rutas if tipo == "rutas" else carpetas, palabra, complete_event)
 
     class Respuestas(Completer):
-        """Tab en las preguntas guiadas: rutas (para «¿En qué carpeta?»)."""
+        """Tab en las preguntas guiadas: las palabras de esa pregunta (los nombres de las
+        acciones…) si las tiene; si no, rutas (para «¿En qué carpeta?»)."""
+
+        def __init__(self) -> None:
+            self.palabras: list[str] = []
 
         def get_completions(self, document: Any, complete_event: Any) -> Iterable[Any]:
-            yield from rutas.get_completions(document, complete_event)
+            if not self.palabras:
+                yield from rutas.get_completions(document, complete_event)
+                return
+            escrito = document.text_before_cursor.strip()
+            for palabra in self.palabras:
+                if palabra.lower().startswith(escrito.lower()):
+                    yield Completion(palabra, start_position=-len(document.text_before_cursor))
 
     class Lector:
         """Se llama como ``console.input``: ``lector(prompt)`` para las preguntas y
@@ -150,6 +187,7 @@ def crear_lector(raiz: Any) -> Any | None:
 
         def __init__(self) -> None:
             self.ordenes = Ordenes()
+            self.respuestas = Respuestas()
             self.menu: Any = PromptSession(
                 history=FileHistory(str(historial())),
                 completer=self.ordenes,
@@ -157,7 +195,7 @@ def crear_lector(raiz: Any) -> Any | None:
             )
             self.preguntas: Any = PromptSession(
                 history=InMemoryHistory(),
-                completer=Respuestas(),
+                completer=self.respuestas,
                 complete_while_typing=False,
             )
 
@@ -167,6 +205,15 @@ def crear_lector(raiz: Any) -> Any | None:
 
         def __call__(self, prompt: str = "") -> str:
             return self.preguntas.prompt(ANSI(a_ansi(prompt)))
+
+        @contextlib.contextmanager
+        def con_palabras(self, palabras: list[str]) -> Iterator[None]:
+            """Mientras dura, Tab en las preguntas completa estas palabras en vez de rutas."""
+            self.respuestas.palabras = list(palabras)
+            try:
+                yield
+            finally:
+                self.respuestas.palabras = []
 
     try:
         return Lector()

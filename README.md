@@ -107,7 +107,7 @@ PS C:\Users\sergi\Descargas>
 | `manual` | El manual completo de navaja. `manual ocupa` enseña solo la parte de ese comando. |
 | `cd RUTA` · `cd ..` · `cd` | Cambia de carpeta (`cd` solo enseña dónde estás). Al salir vuelves a la carpeta de antes. |
 | `ls` · `dir` | Atajos de `listar`. |
-| Tab | Completa lo que escribes: comandos, subcomandos, opciones (escribe `-` y Tab) y rutas (después de `cd`, de `listar` o de `--carpeta`). Si hay varias, sale una lista. |
+| Tab | Completa lo que escribes: comandos, subcomandos, opciones (escribe `-` y Tab), rutas (después de `cd`, de `listar` o de `--carpeta`) y los nombres de tus acciones (después de `acciones ejecutar`, también cuando te lo pregunta). Si hay varias, sale una lista. |
 | ↑ ↓ | Recuperan lo que escribiste antes, también de otras veces (se guarda en `historial.txt`, en tus datos). |
 | `cls` | Limpia la pantalla. |
 | `salir` · `exit` · `0` · Ctrl+C | Vuelve a la terminal normal. Un submenú sigue abierto hasta que pulsas Intro o `0`; desde él también puedes escribir un comando del menú principal. |
@@ -267,7 +267,8 @@ navaja --help
 Si dice «orden no encontrada», ejecuta `uv tool update-shell` y abre otra terminal.
 
 Para tener Tab también en PowerShell (`navaja ord` y Tab → `navaja ordena`, y lo mismo con
-`nav`), una sola vez:
+`nav`; también los nombres de tus acciones: `navaja acciones ejecutar us` y Tab →
+`usb-a-pc`, con el `--config` que hayas escrito), una sola vez:
 
 ```powershell
 navaja config autocompletar $PROFILE   # lo añade a tu perfil de PowerShell

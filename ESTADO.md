@@ -436,6 +436,18 @@ Más claro:
 - `docs/arquitectura.md`: convención «sustituir sin perder nada».
 - 311 tests pasando.
 
+### 2026-11-10 — Tab con los nombres de las acciones
+
+- `acciones ejecutar` y Tab completa los nombres de tus acciones, con su descripción
+  recortada (si se partiera en dos líneas, PowerShell sacaría una sugerencia suelta). Usa el
+  `--config` ya escrito (en la orden o en el grupo); con un acciones.json roto no sugiere nada.
+- Igual en los tres sitios: PowerShell/bash (`autocompletion=nombres_para_tab`), el prompt
+  de navaja (`entrada.palabras_del_argumento`, que pregunta al propio parámetro: vale para
+  cualquier argumento con autocompletado) y la pregunta guiada «Nombre de la acción», que
+  además enseña «Puedes elegir: …».
+- Detrás del nombre, Tab vuelve a completar rutas (la CARPETA).
+- Manual, README y arquitectura al día. 316 tests pasando.
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.

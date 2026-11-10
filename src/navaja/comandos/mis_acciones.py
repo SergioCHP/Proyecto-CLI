@@ -12,7 +12,7 @@ import json
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import NoReturn
+from typing import Any, NoReturn
 
 import typer
 from rich.markup import escape
@@ -161,6 +161,38 @@ def validar(ctx: typer.Context, config: Path | None = OPCION_CONFIG) -> None:
 # ── ejecutar ───────────────────────────────────────────────────────────────
 
 
+def corta(texto: str, largo: int = 45) -> str:
+    """La descripción en una línea corta: PowerShell lee cada línea como una sugerencia,
+    así que una descripción que se parte en dos dejaría una sugerencia suelta."""
+    texto = " ".join(texto.split())
+    return texto if len(texto) <= largo else texto[: largo - 1].rstrip(" ,;:") + "…"
+
+
+def nombres_para_tab(ctx: typer.Context, incomplete: str) -> list[tuple[str, str]]:
+    """Tab en el nombre de la acción (en PowerShell y dentro de navaja): los nombres de tus
+    acciones con su descripción. Usa el --config que ya se haya escrito (en la orden o en el
+    grupo) y no comprueba el archivo entero: si no se puede leer, simplemente no sugiere."""
+    config = None
+    actual: Any = ctx
+    while actual is not None and config is None:
+        config = (actual.params or {}).get("config")
+        actual = actual.parent
+    try:
+        datos = esquema.leer(esquema.buscar(Path(config) if config else None))
+    except NavajaError:
+        return []
+    acciones = datos.get("acciones") if isinstance(datos, dict) else None
+    if not isinstance(acciones, list):
+        return []
+    return [
+        (accion["nombre"], corta(str(accion.get("descripcion", ""))))
+        for accion in acciones
+        if isinstance(accion, dict)
+        and isinstance(accion.get("nombre"), str)
+        and accion["nombre"].lower().startswith(incomplete.lower())
+    ]
+
+
 def mostrar_plan(accion: AccionDeArchivos, carpeta: Path, plan: list[Resultado]) -> None:
     pendientes = [r for r in plan if r.estado == "pendiente"]
     saltados = [r for r in plan if r.estado == "saltado"]
@@ -213,7 +245,9 @@ def mostrar_plan(accion: AccionDeArchivos, carpeta: Path, plan: list[Resultado])
 def ejecutar(
     ctx: typer.Context,
     nombre: str = typer.Argument(
-        ..., help="Nombre de la acción, o su número en «acciones ver»."
+        ...,
+        help="Nombre de la acción, o su número en «acciones ver».",
+        autocompletion=nombres_para_tab,
     ),
     carpeta: Path | None = typer.Argument(
         None,

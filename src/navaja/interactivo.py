@@ -26,7 +26,7 @@ from .comandos.ayuda import (
 )
 from .comandos.ayuda import subcomandos as opciones_de
 from .comun import AJUSTE, PALABRAS_VOLVER, console, error_console
-from .entrada import crear_lector
+from .entrada import crear_lector, palabras_del_argumento
 from .filtros import (
     CATEGORIAS,
     EJEMPLOS_FECHA,
@@ -266,12 +266,27 @@ def pasos_obligatorios(comando: Any, leer: Lector) -> list[Paso]:
             if param.default is not None and not es_lista:
                 pendientes.append(valor_texto(param.default))
             continue
-        pasos.append(functools.partial(preguntar_argumento, param, leer, pendientes))
+        pasos.append(functools.partial(preguntar_argumento, param, leer, pendientes, comando))
         pendientes = []
     return pasos
 
 
-def preguntar_argumento(param: Any, leer: Lector, delante: list[str]) -> list[str]:
+def preguntar_argumento(
+    param: Any, leer: Lector, delante: list[str], comando: Any = None
+) -> list[str]:
+    """Pregunta un argumento. Si sabe qué valores tiene (los nombres de tus acciones…),
+    los enseña y Tab los completa; si no, Tab completa rutas."""
+    posibles = palabras_del_argumento(comando, [], "") if comando is not None else []
+    con_palabras = getattr(leer, "con_palabras", None)
+    if posibles:
+        console.print(f"  [pista]Puedes elegir: {escape(', '.join(posibles))}[/]", soft_wrap=True)
+    if posibles and con_palabras is not None:
+        with con_palabras(posibles):
+            return _preguntar_argumento(param, leer, delante)
+    return _preguntar_argumento(param, leer, delante)
+
+
+def _preguntar_argumento(param: Any, leer: Lector, delante: list[str]) -> list[str]:
     texto = escape((getattr(param, "help", None) or param.name or "").rstrip("."))
     es_fecha = param.name in ("desde", "hasta")
     es_lista = getattr(param, "nargs", 1) == -1

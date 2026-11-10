@@ -75,3 +75,50 @@ def test_tab_completa_y_el_historial_se_guarda():
     with create_pipe_input() as entrada, create_app_session(input=entrada, output=DummyOutput()):
         otro = crear_lector(RAIZ)
         assert "ordena" in list(otro.menu.history.load_history_strings())
+
+
+@pytest.fixture
+def mis_acciones(tmp_path, monkeypatch):
+    """Un acciones.json en una carpeta temporal, que pasa a ser la actual."""
+    import json
+
+    (tmp_path / "acciones.json").write_text(json.dumps({"version": 1, "acciones": [
+        {"nombre": "usb-a-pc", "descripcion": "Trae al PC lo nuevo del USB de clase, con "
+         "sus subcarpetas, y lo que ya está no lo copia otra vez", "tipo": "copiar", "destino": "x"},
+        {"nombre": "pc-a-usb", "descripcion": "Lleva al USB", "tipo": "copiar", "destino": "y"},
+    ]}, ensure_ascii=False), encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    return tmp_path
+
+
+def test_tab_completa_los_nombres_de_las_acciones(mis_acciones):
+    assert posibles([], ["acciones", "ejecutar"], "us") == (["usb-a-pc"], "")
+    nombres, rutas = posibles(["acciones"], ["ejecutar"])
+    assert {"usb-a-pc", "pc-a-usb"} <= set(nombres) and rutas == ""
+    # después del nombre va la carpeta: ahí vuelven las rutas
+    assert posibles([], ["acciones", "ejecutar", "usb-a-pc"])[1] == "rutas"
+
+
+def test_tab_usa_el_config_que_ya_se_ha_escrito(mis_acciones, tmp_path_factory):
+    import json
+
+    otra = tmp_path_factory.mktemp("otra") / "otras.json"
+    otra.write_text(json.dumps({"version": 1, "acciones": [
+        {"nombre": "limpiar-usb", "descripcion": "x", "tipo": "borrar", "filtro": {"solo": "pdf"}},
+    ]}), encoding="utf-8")
+    assert posibles([], ["acciones", "ejecutar", "--config", str(otra)], "")[0][0] == "limpiar-usb"
+
+
+def test_tab_con_un_acciones_json_roto_no_sugiere_nada(mis_acciones):
+    (mis_acciones / "acciones.json").write_text("{ roto", encoding="utf-8")
+    assert posibles([], ["acciones", "ejecutar"], "u") == ([], "rutas")
+
+
+def test_el_tab_de_powershell_da_nombres_con_descripcion_corta(mis_acciones):
+    from navaja.comandos.mis_acciones import nombres_para_tab
+
+    ctx = typer.Context(RAIZ.commands["acciones"].commands["ejecutar"])
+    nombres = nombres_para_tab(ctx, "U")  # sin mirar mayúsculas
+    assert [n for n, _ in nombres] == ["usb-a-pc"]
+    descripcion = nombres[0][1]
+    assert len(descripcion) <= 45 and descripcion.endswith("…") and "\n" not in descripcion

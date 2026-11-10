@@ -468,3 +468,15 @@ def test_copiar_usb_y_deshacer_funcionan_igual_dentro_de_navaja(tmp_path, capsys
     assert not (pc / "tema1" / "apuntes.md").exists()
     assert (usb / "tema1" / "apuntes.md").exists()  # el original no se toca
     assert "Hasta luego" in texto
+
+
+def test_el_modo_guiado_ensena_los_nombres_de_las_acciones(tmp_path, capsys, monkeypatch):
+    import json
+
+    (tmp_path / "acciones.json").write_text(json.dumps({"version": 1, "acciones": [
+        {"nombre": "usb-a-pc", "descripcion": "USB → PC", "tipo": "copiar", "destino": "x"},
+    ]}), encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    nombres = [n for n, _ in subcomandos(typer.main.get_command(app).commands["acciones"])]
+    interactivo.iniciar(app, lector(numero_de("acciones"), str(nombres.index("ejecutar") + 1)))
+    assert "Puedes elegir: usb-a-pc" in salida(capsys)
