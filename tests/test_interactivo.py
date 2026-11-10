@@ -480,3 +480,15 @@ def test_el_modo_guiado_ensena_los_nombres_de_las_acciones(tmp_path, capsys, mon
     nombres = [n for n, _ in subcomandos(typer.main.get_command(app).commands["acciones"])]
     interactivo.iniciar(app, lector(numero_de("acciones"), str(nombres.index("ejecutar") + 1)))
     assert "Puedes elegir: usb-a-pc" in salida(capsys)
+
+
+def test_sin_acciones_json_no_pregunta_que_accion_ejecutar(tmp_path, capsys, monkeypatch):
+    monkeypatch.chdir(tmp_path)  # aquí no hay acciones.json (ni en los datos de prueba)
+    nombres = [n for n, _ in subcomandos(typer.main.get_command(app).commands["acciones"])]
+    interactivo.iniciar(
+        app, lector(numero_de("acciones"), str(nombres.index("ejecutar") + 1), eco=True)
+    )
+    texto = " ".join(salida(capsys).split())
+    assert "No encuentro acciones.json" in texto
+    assert "Nombre de la acción" not in texto  # no pregunta: no hay nada que elegir
+    assert "volver: a la pregunta anterior" not in texto

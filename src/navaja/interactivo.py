@@ -495,8 +495,8 @@ def guiado(
         + ([] if " ".join(camino) in EL_TEXTO_YA_ELIGE else pasos_filtro(comando, leer))
     )
     antes = ANTES_DE_PREGUNTAR.get(" ".join(camino))
-    if antes:
-        ejecutar(raiz, antes)
+    if antes and ejecutar(raiz, antes) != 0:
+        return  # sin la lista no hay nada que elegir (el error ya ha dicho por qué)
     if pasos:
         console.print("  [pista]volver: a la pregunta anterior · salir: cancelar[/]")
     respuestas: list[list[str]] = []

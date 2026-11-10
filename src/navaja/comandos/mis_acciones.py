@@ -500,10 +500,11 @@ def registrar(app: typer.Typer) -> None:
         no_args_is_help=True,
         callback=grupo,
     )
+    # Primero lo de cada día; abajo, lo de mantener acciones.json (el menú sale en este orden)
     sub.command("ver", help="Lista tus acciones: nombre, tipo y qué hace.")(ver)
     sub.command("ejecutar", help="Hace una acción (o una rutina): enseña el plan y pregunta.")(ejecutar)
-    sub.command("validar", help="Comprueba que acciones.json está bien escrito, sin tocar nada.")(validar)
-    sub.command("editar", help="Abre acciones.json en tu editor y lo comprueba al cerrar.")(editar)
     sub.command("deshacer", help="Deshace la última acción que hiciste.")(deshacer)
     versiones.registrar_en(sub)
+    sub.command("editar", help="Abre acciones.json en tu editor y lo comprueba al cerrar.")(editar)
+    sub.command("validar", help="Comprueba que acciones.json está bien escrito, sin tocar nada.")(validar)
     app.add_typer(sub, name="acciones")

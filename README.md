@@ -11,8 +11,8 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
 3. **Uso:** `navaja ORDEN [CARPETA] [opciones]`. Sin orden (`navaja`), abre un menú
    interactivo. Alias corto: `nav`.
 4. **Órdenes que ya tiene:** `listar`, `ocupa`, `limpia`, `ordena`, `renombra`,
-   `duplicados`, `notas`, `acciones` (`ver`, `ejecutar`, `validar`, `editar`,
-   `deshacer`, `versiones`), `tema`, `config` (también `config autocompletar`, Tab en PowerShell),
+   `duplicados`, `notas`, `acciones` (`ver`, `ejecutar`, `deshacer`, `versiones`,
+   `editar`, `validar`), `tema`, `config` (también `config autocompletar`, Tab en PowerShell),
    `manual` y `version`. Dentro de navaja, Tab completa y ↑ ↓ recuperan lo de antes.
 5. **Órdenes previstas:**
    - `navaja busca`: un buscador de texto dentro de archivos.

@@ -500,6 +500,18 @@ Más claro:
 - `bonita()` pasa de `mis_acciones.py` a `comun.py` (ahora la usan dos módulos).
 - Manual, README, notas de los JSON, skill y arquitectura al día. 338 tests pasando.
 
+### 2026-11-10 — Modo guiado: no pregunta si no hay nada que elegir
+
+- Por menú, `acciones ejecutar` enseña antes la lista (`acciones ver`) para elegir por
+  número. Sin acciones.json (navaja abierto fuera del proyecto), la lista fallaba con «No
+  encuentro acciones.json» y aun así preguntaba «Nombre de la acción». Ahora, si la lista
+  previa falla, vuelve al submenú (igual en `notas abrir` / `notas borrar`).
+- acciones.json se queda en la carpeta del proyecto: navaja se usa desde ahí.
+- Submenú de `acciones` en otro orden: primero lo de cada día (ver, ejecutar, deshacer,
+  versiones) y abajo lo de mantener el archivo (editar, validar). Sale así en el menú,
+  en `--help` y en el manual, porque se generan del orden de `registrar()`.
+- 339 tests pasando.
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.

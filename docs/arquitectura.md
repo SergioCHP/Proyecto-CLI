@@ -26,7 +26,7 @@ src/navaja/
     ├── renombra.py     # sub-app: cambiar / delante / detras / numerar / fecha / arreglar / plantilla / avanzado / deshacer
     ├── duplicados.py   # sub-app: buscar / borrar (a papelera) / restaurar / vaciar
     ├── notas.py        # sub-app SQLite: agregar / listar / buscar / abrir / borrar / etiquetas
-    ├── mis_acciones.py # sub-app acciones: ver / ejecutar / validar / editar / deshacer
+    ├── mis_acciones.py # sub-app acciones: ver / ejecutar / deshacer / (versiones) / editar / validar
     ├── versiones.py    # acciones versiones: ver / recuperar / borrar
     └── ajustes.py      # sub-apps tema (ver / elegir) y config (ver / nombre)
 tests/                  # un archivo por módulo
