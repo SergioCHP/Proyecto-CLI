@@ -30,6 +30,7 @@ from ..acciones import (
 )
 from ..comun import (
     abrir_en_editor,
+    bonita,
     cargar_acciones,
     carpeta_papelera,
     como_se_escribe,
@@ -45,6 +46,7 @@ from ..comun import (
 from ..errores import ConfigError, NavajaError
 from ..filtros import OPCION_SI, OPCION_SIMULAR
 from ..motor import Motor
+from . import versiones
 
 OPCION_CONFIG = typer.Option(
     None,
@@ -93,14 +95,6 @@ def cargar(config: Path | None) -> tuple[Path, Motor]:
         return ruta, Motor(esquema.cargar(ruta))
     except NavajaError as error:
         fallar(error, ruta)
-
-
-def bonita(ruta: Path) -> str:
-    """Con ~ en vez de la carpeta personal: ~/Pictures/Imagenes IA."""
-    try:
-        return str(Path("~") / ruta.relative_to(Path.home()))
-    except ValueError:
-        return str(ruta)
 
 
 def donde(accion: Accion) -> str:
@@ -386,8 +380,8 @@ def deshacer(si: bool = OPCION_SI) -> None:
     if perdidas:
         console.print(
             f"[aviso]{cuantos(perdidas, 'versión vieja', 'versiones viejas')} ya no "
-            f"{'está' if perdidas == 1 else 'están'} en la papelera de navaja: esas copias se "
-            "quedan como están.[/]",
+            f"{'está guardada' if perdidas == 1 else 'están guardadas'} (¿borrada con «acciones "
+            "versiones borrar»?): esas copias se quedan como están.[/]",
             soft_wrap=True,
         )
     if not confirmar("¿Deshacer la última acción?", saltar=si, por_defecto=False):
@@ -451,7 +445,7 @@ def deshacer_copia(origen: Path, destino: Path, apartado: str | None, papelera: 
         return False
     vieja = Path(apartado) if apartado else None
     if vieja is not None and not vieja.exists():
-        return False  # se vació la papelera: la copia es lo único que queda (ya se avisó)
+        return False  # la versión vieja se borró: la copia es lo único que queda (ya se avisó)
     if not misma_copia(origen, destino):
         console.print(
             f"[aviso]No toco[/] {escape(str(destino))}[aviso]: ha cambiado desde que se copió y "
@@ -511,4 +505,5 @@ def registrar(app: typer.Typer) -> None:
     sub.command("validar", help="Comprueba que acciones.json está bien escrito, sin tocar nada.")(validar)
     sub.command("editar", help="Abre acciones.json en tu editor y lo comprueba al cerrar.")(editar)
     sub.command("deshacer", help="Deshace la última acción que hiciste.")(deshacer)
+    versiones.registrar_en(sub)
     app.add_typer(sub, name="acciones")

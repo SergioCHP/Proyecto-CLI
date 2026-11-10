@@ -8,7 +8,7 @@ description: Reglas del archivo acciones.json de navaja (campos, tipos, filtro, 
 - Raíz: `{"version": 1, "acciones": [...]}`. Lo que empieza por `_` es una nota y no se lee.
 - Cada acción: `nombre` (único, minúsculas-con-guiones), `descripcion`, `tipo`.
 - Tipos y sus campos:
-  - `mover`, `copiar`: `destino` (obligatorio). `copiar` admite `si_cambia` = copia-aparte (por defecto) | el-mas-nuevo (el viejo va a la papelera de navaja).
+  - `mover`, `copiar`: `destino` (obligatorio). `copiar` admite `si_cambia` = copia-aparte (por defecto) | el-mas-nuevo (el viejo se guarda en `versiones` de los datos, con índice: `navaja/versiones.py` y `acciones versiones ver|recuperar|borrar`).
   - `ordenar`: `por` = tipo | mes | año | día | letra; `destino` opcional.
   - `renombrar`: `plantilla` con huecos `{fecha:%Y-%m-%d}`, `{n:03}`, `{nombre}`, `{ext}`; `orden` = nombre | fecha.
   - `borrar`: manda a la papelera de navaja; necesita `filtro`.

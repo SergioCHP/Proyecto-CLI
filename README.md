@@ -12,7 +12,7 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
    interactivo. Alias corto: `nav`.
 4. **Órdenes que ya tiene:** `listar`, `ocupa`, `limpia`, `ordena`, `renombra`,
    `duplicados`, `notas`, `acciones` (`ver`, `ejecutar`, `validar`, `editar`,
-   `deshacer`), `tema`, `config` (también `config autocompletar`, Tab en PowerShell),
+   `deshacer`, `versiones`), `tema`, `config` (también `config autocompletar`, Tab en PowerShell),
    `manual` y `version`. Dentro de navaja, Tab completa y ↑ ↓ recuperan lo de antes.
 5. **Órdenes previstas:**
    - `navaja busca`: un buscador de texto dentro de archivos.
@@ -50,7 +50,7 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
 | `navaja renombra` | Renombrado masivo sin saber regex: cambiar texto, añadir delante o detrás, numerar, poner la fecha, arreglar nombres o una plantilla. Con deshacer. |
 | `navaja duplicados` | Encuentra archivos repetidos por contenido y los manda a una papelera recuperable. |
 | `navaja notas` | Notas y enlaces con etiquetas, guardados en SQLite. Lo que empieza por `https://` o `www.` es un enlace. |
-| `navaja acciones` | Tus tareas de siempre guardadas con un nombre en `acciones.json` (ordenar Descargas, copiar apuntes, quitar instaladores viejos…) para hacerlas con una orden. Con simulación, confirmación y deshacer. |
+| `navaja acciones` | Tus tareas de siempre guardadas con un nombre en `acciones.json` (ordenar Descargas, copiar apuntes, quitar instaladores viejos…) para hacerlas con una orden. Con simulación, confirmación y deshacer; lo que sustituye una copia se guarda en `acciones versiones`. |
 | `navaja tema` | `ver` los temas y `elegir` uno (clasico, morado, terminal, pastel). |
 | `navaja config` | Tu nombre para el saludo y dónde guarda navaja tus datos. La primera vez que abres navaja te pregunta cómo llamarte (Intro = tu usuario de Windows); con `config nombre` lo cambias para siempre; con `config autocompletar $PROFILE`, Tab en PowerShell. |
 | `navaja manual [comando]` | El manual completo: cómo se usa, todos los comandos con sus opciones, atajos, seguridad y datos. Con un comando, solo su parte. |
@@ -131,6 +131,9 @@ navaja acciones ejecutar ordenar-descargas           # enseña el plan y pregunt
 navaja acciones ejecutar 2                           # también por su número
 navaja acciones ejecutar imagenes-ia ~/pruebas-navaja/Descargas   # en otra carpeta
 navaja acciones ejecutar pc-a-usb --destino E:/DAM                 # a otro destino (el USB con otra letra)
+navaja acciones versiones ver                                      # las versiones viejas que sustituyó una copia
+navaja acciones versiones recuperar 2                              # devolver una a su sitio (sin pisar nada)
+navaja acciones versiones borrar --hasta "hace 30 días"            # quitar las que ya no hacen falta
 navaja acciones deshacer                             # deja todo como estaba
 navaja acciones validar                              # comprueba el archivo sin hacer nada
 navaja acciones editar                               # lo abre en el Bloc de notas y lo comprueba al cerrar
@@ -194,7 +197,7 @@ Están en [acciones.json](acciones.json):
 | `carpeta` | opcional | Dónde trabaja (`~/Downloads`). Sin ella, en la carpeta actual. Al ejecutar puedes darle otra. |
 | `filtro` | opcional | Qué archivos se tocan (tabla de abajo). Sin filtro, todos. |
 | `destino` | mover, copiar (en ordenar, opcional) | A qué carpeta van. Si no existe, se crea. Una ruta relativa se cuenta desde la carpeta de la acción. Si está en una unidad que no existe (un USB sin conectar), la acción no empieza. |
-| `si_cambia` | copiar, opcional | Si en el destino ya hay uno distinto con el mismo nombre: `copia-aparte` (por defecto: guarda `nombre (1)` al lado, una sola vez) o `el-mas-nuevo` (se queda el más reciente; el viejo va a la papelera de navaja y `acciones deshacer` lo devuelve hasta la siguiente acción, salvo que vacíes la papelera). Copia primero a un temporal: si se corta a medias, no queda un archivo roto. `deshacer` no quita una copia que hayas editado después. |
+| `si_cambia` | copiar, opcional | Si en el destino ya hay uno distinto con el mismo nombre: `copia-aparte` (por defecto: guarda `nombre (1)` al lado, una sola vez) o `el-mas-nuevo` (se queda el más reciente; el viejo se guarda y `acciones versiones` lo enseña, lo recupera o lo borra). Copia primero a un temporal: si se corta a medias, no queda un archivo roto. `deshacer` no quita una copia que hayas editado después. |
 | `por` | ordenar | `tipo`, `mes`, `año`, `día` o `letra`. |
 | `plantilla` | renombrar | El nombre nuevo con huecos: `{fecha:%Y-%m-%d}`, `{n:03}`, `{nombre}` y `{ext}`. |
 | `orden` | renombrar | En qué orden se cuenta `{n}`: `nombre` (por defecto) o `fecha`. |

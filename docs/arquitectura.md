@@ -17,6 +17,7 @@ src/navaja/
 ├── esquema.py          # acciones.json: dónde está, leerlo y comprobarlo entero
 ├── acciones.py         # clases Accion (registro + fábrica desde_config) y una por tipo
 ├── motor.py            # Motor: elige carpeta y archivos, pide el plan a la acción
+├── versiones.py        # las versiones viejas que sustituye copiar (carpeta + índice)
 └── comandos/
     ├── listar.py       # listar (contenido de una carpeta en tabla)
     ├── ayuda.py        # «ayuda» (lo de aquí), «ayuda ocupa» y la orden manual
@@ -26,6 +27,7 @@ src/navaja/
     ├── duplicados.py   # sub-app: buscar / borrar (a papelera) / restaurar / vaciar
     ├── notas.py        # sub-app SQLite: agregar / listar / buscar / abrir / borrar / etiquetas
     ├── mis_acciones.py # sub-app acciones: ver / ejecutar / validar / editar / deshacer
+    ├── versiones.py    # acciones versiones: ver / recuperar / borrar
     └── ajustes.py      # sub-apps tema (ver / elegir) y config (ver / nombre)
 tests/                  # un archivo por módulo
 acciones.json           # las acciones de Sergio; pruebas/acciones-prueba.json, las mismas en ~/pruebas-navaja
@@ -126,8 +128,9 @@ considera basura `limpia`, cómo compara `duplicados`…) va en `EXTRA` de
   deshacer.
 - **Sustituir sin perder nada** (como `Copiar` con `si_cambia: el-mas-nuevo` en
   `acciones.py`): copiar primero a un temporal oculto junto al destino y ponerle el
-  nombre con `os.replace` solo cuando está entero; lo que se sustituye va a la
-  papelera de navaja (`apartar()`) y, si algo falla, se devuelve o el error dice dónde
+  nombre con `os.replace` solo cuando está entero; lo que se sustituye se guarda
+  en `versiones` de los datos con un índice (`navaja/versiones.py`, que maneja
+  `acciones versiones`), no en la papelera común (`apartar()`) y, si algo falla, se devuelve o el error dice dónde
   ha quedado. Al deshacer, no quitar nada que haya cambiado desde la acción
   (`misma_copia()`), mandar lo que se quita a la papelera en vez de borrarlo y, si algo
   falla, guardar el registro para reintentarlo.

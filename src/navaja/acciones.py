@@ -27,6 +27,7 @@ from .comandos import ordena, renombra
 from .comun import carpeta_papelera, cuantos, destino_libre, ruta_libre
 from .errores import AccionNoValida, NavajaError
 from .filtros import sin_tildes
+from .versiones import Version, apuntar, carpeta_versiones
 
 
 @dataclass
@@ -44,7 +45,7 @@ class Resultado:
     sustituir: bool = False
     """Copiar con «el-mas-nuevo»: el destino existe y es más viejo; se aparta y se copia."""
     apartado: Path | None = None
-    """Dónde quedó (en la papelera de navaja) la versión vieja que se sustituyó."""
+    """Dónde quedó (en «versiones» de los datos de navaja) la versión vieja sustituida."""
 
 
 def relativa(archivo: Path, carpeta: Path) -> Path:
@@ -240,7 +241,8 @@ def copia_igual_al_lado(original: Path, deseado: Path) -> Path | None:
 
 
 def apartar(archivo: Path, papelera: Path) -> Path:
-    """Lleva ``archivo`` a la papelera de navaja sin pisar nada y dice dónde ha quedado."""
+    """Lleva ``archivo`` a ``papelera`` (una carpeta de navaja) sin pisar nada y dice dónde
+    ha quedado."""
     papelera.mkdir(parents=True, exist_ok=True)
     destino = ruta_libre(papelera / archivo.name)
     shutil.move(str(archivo), str(destino))
@@ -309,7 +311,7 @@ class Copiar(Mover):
 
     def __init__(self, datos: dict[str, Any]) -> None:
         super().__init__(datos)
-        self._papelera: Path | None = None
+        self._versiones: Path | None = None
 
     @classmethod
     def comprobar_valores(cls, datos: dict[str, Any]) -> None:
@@ -358,9 +360,18 @@ class Copiar(Mover):
         return plan
 
     def ejecutar(self, plan: list[Resultado]) -> list[Resultado]:
-        # las versiones viejas que se sustituyan van juntas a una carpeta de la papelera
-        self._papelera = carpeta_papelera() / datetime.now().strftime("%Y%m%d-%H%M%S")
-        return super().ejecutar(plan)
+        # las versiones viejas que se sustituyan van juntas a una carpeta con fecha de
+        # «versiones» (no a la papelera común: así «duplicados vaciar» no las borra)
+        cuando = datetime.now()
+        self._versiones = carpeta_versiones() / cuando.strftime("%Y%m%d-%H%M%S")
+        super().ejecutar(plan)
+        # también las de un fallo a medias que no se pudieron devolver: así se recuperan
+        apuntar([
+            Version(r.apartado, r.destino, self.nombre, cuando)
+            for r in plan
+            if r.apartado is not None and r.destino is not None
+        ])
+        return plan
 
     def aplicar(self, resultado: Resultado) -> None:
         """Copia a un temporal oculto junto al destino y, solo cuando está entero, le pone
@@ -375,8 +386,8 @@ class Copiar(Mover):
         try:
             shutil.copy2(resultado.origen, temporal)  # copy2 conserva la fecha
             if resultado.sustituir and destino.exists():
-                assert self._papelera is not None
-                resultado.apartado = apartar(destino, self._papelera)
+                assert self._versiones is not None
+                resultado.apartado = apartar(destino, self._versiones)
             os.replace(temporal, destino)
         except OSError:
             with contextlib.suppress(OSError):
@@ -387,7 +398,7 @@ class Copiar(Mover):
     @staticmethod
     def devolver_apartado(resultado: Resultado) -> None:
         """Tras un fallo, deja la versión vieja donde estaba. Si ni eso se puede, el error
-        dice en qué carpeta de la papelera ha quedado, para que no se pierda de vista."""
+        dice dónde ha quedado (y «acciones versiones» la lista), para que no se pierda."""
         apartado = resultado.apartado
         if apartado is None:
             return

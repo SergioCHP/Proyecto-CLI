@@ -270,7 +270,7 @@ EXTRA: dict[str, str] = {
     "acciones ejecutar": (
         "Enseña «archivo → dónde va» y pregunta [s/n]; con --simular solo mira. Nunca "
         "sobrescribe: si el nombre ya existe, añade (1), (2)… Solo «copiar» con «si_cambia»: "
-        "«el-mas-nuevo» sustituye uno más viejo, y el viejo va a la papelera de navaja. Lo que "
+        "«el-mas-nuevo» sustituye uno más viejo, y el viejo se guarda (acciones versiones). Lo que "
         "ya está copiado igual se salta, así que puedes repetirla (USB ↔ PC) sin duplicar. Si "
         "el destino está en una unidad que no existe (el USB sin conectar), no empieza. Con "
         "CARPETA y --destino cambias, solo esa vez, de dónde salen y a dónde van (si el USB "
@@ -284,9 +284,23 @@ EXTRA: dict[str, str] = {
         "Devuelve a su sitio lo movido, renombrado u ordenado, saca de la papelera lo borrado "
         "y quita las copias (a la papelera de navaja; solo si el original sigue ahí y la copia "
         "no ha cambiado: si la editaste después, la deja y avisa). Si una copia sustituyó a otra "
-        "más vieja, devuelve la vieja, mientras siga en la papelera. Solo deshace la última "
+        "más vieja, devuelve la vieja, mientras siga guardada. Solo deshace la última "
         "acción; si algo falla, lo guarda para volver a intentarlo. En una rutina, la deshace "
         "entera."
+    ),
+    "acciones versiones": (
+        "Cuando «copiar» con «si_cambia: el-mas-nuevo» sustituye un archivo, el viejo no se "
+        "borra: se guarda en tus datos (no en la papelera de duplicados, así que «duplicados "
+        "vaciar» no lo toca). Aquí lo ves, lo recuperas aunque hayas hecho otras acciones "
+        "después, y borras lo que ya no necesitas."
+    ),
+    "acciones versiones recuperar": (
+        "Lo devuelve a donde estaba. Si allí ya hay un archivo (la versión nueva), no lo pisa: "
+        "deja la vieja al lado como «nombre (1)» para que elijas tú."
+    ),
+    "acciones versiones borrar": (
+        "Sin números, todas; con números, esas; con --hasta \"hace 30 días\", las sustituidas "
+        "hasta esa fecha. Enseña cuáles y cuánto ocupan y pregunta: no se puede deshacer."
     ),
     "acciones editar": (
         "Usa el Bloc de notas en Windows (o el editor de la variable EDITOR). Si no tienes "

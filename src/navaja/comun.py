@@ -110,6 +110,14 @@ def cuantos(n: int, palabra: str, plural: str | None = None) -> str:
     return f"{n} {palabra if n == 1 else (plural or palabra + 's')}"
 
 
+def bonita(ruta: Path) -> str:
+    """Con ~ en vez de la carpeta personal: ~/Pictures/Imagenes IA."""
+    try:
+        return str(Path("~") / ruta.relative_to(Path.home()))
+    except ValueError:
+        return str(ruta)
+
+
 def tamano_legible(numero: float) -> str:
     """Devuelve un tamaño en bytes formateado de forma legible."""
     numero = float(numero)

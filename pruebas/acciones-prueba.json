@@ -69,7 +69,7 @@
       },
       "destino": "~/pruebas-navaja/PC/DAM",
       "si_cambia": "el-mas-nuevo",
-      "_nota": "Si un archivo es distinto en los dos sitios, gana el más reciente y el viejo va a la papelera de navaja: acciones deshacer lo devuelve, pero solo hasta la siguiente acción y si no has vaciado la papelera (duplicados vaciar). No copia ocultos (.gitignore, .vscode…): añade \"ocultos\": true al filtro si los quieres. Si el USB sale con otra letra: navaja acciones ejecutar usb-a-pc E:/DAM (la carpeta) o pc-a-usb --destino E:/DAM."
+      "_nota": "Si un archivo es distinto en los dos sitios, gana el más reciente y el viejo se guarda: acciones versiones ver lo enseña, acciones versiones recuperar lo devuelve y acciones versiones borrar lo quita cuando ya no lo quieras. No copia ocultos (.gitignore, .vscode…): añade \"ocultos\": true al filtro si los quieres. Si el USB sale con otra letra: navaja acciones ejecutar usb-a-pc E:/DAM (la carpeta) o pc-a-usb --destino E:/DAM."
     },
     {
       "nombre": "pc-a-usb",

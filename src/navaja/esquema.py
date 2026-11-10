@@ -54,7 +54,7 @@ DOC_CAMPOS = [
      "opcional: dónde se crean las subcarpetas. Al ejecutar puedes darle otro (--destino)."),
     ("si_cambia", "copiar, opcional", "Si allí ya hay uno distinto con el mismo nombre: "
      "copia-aparte (por defecto: guarda «nombre (1)» al lado) o el-mas-nuevo (se queda el más "
-     "reciente; el viejo va a la papelera de navaja)."),
+     "reciente; el viejo se guarda y «acciones versiones» lo devuelve o lo borra)."),
     ("por", "ordenar", "tipo, mes, año, día o letra."),
     ("plantilla", "renombrar", "El nombre nuevo con huecos: {fecha:%Y-%m-%d}, {n:03}, {nombre} "
      "y {ext}."),

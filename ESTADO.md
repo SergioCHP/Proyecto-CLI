@@ -480,6 +480,26 @@ Más claro:
   cerrar) y sale con 1. Tras el arreglo, 0 de 10.
 - 327 tests pasando.
 
+### 2026-11-10 — Versiones viejas: que no se pierdan y que se puedan borrar
+
+- Antes, lo que sustituía «copiar» con «el-mas-nuevo» iba a la papelera común: solo
+  `acciones deshacer` lo devolvía, y solo hasta la siguiente acción; y `duplicados vaciar`
+  lo borraba sin decir que era de `acciones`.
+- Ahora va a `versiones/` en los datos, con un índice (`navaja/versiones.py`: de dónde
+  salió, cuándo y qué acción lo sustituyó). El índice se limpia solo (lo que ya no está no
+  se lista) y, si se rompe, los archivos siguen ahí.
+- Grupo nuevo `acciones versiones` (`comandos/versiones.py`):
+  - `ver`: lista numerada con archivo, dónde estaba, cuándo, qué acción y tamaño.
+  - `recuperar 1 3`: las devuelve a su sitio; si allí hay un archivo, la deja al lado
+    como «nombre (1)», sin pisar nada.
+  - `borrar [números] [--hasta "hace 30 días"]`: borra para siempre (todas, unas o las
+    antiguas), enseñando cuáles y cuánto ocupan y preguntando.
+  - Tab completa los números con el nombre del archivo; también por menú dentro de navaja.
+- `duplicados vaciar` ya no las toca. `acciones deshacer` sigue devolviendo la vieja; si
+  la borraste, lo dice y deja la copia.
+- `bonita()` pasa de `mis_acciones.py` a `comun.py` (ahora la usan dos módulos).
+- Manual, README, notas de los JSON, skill y arquitectura al día. 338 tests pasando.
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.
@@ -527,8 +547,6 @@ Más claro:
 - [x] `--destino` al ejecutar.
 - [x] Traza al cortar la salida con una tubería (`| head -1`).
 - [ ] De la segunda revisión de `copiar`, sin arreglar:
-  - Las versiones viejas que aparta «el-mas-nuevo» solo se pueden deshacer hasta la
-    siguiente acción, y `duplicados vaciar` las borra sin decir que eran de `acciones`.
   - «el-mas-nuevo» se fía del reloj de cada PC; y con el desfase de una hora de FAT32, si
     los dos lados se editaron con menos de una hora de diferencia, puede ganar el viejo (va
     a la papelera, no se pierde).

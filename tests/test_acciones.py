@@ -477,7 +477,7 @@ def test_el_mas_nuevo_sustituye_y_deshacer_devuelve_la_version_vieja(tmp_path):
     assert acciones("ejecutar", "pc-a-usb", config=ruta).exit_code == 0
     assert (usb / "tema1" / "apuntes.md").read_text(encoding="utf-8") == "versión de casa, editada después"
     assert relativos(usb) == {"tema1/apuntes.md"}  # sin «(1)»
-    viejas = list((directorio_datos() / "papelera").rglob("apuntes.md"))
+    viejas = list((directorio_datos() / "versiones").rglob("apuntes.md"))
     assert [v.read_text(encoding="utf-8") for v in viejas] == ["versión de clase"]
 
     vuelta = acciones("ejecutar", "usb-a-pc", config=ruta)  # ya son iguales: nada que hacer
@@ -579,7 +579,7 @@ def test_si_tampoco_vuelve_la_vieja_dice_donde_esta(tmp_path, monkeypatch):
     assert resultado.exit_code == 1
     texto = plano(resultado.output)
     assert "no se pudo copiar ni devolver la versión vieja: está en" in texto
-    viejas = list((directorio_datos() / "papelera").rglob("a.txt"))
+    viejas = list((directorio_datos() / "versiones").rglob("a.txt"))
     assert [v.read_text(encoding="utf-8") for v in viejas] == ["viejo"]  # no se ha perdido
 
 
@@ -592,15 +592,21 @@ def test_deshacer_no_quita_una_copia_que_has_editado_despues(tmp_path):
     assert (usb / "a.txt").read_text(encoding="utf-8") == "nuevo y además lo que hice por la tarde"
 
 
-def test_deshacer_con_la_papelera_vaciada_lo_dice_y_no_toca_la_copia(tmp_path):
-    import shutil
-
+def test_duplicados_vaciar_ya_no_borra_las_versiones_viejas(tmp_path):
     pc, usb, ruta = usb_y_pc_con_cambio(tmp_path)
     assert acciones("ejecutar", "ida", config=ruta).exit_code == 0
-    shutil.rmtree(directorio_datos() / "papelera")  # como «duplicados vaciar»
+    assert runner.invoke(app, ["duplicados", "vaciar", "--si"]).exit_code == 0
+    assert acciones("deshacer", entrada="s\n").exit_code == 0
+    assert (usb / "a.txt").read_text(encoding="utf-8") == "viejo"  # sigue ahí y vuelve
+
+
+def test_deshacer_con_la_version_borrada_lo_dice_y_no_toca_la_copia(tmp_path):
+    pc, usb, ruta = usb_y_pc_con_cambio(tmp_path)
+    assert acciones("ejecutar", "ida", config=ruta).exit_code == 0
+    assert runner.invoke(app, ["acciones", "versiones", "borrar", "--si"]).exit_code == 0
     resultado = acciones("deshacer", entrada="s\n")
     texto = plano(resultado.output)
-    assert "1 versión vieja ya no está en la papelera de navaja" in texto
+    assert "1 versión vieja ya no está guardada" in texto
     assert "Volvería" not in texto
     assert (usb / "a.txt").read_text(encoding="utf-8") == "nuevo"
 
