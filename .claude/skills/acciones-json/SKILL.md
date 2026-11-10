@@ -15,6 +15,7 @@ description: Reglas del archivo acciones.json de navaja (campos, tipos, filtro, 
   - `rutina`: `pasos` = lista de nombres de acciones (sin rutinas dentro). No lleva carpeta ni filtro.
 - Las de archivos admiten `carpeta` (ruta con ~ y /) y `filtro`: `solo`, `contiene`, `patron`, `desde`, `hasta`, `mayor_que`, `recursivo`, `ocultos`, `excluir` (nombres de carpeta en las que no entra con `recursivo`).
 - Una ruta relativa en `destino` se cuenta desde la carpeta de la acción.
+- Al ejecutar, `CARPETA` y `--destino` cambian carpeta y destino solo esa vez (`AccionDeArchivos.con_destino`; no vale con rutinas ni con tipos sin destino).
 
 ## Cómo está repartido el código
 - `esquema.py` comprueba el archivo entero antes de tocar nada (campos comunes, filtro, nombres repetidos, pasos de rutinas); el esquema se documenta en `DOC_CAMPOS` / `DOC_FILTRO`, que pinta el manual.

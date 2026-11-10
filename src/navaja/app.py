@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import errno
+import os
 import sys
 from datetime import datetime
 
@@ -120,10 +122,44 @@ for modulo in (listar, ocupa, ordena, renombra, duplicados, notas, mis_acciones,
     modulo.registrar(app)
 
 
+def tuberia_cerrada(error: OSError) -> bool:
+    """¿El error es que quien leía la salida ya se fue («navaja … | head -1»)?
+
+    En Linux y macOS es ``BrokenPipeError``; en Windows, un ``OSError`` 22 (Invalid
+    argument). Ese mismo número sale también con una ruta mala, así que se comprueba que
+    lo roto sea de verdad la salida: si se puede vaciar, el error era de otra cosa.
+    """
+    if isinstance(error, BrokenPipeError):
+        return True
+    if error.errno != errno.EINVAL:
+        return False
+    try:
+        sys.stdout.flush()
+    except OSError:
+        return True
+    return False
+
+
+def silenciar_salida() -> None:
+    """Lo que quede por escribir va a la nada: si no, Python lo intenta otra vez al cerrar
+    y suelta «Exception ignored … OSError»."""
+    try:
+        nulo = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(nulo, sys.stdout.fileno())
+    except (OSError, ValueError, AttributeError):  # sin descriptor de verdad (p. ej. tests)
+        pass
+
+
 def main() -> None:
     preparar_salida(sys.stdout)  # Git Bash / salida redirigida: ✔ y → sin trazas
     preparar_salida(sys.stderr)
-    app()
+    try:
+        app()
+    except OSError as error:
+        if not tuberia_cerrada(error):
+            raise
+        silenciar_salida()  # «| head -1» y similares: quien leía ya tiene lo que quería
+        sys.exit(1)
 
 
 if __name__ == "__main__":

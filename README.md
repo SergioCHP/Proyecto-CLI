@@ -130,6 +130,7 @@ navaja acciones ejecutar ordenar-descargas --simular # qué haría, sin tocar na
 navaja acciones ejecutar ordenar-descargas           # enseña el plan y pregunta [s/n]
 navaja acciones ejecutar 2                           # también por su número
 navaja acciones ejecutar imagenes-ia ~/pruebas-navaja/Descargas   # en otra carpeta
+navaja acciones ejecutar pc-a-usb --destino E:/DAM                 # a otro destino (el USB con otra letra)
 navaja acciones deshacer                             # deja todo como estaba
 navaja acciones validar                              # comprueba el archivo sin hacer nada
 navaja acciones editar                               # lo abre en el Bloc de notas y lo comprueba al cerrar

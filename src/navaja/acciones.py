@@ -157,6 +157,16 @@ class AccionDeArchivos(Accion):
         """La carpeta a la que va todo, si es una sola (para no repetirla en cada fila del plan)."""
         return None
 
+    def con_destino(self, destino: Path) -> AccionDeArchivos:
+        """La misma acción, pero llevando los archivos a ``destino`` («--destino» al
+        ejecutar). ``NavajaError`` si este tipo no lleva destino."""
+        if "destino" not in self.campos:
+            raise NavajaError(
+                f"La acción «{self.nombre}» es de tipo {self.tipo}, que no lleva destino: "
+                "--destino no vale con ella."
+            )
+        return type(self)({**self.datos, "destino": str(destino)})
+
     def pregunta(self, n: int) -> str:
         return f"¿{self.verbo} {cuantos(n, 'archivo')}?"
 
@@ -263,7 +273,8 @@ class Mover(AccionDeArchivos):
             raise NavajaError(
                 f"El destino {self.datos['destino']} está en una unidad que no existe ahora "
                 f"mismo ({unidad.rstrip('/\\')}) (acción «{self.nombre}»). "
-                "¿Está conectado el USB? Si ahora tiene otra letra, cámbiala en acciones.json."
+                "¿Está conectado el USB? Si ahora tiene otra letra, dásela al ejecutar: "
+                "--destino E:/DAM."
             )
 
     def planificar(self, archivos: list[Path], carpeta: Path) -> list[Resultado]:

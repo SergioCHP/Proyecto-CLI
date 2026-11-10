@@ -48,6 +48,7 @@ def test_en_un_submenu_tambien_el_menu_principal():
         (["listar"], "rutas"),
         (["ordena", "tipo", "-c"], "rutas"),
         (["ordena", "tipo", "--solo"], ""),
+        (["acciones", "ejecutar", "usb-a-pc", "--destino"], "rutas"),
         (["ordena", "tipo"], ""),
     ],
 )

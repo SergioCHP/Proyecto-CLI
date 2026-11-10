@@ -254,6 +254,14 @@ def ejecutar(
         help="Hacerla en esta carpeta en vez de en la suya (en una rutina, en todos los pasos).",
         show_default=False,
     ),
+    destino: Path | None = typer.Option(
+        None,
+        "--destino",
+        "-d",
+        help="Llevar los archivos aquí en vez de a su destino (mover, copiar u ordenar): "
+        "--destino E:/DAM si el USB sale con otra letra.",
+        show_default=False,
+    ),
     simular: bool = OPCION_SIMULAR,
     si: bool = OPCION_SI,
     config: Path | None = OPCION_CONFIG,
@@ -262,9 +270,17 @@ def ejecutar(
     _, motor = cargar(elegir_config(ctx, config))
     try:
         accion = motor.buscar(nombre)
+        pasos = motor.pasos(accion)
+        if destino is not None:
+            if isinstance(accion, Rutina):
+                raise NavajaError(
+                    f"«{accion.nombre}» es una rutina: --destino llevaría todos sus pasos al "
+                    "mismo sitio. Ejecuta con --destino el paso que quieras cambiar."
+                )
+            # relativa, desde donde estás (como cualquier ruta que escribes), no desde la acción
+            pasos = [paso.con_destino(destino.expanduser().absolute()) for paso in pasos]
     except NavajaError as error:
         fallar(error)
-    pasos = motor.pasos(accion)
     if isinstance(accion, Rutina):
         console.print(
             Panel(

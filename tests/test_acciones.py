@@ -673,6 +673,7 @@ def test_destino_en_una_unidad_que_no_existe_para_antes_de_empezar(tmp_path):
     resultado = acciones("ejecutar", "al-usb", config=ruta)
     assert resultado.exit_code == 1
     assert "¿Está conectado el USB?" in plano(resultado.output)
+    assert "--destino" in plano(resultado.output)
     assert "Traceback" not in resultado.output
 
 
@@ -887,3 +888,46 @@ def test_el_config_de_la_orden_gana_al_del_grupo():
     assert resultado.exit_code == 0, resultado.output
     prueba = json.loads((REPO / "pruebas" / "acciones-prueba.json").read_text(encoding="utf-8"))
     assert f"{len(prueba['acciones'])} acciones válidas" in plano(resultado.output)
+
+
+def test_destino_al_ejecutar_cambia_a_donde_van(tmp_path, monkeypatch):
+    usb, pc, otro = tmp_path / "USB", tmp_path / "PC", tmp_path / "E" / "DAM"
+    crear(usb / "tema1" / "apuntes.md")
+    ruta = archivo_de_acciones(
+        tmp_path,
+        accion("usb-a-pc", "copiar", carpeta=str(usb), destino=str(pc), filtro={"recursivo": True}),
+    )
+    resultado = acciones("ejecutar", "usb-a-pc", "--destino", str(otro), config=ruta)
+    assert resultado.exit_code == 0, resultado.output
+    assert relativos(otro) == {"tema1/apuntes.md"}
+    assert not pc.exists()  # el destino de acciones.json no se toca
+    assert json.loads(ruta.read_text(encoding="utf-8"))["acciones"][0]["destino"] == str(pc)
+    assert acciones("deshacer", entrada="s\n").exit_code == 0
+    assert not (otro / "tema1" / "apuntes.md").exists()
+
+
+def test_destino_relativo_se_cuenta_desde_donde_estas(tmp_path, monkeypatch):
+    usb = tmp_path / "USB"
+    crear(usb / "a.txt")
+    ruta = archivo_de_acciones(tmp_path, accion("x", "copiar", carpeta=str(usb), destino="dentro"))
+    aqui = tmp_path / "aqui"
+    aqui.mkdir()
+    monkeypatch.chdir(aqui)
+    assert acciones("ejecutar", "x", "-d", "copias", config=ruta).exit_code == 0
+    assert (aqui / "copias" / "a.txt").exists()  # no en USB/copias
+
+
+@pytest.mark.parametrize(
+    ("acciones_json", "nombre", "mensaje"),
+    [
+        ([accion("fechas", "renombrar", plantilla="{n}{ext}")], "fechas", "no lleva destino"),
+        ([accion("a", "copiar", destino="x"), accion("r", "rutina", pasos=["a"])], "r",
+         "es una rutina"),
+    ],
+)
+def test_destino_al_ejecutar_donde_no_vale(tmp_path, acciones_json, nombre, mensaje):
+    ruta = archivo_de_acciones(tmp_path, *acciones_json)
+    resultado = acciones("ejecutar", nombre, "--destino", str(tmp_path / "y"), "--simular", config=ruta)
+    assert resultado.exit_code == 1
+    assert mensaje in plano(resultado.output)
+    assert "Traceback" not in resultado.output

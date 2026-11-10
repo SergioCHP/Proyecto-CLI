@@ -457,6 +457,29 @@ Más claro:
   (`navaja … > a.txt` en PowerShell) conserva la codificación y lo que no cabe sale «?».
 - 319 tests pasando.
 
+### 2026-11-10 — `--destino` al ejecutar
+
+- `navaja acciones ejecutar NOMBRE [CARPETA] --destino RUTA` (`-d`, como en `ordena`): lleva
+  los archivos a otro sitio solo esa vez, sin tocar acciones.json. Si el USB sale con otra
+  letra: `pc-a-usb --destino E:/DAM` (y `usb-a-pc E:/DAM`, que cambia la carpeta).
+- Vale con mover, copiar y ordenar (`AccionDeArchivos.con_destino`, sin `if tipo ==`). Con
+  renombrar o borrar, o con una rutina (llevaría todos los pasos al mismo sitio), error
+  claro y código 1. Una ruta relativa se cuenta desde donde estás.
+- El aviso de «USB sin conectar» sugiere `--destino`; Tab completa rutas tras `--destino`.
+- Manual, README, notas de los JSON y skill al día. 324 tests pasando.
+
+### 2026-11-10 — Sin traza al cortar la salida con una tubería
+
+- `navaja acciones validar | head -1` (o `| Select-Object -First 1`) soltaba a veces una
+  traza: en Windows, escribir en una tubería que ya se cerró da `OSError: [Errno 22]` en
+  vez de `BrokenPipeError`, y Rich solo maneja el segundo. Reproducido 5 de 5 veces cerrando
+  la tubería a propósito.
+- `main()` lo captura (`tuberia_cerrada()`): `BrokenPipeError`, o el 22 solo si la salida
+  de verdad no se puede vaciar (el mismo número sale con una ruta mala, y ese error no se
+  traga). Manda lo que queda a la nada (`silenciar_salida()`, si no Python avisa al
+  cerrar) y sale con 1. Tras el arreglo, 0 de 10.
+- 327 tests pasando.
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.
@@ -501,8 +524,8 @@ Más claro:
   con lo que habrían cambiado los pasos de antes).
 - [x] Autocompletado de shell.
 - [x] Acción `copiar` para pasar los archivos de clase del USB al PC de casa (y al revés).
-- [ ] `--destino` al ejecutar, para cambiar el destino como ya se cambia la carpeta (hoy, si
-  el USB sale con otra letra, `pc-a-usb` se cambia en acciones.json).
+- [x] `--destino` al ejecutar.
+- [x] Traza al cortar la salida con una tubería (`| head -1`).
 - [ ] De la segunda revisión de `copiar`, sin arreglar:
   - Las versiones viejas que aparta «el-mas-nuevo» solo se pueden deshacer hasta la
     siguiente acción, y `duplicados vaciar` las borra sin decir que eran de `acciones`.
