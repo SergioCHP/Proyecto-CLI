@@ -14,6 +14,8 @@ archivos: encadena otras acciones.
 
 from __future__ import annotations
 
+import contextlib
+import os
 import shutil
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -23,7 +25,7 @@ from typing import Any, ClassVar
 
 from .comandos import ordena, renombra
 from .comun import carpeta_papelera, cuantos, destino_libre, ruta_libre
-from .errores import AccionNoValida
+from .errores import AccionNoValida, NavajaError
 from .filtros import sin_tildes
 
 
@@ -39,6 +41,10 @@ class Resultado:
     destino: Path | None
     estado: str = "pendiente"
     motivo: str = ""
+    sustituir: bool = False
+    """Copiar con «el-mas-nuevo»: el destino existe y es más viejo; se aparta y se copia."""
+    apartado: Path | None = None
+    """Dónde quedó (en la papelera de navaja) la versión vieja que se sustituyó."""
 
 
 def relativa(archivo: Path, carpeta: Path) -> Path:
@@ -143,6 +149,14 @@ class AccionDeArchivos(Accion):
         para no volver a coger lo que ya se movió allí."""
         return None
 
+    def comprobar_destino(self, carpeta: Path) -> None:
+        """Antes del plan: ``NavajaError`` si el destino no puede existir (una unidad que
+        no está, como un USB sin conectar)."""
+
+    def destino_comun(self, carpeta: Path) -> Path | None:
+        """La carpeta a la que va todo, si es una sola (para no repetirla en cada fila del plan)."""
+        return None
+
     def pregunta(self, n: int) -> str:
         return f"¿{self.verbo} {cuantos(n, 'archivo')}?"
 
@@ -182,13 +196,45 @@ def mover(resultado: Resultado) -> None:
     shutil.move(str(resultado.origen), str(resultado.destino))
 
 
+TOLERANCIA = 2
+"""Segundos de diferencia que no cuentan: FAT32 (muchos USB) guarda la hora de 2 en 2 s."""
+
+
 def misma_copia(original: Path, copia: Path) -> bool:
-    """Mismo tamaño y misma fecha (la copia conserva la fecha): ya está copiado."""
+    """Mismo tamaño y misma fecha (la copia conserva la fecha): ya está copiado.
+
+    Una hora justa de diferencia también cuenta como la misma fecha: FAT32 guarda la hora
+    local, y tras el cambio de hora Windows ve todas las fechas del USB movidas una hora.
+    """
     try:
         a, b = original.stat(), copia.stat()
     except OSError:
         return False
-    return a.st_size == b.st_size and abs(a.st_mtime - b.st_mtime) <= 2
+    diferencia = abs(a.st_mtime - b.st_mtime)
+    return a.st_size == b.st_size and (
+        diferencia <= TOLERANCIA or abs(diferencia - 3600) <= TOLERANCIA
+    )
+
+
+def copia_igual_al_lado(original: Path, deseado: Path) -> Path | None:
+    """Una «nombre (n).ext» junto a ``deseado`` que ya es copia de ``original``: así la
+    segunda vez no se hace otra «(n)» con lo mismo."""
+    indice = 1
+    while True:
+        candidato = deseado.with_name(f"{deseado.stem} ({indice}){deseado.suffix}")
+        if not candidato.exists():
+            return None
+        if misma_copia(original, candidato):
+            return candidato
+        indice += 1
+
+
+def apartar(archivo: Path, papelera: Path) -> Path:
+    """Lleva ``archivo`` a la papelera de navaja sin pisar nada y dice dónde ha quedado."""
+    papelera.mkdir(parents=True, exist_ok=True)
+    destino = ruta_libre(papelera / archivo.name)
+    shutil.move(str(archivo), str(destino))
+    return destino
 
 
 # ── Los tipos ──────────────────────────────────────────────────────────────
@@ -208,6 +254,18 @@ class Mover(AccionDeArchivos):
     def excluir(self, carpeta: Path) -> Path | None:
         return self.base(carpeta)
 
+    def destino_comun(self, carpeta: Path) -> Path | None:
+        return self.base(carpeta)
+
+    def comprobar_destino(self, carpeta: Path) -> None:
+        unidad = self.base(carpeta).anchor  # «D:\» en Windows; «/» en Linux y macOS
+        if unidad and not Path(unidad).exists():
+            raise NavajaError(
+                f"El destino {self.datos['destino']} está en una unidad que no existe ahora "
+                f"mismo ({unidad.rstrip('/\\')}) (acción «{self.nombre}»). "
+                "¿Está conectado el USB? Si ahora tiene otra letra, cámbiala en acciones.json."
+            )
+
     def planificar(self, archivos: list[Path], carpeta: Path) -> list[Resultado]:
         base = self.base(carpeta)
         reservados: set[str] = set()
@@ -225,15 +283,50 @@ class Mover(AccionDeArchivos):
 
 class Copiar(Mover):
     tipo = "copiar"
-    explicacion = "Copia los archivos a otra carpeta; el original se queda donde está."
+    explicacion = (
+        "Copia los archivos a otra carpeta; el original se queda donde está. Si allí ya "
+        "hay uno distinto con el mismo nombre, «si_cambia» decide: copia-aparte o el-mas-nuevo."
+    )
+    campos = {"destino": True, "si_cambia": False}
     verbo = "Copiar"
     participio = ("copiado", "copiados")
     para = "para copiar"
     columna = "Copia en"
     como = "copiado"
 
+    SI_CAMBIA = ("copia-aparte", "el-mas-nuevo")
+
+    def __init__(self, datos: dict[str, Any]) -> None:
+        super().__init__(datos)
+        self._papelera: Path | None = None
+
+    @classmethod
+    def comprobar_valores(cls, datos: dict[str, Any]) -> None:
+        si_cambia = datos.get("si_cambia", "copia-aparte")
+        if si_cambia not in cls.SI_CAMBIA:
+            raise AccionNoValida(
+                datos["nombre"], "si_cambia",
+                f"«{si_cambia}» no vale; usa copia-aparte (guarda «nombre (1)» al lado) o "
+                "el-mas-nuevo (se queda la versión más reciente)",
+            )
+
+    @staticmethod
+    def cual_gana(archivo: Path, deseado: Path) -> Resultado:
+        """«el-mas-nuevo» y allí hay otro distinto: si el de aquí es más reciente, lo
+        sustituye; si no, no se toca."""
+        try:
+            aqui, alli = archivo.stat().st_mtime, deseado.stat().st_mtime
+        except OSError:
+            return Resultado(archivo, deseado, "saltado", "no puedo leer su fecha")
+        if aqui > alli + TOLERANCIA:
+            return Resultado(archivo, deseado, sustituir=True)
+        if alli > aqui + TOLERANCIA:
+            return Resultado(archivo, deseado, "saltado", "allí hay una versión más nueva")
+        return Resultado(archivo, deseado, "saltado", "distinto pero con la misma fecha: míralo tú")
+
     def planificar(self, archivos: list[Path], carpeta: Path) -> list[Resultado]:
         base = self.base(carpeta)
+        el_mas_nuevo = self.datos.get("si_cambia") == "el-mas-nuevo"
         reservados: set[str] = set()
         plan = []
         for archivo in archivos:
@@ -243,15 +336,65 @@ class Copiar(Mover):
             if misma_copia(archivo, deseado):  # la segunda vez no se copia otra vez
                 plan.append(Resultado(archivo, deseado, "saltado", "ya está copiado"))
                 continue
+            if el_mas_nuevo and deseado.is_file():
+                plan.append(self.cual_gana(archivo, deseado))
+                continue
+            igual = copia_igual_al_lado(archivo, deseado)
+            if igual is not None:
+                plan.append(Resultado(archivo, igual, "saltado", f"ya está copiado como «{igual.name}»"))
+                continue
             plan.append(Resultado(archivo, destino_libre(deseado, reservados)))
         return plan
 
+    def ejecutar(self, plan: list[Resultado]) -> list[Resultado]:
+        # las versiones viejas que se sustituyan van juntas a una carpeta de la papelera
+        self._papelera = carpeta_papelera() / datetime.now().strftime("%Y%m%d-%H%M%S")
+        return super().ejecutar(plan)
+
     def aplicar(self, resultado: Resultado) -> None:
+        """Copia a un temporal oculto junto al destino y, solo cuando está entero, le pone
+        el nombre bueno: si el USB se llena o se desconecta a medias, en el destino no
+        queda un archivo roto con fecha de ahora (que «el-mas-nuevo» tomaría por bueno)."""
         assert resultado.destino is not None
-        if resultado.destino.exists():
+        if not resultado.sustituir and resultado.destino.exists():
             resultado.destino = ruta_libre(resultado.destino)
-        resultado.destino.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(resultado.origen, resultado.destino)  # copy2 conserva la fecha
+        destino = resultado.destino
+        destino.parent.mkdir(parents=True, exist_ok=True)
+        temporal = destino.with_name(f".{destino.name}.navaja-copiando")
+        try:
+            shutil.copy2(resultado.origen, temporal)  # copy2 conserva la fecha
+            if resultado.sustituir and destino.exists():
+                assert self._papelera is not None
+                resultado.apartado = apartar(destino, self._papelera)
+            os.replace(temporal, destino)
+        except OSError:
+            with contextlib.suppress(OSError):
+                temporal.unlink(missing_ok=True)
+            self.devolver_apartado(resultado)
+            raise
+
+    @staticmethod
+    def devolver_apartado(resultado: Resultado) -> None:
+        """Tras un fallo, deja la versión vieja donde estaba. Si ni eso se puede, el error
+        dice en qué carpeta de la papelera ha quedado, para que no se pierda de vista."""
+        apartado = resultado.apartado
+        if apartado is None:
+            return
+        assert resultado.destino is not None
+        try:
+            shutil.move(str(apartado), str(resultado.destino))
+        except OSError as exc:
+            raise OSError(
+                exc.errno,
+                f"no se pudo copiar ni devolver la versión vieja: está en {apartado}",
+            ) from None
+        resultado.apartado = None
+
+    def para_deshacer(self, resultado: Resultado) -> dict[str, str]:
+        registro = super().para_deshacer(resultado)
+        if resultado.apartado is not None:
+            registro["apartado"] = str(resultado.apartado)
+        return registro
 
 
 class Ordenar(AccionDeArchivos):

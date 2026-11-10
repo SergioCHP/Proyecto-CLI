@@ -229,6 +229,7 @@ class Filtro:
     hasta: str = ""
     recursivo: bool = False
     ocultos: bool = False
+    excluir: tuple[str, ...] = ()  # carpetas en las que no entra (con recursivo)
 
     def describir(self) -> str:
         partes = []
@@ -238,6 +239,8 @@ class Filtro:
             partes.append(f"con «{self.contiene}» en el nombre")
         if self.desde or self.hasta:
             partes.append(describir_rango(*rango(self.desde, self.hasta)))
+        if self.recursivo and self.excluir:
+            partes.append(f"sin entrar en {', '.join(self.excluir)}")
         return ", ".join(partes)
 
 
@@ -247,7 +250,9 @@ def seleccionar(carpeta: Path, filtro: Filtro) -> list[Path]:
     texto = filtro.contiene.lower()
     inicio, fin = rango(filtro.desde, filtro.hasta)
     elegidos = []
-    for archivo in iterar_archivos(carpeta, filtro.recursivo, filtro.ocultos):
+    for archivo in iterar_archivos(
+        carpeta, filtro.recursivo, filtro.ocultos, excluir=filtro.excluir
+    ):
         if exts and archivo.suffix.lower() not in exts:
             continue
         if texto and texto not in archivo.name.lower():

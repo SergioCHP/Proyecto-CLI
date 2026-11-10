@@ -8,12 +8,12 @@ description: Reglas del archivo acciones.json de navaja (campos, tipos, filtro, 
 - Raíz: `{"version": 1, "acciones": [...]}`. Lo que empieza por `_` es una nota y no se lee.
 - Cada acción: `nombre` (único, minúsculas-con-guiones), `descripcion`, `tipo`.
 - Tipos y sus campos:
-  - `mover`, `copiar`: `destino` (obligatorio).
+  - `mover`, `copiar`: `destino` (obligatorio). `copiar` admite `si_cambia` = copia-aparte (por defecto) | el-mas-nuevo (el viejo va a la papelera de navaja).
   - `ordenar`: `por` = tipo | mes | año | día | letra; `destino` opcional.
   - `renombrar`: `plantilla` con huecos `{fecha:%Y-%m-%d}`, `{n:03}`, `{nombre}`, `{ext}`; `orden` = nombre | fecha.
   - `borrar`: manda a la papelera de navaja; necesita `filtro`.
   - `rutina`: `pasos` = lista de nombres de acciones (sin rutinas dentro). No lleva carpeta ni filtro.
-- Las de archivos admiten `carpeta` (ruta con ~ y /) y `filtro`: `solo`, `contiene`, `patron`, `desde`, `hasta`, `mayor_que`, `recursivo`, `ocultos`.
+- Las de archivos admiten `carpeta` (ruta con ~ y /) y `filtro`: `solo`, `contiene`, `patron`, `desde`, `hasta`, `mayor_que`, `recursivo`, `ocultos`, `excluir` (nombres de carpeta en las que no entra con `recursivo`).
 - Una ruta relativa en `destino` se cuenta desde la carpeta de la acción.
 
 ## Cómo está repartido el código

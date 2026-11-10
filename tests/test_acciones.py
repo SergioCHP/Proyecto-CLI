@@ -131,6 +131,14 @@ def validar_con(*cambios: dict, raiz: dict | None = None):
         (accion("x", "mover", destino="a", filtro={"recursivo": "true"}), "tiene que ser true o false"),
         (accion("x", "mover", destino="a", filtro={"extensiones": [".pdf"]}), "¿Querías decir «solo»?"),
         (accion("x", "mover", destino="a", filtro={"mayor_que": "mucho"}), "campo «filtro.mayor_que»"),
+        (accion("x", "copiar", destino="a", filtro={"excluir": "proyectos/build"}), "«proyectos/build» no es un nombre de carpeta"),
+        (accion("x", "copiar", destino="a", filtro={"excluir": "C:"}), "«C:» no es un nombre de carpeta"),
+        (accion("x", "copiar", destino="a", filtro={"excluir": "*.egg-info"}), "sin rutas, unidades ni comodines"),
+        (accion("x", "copiar", destino="a", filtro={"excluir": " , ,"}), "campo «filtro.excluir»: está vacío"),
+        (accion("x", "copiar", destino="a", filtro={"excluir": []}), "campo «filtro.excluir»: está vacío"),
+        (accion("x", "copiar", destino="a", si_cambia="sobrescribir"), "campo «si_cambia»: «sobrescribir» no vale"),
+        (accion("x", "mover", destino="a", si_cambia="el-mas-nuevo"), "no se usa en acciones de tipo mover"),
+        (accion("x", "copiar", destino="a", filtro={"excluir": ["build", 3]}), "campo «filtro.excluir»: tiene que ser una lista"),
         (accion("x", "mover", destino="C:\new\temp"), "campo «destino»: tiene un salto de línea o un tabulador"),
         (accion("x", "ordenar", por="semana"), "«semana» no vale; usa tipo, mes, año, día o letra"),
         (accion("x", "renombrar", plantilla="{dia}{ext}"), "el hueco {dia} no existe"),
@@ -408,6 +416,287 @@ def test_copiar_la_segunda_vez_no_copia_otra_vez(tmp_path):
     assert relativos(copia) == {"tema1/apuntes.pdf"}
 
 
+def test_copiar_usb_y_pc_en_los_dos_sentidos_sin_entrar_en_excluidas(tmp_path):
+    usb, pc = tmp_path / "USB" / "DAM", tmp_path / "PC" / "DAM"
+    crear(usb / "Programación" / "tema3.pdf")
+    crear(pc / "Programación" / "practica.py")
+    crear(pc / "Proyecto" / "node_modules" / "lib.js")
+    crear(pc / "Proyecto" / "src" / "__pycache__" / "app.pyc")
+    crear(pc / "Proyecto" / "Build" / "app.exe")  # sin mirar mayúsculas
+    filtro = {"recursivo": True, "excluir": "node_modules, __pycache__, build"}
+    ruta = archivo_de_acciones(
+        tmp_path,
+        accion("usb-a-pc", "copiar", carpeta=str(usb), destino=str(pc), filtro=filtro),
+        accion("pc-a-usb", "copiar", carpeta=str(pc), destino=str(usb), filtro=filtro),
+    )
+    assert acciones("ejecutar", "usb-a-pc", config=ruta).exit_code == 0
+    assert acciones("ejecutar", "pc-a-usb", config=ruta).exit_code == 0
+    esperado = {"Programación/tema3.pdf", "Programación/practica.py"}
+    assert relativos(usb) == esperado
+    assert esperado <= relativos(pc)
+    vuelta = acciones("ejecutar", "usb-a-pc", config=ruta)  # ya está todo en los dos sitios
+    assert "ya está copiado" in vuelta.output
+    assert not any("(1)" in nombre for nombre in relativos(pc))
+
+
+def fecha(archivo: Path, segundos: float) -> None:
+    """Pone la fecha de modificación ``segundos`` antes de ahora."""
+    marca = datetime.now().timestamp() - segundos
+    os.utime(archivo, (marca, marca))
+
+
+def test_copia_aparte_no_repite_la_copia_en_cada_ejecucion(tmp_path):
+    pc, usb = tmp_path / "PC", tmp_path / "USB"
+    crear(usb / "a.txt", "viejo")
+    fecha(usb / "a.txt", 3 * 86400)
+    crear(pc / "a.txt", "nuevo y más largo")
+    ruta = archivo_de_acciones(
+        tmp_path, accion("ida", "copiar", carpeta=str(pc), destino=str(usb))
+    )
+    for _ in range(3):
+        assert acciones("ejecutar", "ida", config=ruta).exit_code == 0
+    assert relativos(usb) == {"a.txt", "a (1).txt"}  # una sola «(1)», no una por vez
+    assert "ya está copiado como «a (1).txt»" in plano(acciones("ejecutar", "ida", "--simular", config=ruta).output)
+
+
+def test_el_mas_nuevo_sustituye_y_deshacer_devuelve_la_version_vieja(tmp_path):
+    pc, usb = tmp_path / "PC" / "DAM", tmp_path / "USB" / "DAM"
+    crear(usb / "tema1" / "apuntes.md", "versión de clase")
+    fecha(usb / "tema1" / "apuntes.md", 86400)
+    crear(pc / "tema1" / "apuntes.md", "versión de casa, editada después")
+    ruta = archivo_de_acciones(
+        tmp_path,
+        accion("pc-a-usb", "copiar", carpeta=str(pc), destino=str(usb), si_cambia="el-mas-nuevo",
+               filtro={"recursivo": True}),
+        accion("usb-a-pc", "copiar", carpeta=str(usb), destino=str(pc), si_cambia="el-mas-nuevo",
+               filtro={"recursivo": True}),
+    )
+    simulado = acciones("ejecutar", "pc-a-usb", "--simular", config=ruta)
+    assert "sustituye a la versión vieja" in plano(simulado.output)
+
+    assert acciones("ejecutar", "pc-a-usb", config=ruta).exit_code == 0
+    assert (usb / "tema1" / "apuntes.md").read_text(encoding="utf-8") == "versión de casa, editada después"
+    assert relativos(usb) == {"tema1/apuntes.md"}  # sin «(1)»
+    viejas = list((directorio_datos() / "papelera").rglob("apuntes.md"))
+    assert [v.read_text(encoding="utf-8") for v in viejas] == ["versión de clase"]
+
+    vuelta = acciones("ejecutar", "usb-a-pc", config=ruta)  # ya son iguales: nada que hacer
+    assert "ya está copiado" in vuelta.output
+    assert relativos(pc) == {"tema1/apuntes.md"}
+
+
+def test_el_mas_nuevo_deshacer_trae_la_version_vieja(tmp_path):
+    pc, usb = tmp_path / "PC", tmp_path / "USB"
+    crear(usb / "a.txt", "viejo")
+    fecha(usb / "a.txt", 86400)
+    crear(pc / "a.txt", "nuevo")
+    ruta = archivo_de_acciones(
+        tmp_path, accion("ida", "copiar", carpeta=str(pc), destino=str(usb), si_cambia="el-mas-nuevo")
+    )
+    assert acciones("ejecutar", "ida", config=ruta).exit_code == 0
+    resultado = acciones("deshacer", entrada="s\n")
+    assert "Volvería 1 versión vieja que se sustituyó" in plano(resultado.output)
+    assert (usb / "a.txt").read_text(encoding="utf-8") == "viejo"
+    assert (pc / "a.txt").read_text(encoding="utf-8") == "nuevo"  # el original no se toca
+
+
+def test_el_plan_dice_el_destino_una_vez_y_la_columna_va_corta(tmp_path):
+    usb, pc = tmp_path / "USB", tmp_path / "DESTINOPC"
+    crear(usb / "tema1" / "apuntes.md")
+    crear(usb / "tema2" / "practica.md")
+    ruta = archivo_de_acciones(
+        tmp_path,
+        accion("traer", "copiar", carpeta=str(usb), destino=str(pc), filtro={"recursivo": True}),
+    )
+    salida = acciones("ejecutar", "traer", "--simular", config=ruta).output
+    assert salida.count("DESTINOPC") == 1  # en el recuadro («A …»), no en cada fila
+    assert "2 archivos para copiar" in salida
+
+
+def usb_y_pc_con_cambio(tmp_path: Path) -> tuple[Path, Path, Path]:
+    """PC/a.txt «nuevo» (de hoy) y USB/a.txt «viejo» (de ayer); acción «ida» PC → USB."""
+    pc, usb = tmp_path / "PC", tmp_path / "USB"
+    crear(usb / "a.txt", "viejo")
+    fecha(usb / "a.txt", 86400)
+    crear(pc / "a.txt", "nuevo")
+    ruta = archivo_de_acciones(
+        tmp_path, accion("ida", "copiar", carpeta=str(pc), destino=str(usb), si_cambia="el-mas-nuevo")
+    )
+    return pc, usb, ruta
+
+
+def test_una_copia_cortada_a_medias_no_deja_nada_roto(tmp_path, monkeypatch):
+    import navaja.acciones as modulo
+
+    pc, usb, ruta = usb_y_pc_con_cambio(tmp_path)
+
+    def copia_que_se_corta(origen, destino, *args, **kwargs):
+        Path(destino).write_text("nu", encoding="utf-8")  # medio archivo y… USB lleno
+        raise OSError(28, "No queda espacio en el dispositivo")
+
+    monkeypatch.setattr(modulo.shutil, "copy2", copia_que_se_corta)
+    resultado = acciones("ejecutar", "ida", config=ruta)
+    assert resultado.exit_code == 1
+    assert "No queda espacio" in plano(resultado.output)
+    assert (usb / "a.txt").read_text(encoding="utf-8") == "viejo"  # intacto
+    assert {p.name for p in usb.iterdir()} == {"a.txt"}  # ni temporal ni medio archivo
+
+
+def test_si_falla_al_poner_el_nombre_vuelve_la_version_vieja(tmp_path, monkeypatch):
+    import navaja.acciones as modulo
+
+    pc, usb, ruta = usb_y_pc_con_cambio(tmp_path)
+
+    def replace_que_falla(*args, **kwargs):
+        raise OSError(13, "Acceso denegado")
+
+    monkeypatch.setattr(modulo.os, "replace", replace_que_falla)
+    resultado = acciones("ejecutar", "ida", config=ruta)
+    assert resultado.exit_code == 1
+    assert (usb / "a.txt").read_text(encoding="utf-8") == "viejo"
+    assert {p.name for p in usb.iterdir()} == {"a.txt"}
+
+
+def test_si_tampoco_vuelve_la_vieja_dice_donde_esta(tmp_path, monkeypatch):
+    import navaja.acciones as modulo
+
+    pc, usb, ruta = usb_y_pc_con_cambio(tmp_path)
+    mover_de_verdad = modulo.shutil.move
+    llamadas = []
+
+    def replace_que_falla(*args, **kwargs):
+        raise OSError(13, "Acceso denegado")
+
+    def move_que_falla_al_devolver(origen, destino, *args, **kwargs):
+        llamadas.append(origen)
+        if len(llamadas) > 1:  # la 1.ª aparta la vieja; la 2.ª intenta devolverla
+            raise OSError(13, "Acceso denegado")
+        return mover_de_verdad(origen, destino)
+
+    monkeypatch.setattr(modulo.os, "replace", replace_que_falla)
+    monkeypatch.setattr(modulo.shutil, "move", move_que_falla_al_devolver)
+    resultado = acciones("ejecutar", "ida", config=ruta)
+    assert resultado.exit_code == 1
+    texto = plano(resultado.output)
+    assert "no se pudo copiar ni devolver la versión vieja: está en" in texto
+    viejas = list((directorio_datos() / "papelera").rglob("a.txt"))
+    assert [v.read_text(encoding="utf-8") for v in viejas] == ["viejo"]  # no se ha perdido
+
+
+def test_deshacer_no_quita_una_copia_que_has_editado_despues(tmp_path):
+    pc, usb, ruta = usb_y_pc_con_cambio(tmp_path)
+    assert acciones("ejecutar", "ida", config=ruta).exit_code == 0
+    (usb / "a.txt").write_text("nuevo y además lo que hice por la tarde", encoding="utf-8")
+    resultado = acciones("deshacer", entrada="s\n")
+    assert "ha cambiado desde que se copió" in plano(resultado.output)
+    assert (usb / "a.txt").read_text(encoding="utf-8") == "nuevo y además lo que hice por la tarde"
+
+
+def test_deshacer_con_la_papelera_vaciada_lo_dice_y_no_toca_la_copia(tmp_path):
+    import shutil
+
+    pc, usb, ruta = usb_y_pc_con_cambio(tmp_path)
+    assert acciones("ejecutar", "ida", config=ruta).exit_code == 0
+    shutil.rmtree(directorio_datos() / "papelera")  # como «duplicados vaciar»
+    resultado = acciones("deshacer", entrada="s\n")
+    texto = plano(resultado.output)
+    assert "1 versión vieja ya no está en la papelera de navaja" in texto
+    assert "Volvería" not in texto
+    assert (usb / "a.txt").read_text(encoding="utf-8") == "nuevo"
+
+
+def test_deshacer_que_falla_guarda_el_registro_para_reintentarlo(tmp_path, monkeypatch):
+    import navaja.comandos.mis_acciones as modulo
+    from navaja.comun import cargar_acciones
+
+    pc, usb, ruta = usb_y_pc_con_cambio(tmp_path)
+    assert acciones("ejecutar", "ida", config=ruta).exit_code == 0
+    mover_de_verdad = modulo.shutil.move
+    llamadas = []
+
+    def move_que_falla_al_devolver(origen, destino, *args, **kwargs):
+        llamadas.append(origen)
+        if len(llamadas) == 2:  # 1.ª: la copia a la papelera; 2.ª: devolver la vieja
+            raise OSError(13, "Acceso denegado")
+        return mover_de_verdad(origen, destino)
+
+    monkeypatch.setattr(modulo.shutil, "move", move_que_falla_al_devolver)
+    resultado = acciones("deshacer", entrada="s\n")
+    assert resultado.exit_code == 1
+    assert "sigue en" in plano(resultado.output)
+    assert (usb / "a.txt").read_text(encoding="utf-8") == "nuevo"  # queda como estaba
+    assert cargar_acciones("acciones")  # el registro sigue: se puede volver a intentar
+    monkeypatch.setattr(modulo.shutil, "move", mover_de_verdad)  # (undo() quitaría también NAVAJA_DATOS)
+    otra_vez = acciones("deshacer", entrada="s\n")
+    assert otra_vez.exit_code == 0, otra_vez.output
+    assert (usb / "a.txt").read_text(encoding="utf-8") == "viejo", otra_vez.output
+
+
+def test_el_mas_nuevo_no_toca_si_alli_es_mas_reciente(tmp_path):
+    pc, usb = tmp_path / "PC", tmp_path / "USB"
+    crear(pc / "a.txt", "viejo")
+    fecha(pc / "a.txt", 86400)
+    crear(usb / "a.txt", "editado en clase")
+    ruta = archivo_de_acciones(
+        tmp_path, accion("ida", "copiar", carpeta=str(pc), destino=str(usb), si_cambia="el-mas-nuevo")
+    )
+    resultado = acciones("ejecutar", "ida", config=ruta)
+    assert "allí hay una versión más nueva" in plano(resultado.output)
+    assert (usb / "a.txt").read_text(encoding="utf-8") == "editado en clase"
+    assert relativos(usb) == {"a.txt"}
+
+
+def test_misma_copia_aguanta_el_cambio_de_hora_de_fat32(tmp_path):
+    from navaja.acciones import misma_copia
+
+    original, copia = crear(tmp_path / "a.txt", "igual"), crear(tmp_path / "b.txt", "igual")
+    fecha(original, 7200)
+    fecha(copia, 7200 - 3601)  # una hora (y un segundo de redondeo de FAT32) después
+    assert misma_copia(original, copia)
+    fecha(copia, 7200 - 1800)  # media hora: es otro archivo
+    assert not misma_copia(original, copia)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="las letras de unidad son de Windows")
+def test_destino_en_una_unidad_que_no_existe_para_antes_de_empezar(tmp_path):
+    libre = next(
+        (f"{letra}:" for letra in "QRSTUVWXYZ" if not Path(f"{letra}:/").exists()), None
+    )
+    if libre is None:
+        pytest.skip("no hay ninguna letra de unidad libre")
+    crear(tmp_path / "a.txt")
+    ruta = archivo_de_acciones(
+        tmp_path, accion("al-usb", "copiar", carpeta=str(tmp_path), destino=f"{libre}/DAM")
+    )
+    validado = acciones("validar", config=ruta)
+    assert "unidad que no existe" in plano(validado.output)
+    resultado = acciones("ejecutar", "al-usb", config=ruta)
+    assert resultado.exit_code == 1
+    assert "¿Está conectado el USB?" in plano(resultado.output)
+    assert "Traceback" not in resultado.output
+
+
+def test_excluir_sin_recursivo_avisa(tmp_path):
+    ruta = archivo_de_acciones(
+        tmp_path, accion("x", "copiar", destino="a", filtro={"excluir": "build"})
+    )
+    resultado = acciones("validar", config=ruta)
+    assert resultado.exit_code == 0
+    assert "«excluir» solo sirve con" in plano(resultado.output)
+
+
+def test_excluir_en_el_filtro_se_describe_y_admite_lista(tmp_path):
+    from navaja.filtros import Filtro, seleccionar
+
+    crear(tmp_path / "a" / "dist" / "x.js")
+    crear(tmp_path / "a" / "y.js")
+    filtro = Filtro(recursivo=True, excluir=("dist",))
+    assert seleccionar(tmp_path, filtro) == [tmp_path / "a" / "y.js"]
+    assert "sin entrar en dist" in filtro.describir()
+    assert Motor.seleccionar(tmp_path, {"recursivo": True, "excluir": ["DIST"]}) == [tmp_path / "a" / "y.js"]
+    assert esquema.carpetas_excluidas(["node_modules, build", " dist "]) == ("node_modules", "build", "dist")
+
+
 def test_renombrar_y_volver_a_ejecutar_no_lo_repite(tmp_path):
     fotos = tmp_path / "Fotos"
     crear(fotos / "IMG_0001.jpg")
@@ -596,4 +885,5 @@ def test_el_config_de_la_orden_gana_al_del_grupo():
         ],
     )
     assert resultado.exit_code == 0, resultado.output
-    assert "5 acciones válidas" in plano(resultado.output)
+    prueba = json.loads((REPO / "pruebas" / "acciones-prueba.json").read_text(encoding="utf-8"))
+    assert f"{len(prueba['acciones'])} acciones válidas" in plano(resultado.output)

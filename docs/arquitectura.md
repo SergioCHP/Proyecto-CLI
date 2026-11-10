@@ -120,6 +120,13 @@ considera basura `limpia`, cómo compara `duplicados`…) va en `EXTRA` de
   `iterar_archivos()` para listar (no sigue enlaces simbólicos) y
   `guardar_acciones()` / `cargar_acciones()` / `limpiar_acciones()` para el
   deshacer.
+- **Sustituir sin perder nada** (como `Copiar` con `si_cambia: el-mas-nuevo` en
+  `acciones.py`): copiar primero a un temporal oculto junto al destino y ponerle el
+  nombre con `os.replace` solo cuando está entero; lo que se sustituye va a la
+  papelera de navaja (`apartar()`) y, si algo falla, se devuelve o el error dice dónde
+  ha quedado. Al deshacer, no quitar nada que haya cambiado desde la acción
+  (`misma_copia()`), mandar lo que se quita a la papelera en vez de borrarlo y, si algo
+  falla, guardar el registro para reintentarlo.
 - **Estado persistente:** siempre a través de `directorio_datos()`; nunca
   escribas en el directorio del proyecto.
 - **Salida:** usa `console` para información y `error_console` para errores

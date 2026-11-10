@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import shutil
+from datetime import datetime
 from pathlib import Path
 from typing import NoReturn
 
@@ -18,10 +19,19 @@ from rich.markup import escape
 from rich.panel import Panel
 
 from .. import esquema
-from ..acciones import Accion, AccionDeArchivos, Resultado, Rutina, relativa
+from ..acciones import (
+    Accion,
+    AccionDeArchivos,
+    Resultado,
+    Rutina,
+    apartar,
+    misma_copia,
+    relativa,
+)
 from ..comun import (
     abrir_en_editor,
     cargar_acciones,
+    carpeta_papelera,
     como_se_escribe,
     confirmar,
     console,
@@ -154,10 +164,16 @@ def validar(ctx: typer.Context, config: Path | None = OPCION_CONFIG) -> None:
 def mostrar_plan(accion: AccionDeArchivos, carpeta: Path, plan: list[Resultado]) -> None:
     pendientes = [r for r in plan if r.estado == "pendiente"]
     saltados = [r for r in plan if r.estado == "saltado"]
+    # Si todo va a una carpeta de fuera (el USB, otro disco…), se dice una vez arriba y la
+    # columna solo lleva la ruta desde allí, en vez de repetirla entera en cada fila.
+    destino = accion.destino_comun(carpeta)
+    if destino is not None and destino.resolve().is_relative_to(carpeta.resolve()):
+        destino = None  # dentro de la carpeta ya se ve corto: «PDF\factura.pdf»
     resumen = (
         f"[pista]{escape(accion.descripcion)}[/]\n"
         f"[pista]En[/] {escape(bonita(carpeta.resolve()))}\n"
-        f"[bold]{cuantos(len(pendientes), 'archivo')}[/] {accion.para}"
+        + (f"[pista]A[/] {escape(bonita(destino.resolve()))}\n" if destino is not None else "")
+        + f"[bold]{cuantos(len(pendientes), 'archivo')}[/] {accion.para}"
     )
     if saltados:
         resumen += f" · [aviso]{len(saltados)} no se {'toca' if len(saltados) == 1 else 'tocan'}[/]"
@@ -173,11 +189,18 @@ def mostrar_plan(accion: AccionDeArchivos, carpeta: Path, plan: list[Resultado])
         elif accion.columna == "Nombre nuevo":
             va_a = resultado.destino.name
         else:
-            try:
-                va_a = str(resultado.destino.relative_to(carpeta))
-            except ValueError:
-                va_a = bonita(resultado.destino)
+            va_a = bonita(resultado.destino)
+            for base in (destino, carpeta):
+                if base is None:
+                    continue
+                try:
+                    va_a = str(resultado.destino.relative_to(base))
+                    break
+                except ValueError:
+                    continue
         estilo = "ok" if resultado.estado == "pendiente" else "pista"
+        if resultado.sustituir:
+            va_a += "  (sustituye a la versión vieja)"
         fila = [escape(str(relativa(resultado.origen, carpeta))), f"[{estilo}]{escape(va_a)}[/]"]
         if saltados:
             fila.append(f"[aviso]{escape(resultado.motivo)}[/]" if resultado.estado == "saltado" else "")
@@ -293,18 +316,37 @@ def deshacer(si: bool = OPCION_SI) -> None:
         console.print("[aviso]No hay ninguna acción que deshacer.[/]")
         return
     copias = sum(r.get("como") == "copiado" for r in registros)
-    movidos = len(registros) - copias
+    viejas = sum("apartado" in r and Path(r["apartado"]).exists() for r in registros)
+    perdidas = sum("apartado" in r for r in registros) - viejas
+    copias -= perdidas  # sin su versión vieja, esas copias se quedan (ver abajo)
+    movidos = len(registros) - copias - perdidas
     partes = []
     if movidos:
         partes.append(f"se devolverían {cuantos(movidos, 'archivo')} a su sitio")
-    if copias:
-        partes.append(f"se quitarían {cuantos(copias, 'copia', 'copias')}")
+    if copias - viejas:
+        partes.append(f"se quitarían {cuantos(copias - viejas, 'copia', 'copias')}")
+    if viejas:
+        partes.append(
+            f"volvería {cuantos(viejas, 'versión vieja')} que se sustituyó" if viejas == 1
+            else f"volverían {cuantos(viejas, 'versión vieja', 'versiones viejas')} que se sustituyeron"
+        )
+    if not partes:
+        partes.append("no queda nada que se pueda deshacer sin perder algo")
     console.print(" y ".join(partes).capitalize() + ".")
+    if perdidas:
+        console.print(
+            f"[aviso]{cuantos(perdidas, 'versión vieja', 'versiones viejas')} ya no "
+            f"{'está' if perdidas == 1 else 'están'} en la papelera de navaja: esas copias se "
+            "quedan como están.[/]",
+            soft_wrap=True,
+        )
     if not confirmar("¿Deshacer la última acción?", saltar=si, por_defecto=False):
         console.print("[aviso]Cancelado.[/]")
         return
 
     hechos = errores = 0
+    pendientes: list[dict[str, str]] = []  # lo que falló: se guarda para poder reintentarlo
+    papelera = carpeta_papelera() / datetime.now().strftime("deshacer-%Y%m%d-%H%M%S")
     carpetas: set[Path] = set()
     origenes: set[Path] = set()
     for registro in reversed(registros):
@@ -314,9 +356,8 @@ def deshacer(si: bool = OPCION_SI) -> None:
             continue
         try:
             if registro.get("como") == "copiado":
-                if not origen.exists():  # sin el original, la copia es lo único que queda
+                if not deshacer_copia(origen, destino, registro.get("apartado"), papelera):
                     continue
-                destino.unlink()
             elif str(origen).lower() == str(destino).lower():  # solo cambió de mayúsculas
                 destino.rename(origen)
             else:
@@ -326,6 +367,7 @@ def deshacer(si: bool = OPCION_SI) -> None:
             carpetas.update([destino.parent, destino.parent.parent])
         except OSError as exc:
             errores += 1
+            pendientes.append(registro)
             error_console.print(
                 f"[error]No se pudo deshacer[/] {escape(str(destino))}: {escape(exc.strerror or str(exc))}",
                 soft_wrap=True,
@@ -340,11 +382,43 @@ def deshacer(si: bool = OPCION_SI) -> None:
         except OSError:
             pass
 
-    limpiar_acciones("acciones")
     console.print(f"[ok]Deshecho: {cuantos(hechos, 'archivo')}.[/]")
     if errores:
-        console.print(f"[aviso]No se pudo deshacer: {cuantos(errores, 'archivo')}.[/]")
+        guardar_acciones("acciones", list(reversed(pendientes)))  # para volver a intentarlo
+        console.print(
+            f"[aviso]No se pudo deshacer: {cuantos(errores, 'archivo')}.[/] "
+            f"[pista]Se guardan para probar otra vez con {como_se_escribe('acciones deshacer')}.[/]",
+            soft_wrap=True,
+        )
         raise typer.Exit(1)
+    limpiar_acciones("acciones")
+
+
+def deshacer_copia(origen: Path, destino: Path, apartado: str | None, papelera: Path) -> bool:
+    """Quita una copia (a la papelera, nunca borrada) y, si sustituyó a otra, devuelve la
+    vieja. Devuelve False si no la toca porque se perdería algo, y dice por qué."""
+    if not origen.exists():  # sin el original, la copia es lo único que queda
+        return False
+    vieja = Path(apartado) if apartado else None
+    if vieja is not None and not vieja.exists():
+        return False  # se vació la papelera: la copia es lo único que queda (ya se avisó)
+    if not misma_copia(origen, destino):
+        console.print(
+            f"[aviso]No toco[/] {escape(str(destino))}[aviso]: ha cambiado desde que se copió y "
+            "perderías lo que hayas hecho.[/]",
+            soft_wrap=True,
+        )
+        return False
+    quitada = apartar(destino, papelera)
+    if vieja is not None:
+        try:
+            shutil.move(str(vieja), str(destino))
+        except OSError as exc:
+            shutil.move(str(quitada), str(destino))  # vuelve la copia: queda como estaba
+            raise OSError(
+                exc.errno, f"no se pudo devolver la versión vieja; sigue en {vieja}"
+            ) from None
+    return True
 
 
 def editar(ctx: typer.Context, config: Path | None = OPCION_CONFIG) -> None:

@@ -388,6 +388,54 @@ Más claro:
   varias veces lo mismo) y enseña «Midiendo…» mientras trabaja: en la carpeta personal
   tarda porque tiene muchísimos archivos (AppData, OneDrive…), no porque se cuelgue.
 
+### 2026-11-10 — USB de clase ↔ PC
+
+- **Acciones `usb-a-pc` y `pc-a-usb`** (tipo `copiar`, `si_cambia: el-mas-nuevo`):
+  `D:/DAM` ↔ `~/Documents/ESTUDIO/DAM`, con subcarpetas. Lo que ya está igual en el otro lado
+  se salta; si un archivo es distinto, gana el más reciente. También en
+  `pruebas/acciones-prueba.json` (`~/pruebas-navaja/USB/DAM` y `~/pruebas-navaja/PC/DAM`).
+- **`copiar` con `si_cambia`** (tras la revisión del revisor):
+  - Antes, un archivo distinto en el destino creaba una «(n)» nueva **en cada ejecución**
+    (y en la ida y vuelta se multiplicaban). Ahora, con `copia-aparte` (por defecto) se
+    salta si ya hay una «(n)» igual al lado.
+  - `el-mas-nuevo`: si el de origen es más reciente, sustituye al del destino y el viejo va a
+    la papelera de navaja; si el del destino es más reciente (o tienen la misma fecha), no
+    se toca. El plan marca «(sustituye a la versión vieja)» y `acciones deshacer` la devuelve.
+  - Una hora justa de diferencia cuenta como la misma fecha: tras el cambio de hora, Windows
+    ve movidas una hora todas las fechas de un USB en FAT32 (como `robocopy /DST`).
+- **Destino en una unidad que no existe** (USB sin conectar): `mover` y `copiar` se paran
+  antes de empezar, y `validar` lo avisa. Si en `D:` hay otro disco, no hay forma de saberlo.
+- **Nuevo en el filtro: `excluir`**: con `recursivo`, carpetas en las que no entra, se
+  llamen así donde estén (`"node_modules, __pycache__"` o una lista; sin mirar
+  mayúsculas). Se corta en `iterar_archivos`, así que ni recorre `node_modules`. Al validar
+  son error una ruta, una unidad (`C:`), un comodín o un `excluir` vacío; sin `recursivo`,
+  aviso. En una lista también se parte por comas.
+- **Plan más legible:** si `mover` o `copiar` llevan a una carpeta de fuera, el recuadro lo
+  dice una vez («A ~\…\PC\DAM») y la columna «Copia en» / «Va a» solo lleva la ruta desde
+  allí (`Programacion\tema3.txt`), en vez de repetirla entera en cada fila.
+- Probado en simulación con `pruebas/acciones-prueba.json`: archivo nuevo en cada lado,
+  editado en casa, editado en clase, igual, igual con una hora de diferencia, distinto con
+  la misma fecha, y `node_modules` / `__pycache__` / `Build` / `.vscode` fuera.
+- El test que contaba las acciones de `acciones-prueba.json` ahora las cuenta del archivo.
+- **Segunda revisión del revisor (que no se pierda nada):**
+  - `copiar` copia a un temporal oculto (`.nombre.navaja-copiando`) y solo al final le pone
+    el nombre: si el USB se llena o se desconecta, no queda un archivo a medias con fecha de
+    ahora que «el-mas-nuevo» tomaría por bueno.
+  - Si falla y ni siquiera se puede devolver la versión vieja, el error dice en qué carpeta
+    de la papelera está.
+  - `acciones deshacer` solo quita una copia si sigue idéntica al original (si la editaste
+    después, la deja y avisa), y la manda a la papelera en vez de borrarla. Si la versión
+    vieja ya no está en la papelera, lo dice antes de preguntar y deja la copia.
+  - Si `deshacer` falla con algún archivo, guarda esos registros para volver a intentarlo
+    (antes se borraba el registro igualmente).
+- **Manual** (`navaja manual acciones`): `si_cambia` y `excluir` salen de `DOC_CAMPOS` /
+  `DOC_FILTRO`; las notas de `acciones ejecutar` y `acciones deshacer` explican el más nuevo,
+  la unidad que no existe y el deshacer que no pisa ediciones.
+- **Dentro de navaja** (modo interactivo) funciona igual: test que copia, simula la vuelta
+  y deshace desde el bucle (`tests/test_interactivo.py`).
+- `docs/arquitectura.md`: convención «sustituir sin perder nada».
+- 311 tests pasando.
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.
@@ -431,7 +479,26 @@ Más claro:
 - [ ] En una rutina simulada, cada paso se calcula con la carpeta como está ahora (no
   con lo que habrían cambiado los pasos de antes).
 - [x] Autocompletado de shell.
-- [ ] Acción `copiar` para pasar los archivos de clase del USB al PC de casa.
+- [x] Acción `copiar` para pasar los archivos de clase del USB al PC de casa (y al revés).
+- [ ] `--destino` al ejecutar, para cambiar el destino como ya se cambia la carpeta (hoy, si
+  el USB sale con otra letra, `pc-a-usb` se cambia en acciones.json).
+- [ ] De la segunda revisión de `copiar`, sin arreglar:
+  - Las versiones viejas que aparta «el-mas-nuevo» solo se pueden deshacer hasta la
+    siguiente acción, y `duplicados vaciar` las borra sin decir que eran de `acciones`.
+  - «el-mas-nuevo» se fía del reloj de cada PC; y con el desfase de una hora de FAT32, si
+    los dos lados se editaron con menos de una hora de diferencia, puede ganar el viejo (va
+    a la papelera, no se pierde).
+  - La hora justa de tolerancia vale en cualquier disco: dos archivos distintos del mismo
+    tamaño con 3600 s de diferencia se darían por iguales (muy raro).
+  - `comprobar_destino` no sirve en Linux/macOS (la raíz «/» siempre existe: un USB sin
+    montar se copiaría al disco interno) ni distingue otro USB que coja la misma letra.
+  - En `pc-a-usb` la versión vieja del USB va a la papelera de C: (lento; un archivo de
+    solo lectura falla).
+- [ ] `excluir` compara el nombre tal cual: en macOS un nombre con tildes en NFD no coincide
+  con el del JSON (en NFC).
+- [ ] Con la salida redirigida en una consola cp1252 (Git Bash), Rich falla al escribir
+  `✔` o `→` y sale una traza (`UnicodeEncodeError`). Con `PYTHONIOENCODING=utf-8` no pasa.
+  Arreglo posible: `sys.stdout.reconfigure(encoding="utf-8", errors="replace")` en `main`.
 - [ ] `navaja busca` (texto dentro de archivos), `navaja extrae` / `navaja comprime` y cambiar
   formatos de imagen o documentos (órdenes previstas en la spec).
 - [ ] Mejoras de la revisión del `--config` del grupo: que «Uso:» de `navaja acciones`

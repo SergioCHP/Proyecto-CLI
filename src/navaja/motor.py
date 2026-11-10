@@ -17,6 +17,7 @@ from .acciones import Accion, AccionDeArchivos, Resultado, Rutina
 from .comandos.duplicados import a_bytes
 from .comun import como_se_escribe, directorio_datos
 from .errores import NavajaError
+from .esquema import carpetas_excluidas
 from .filtros import Filtro
 from .filtros import seleccionar as seleccionar_filtro
 
@@ -78,6 +79,7 @@ class Motor:
                 hasta=filtro.get("hasta", ""),
                 recursivo=filtro.get("recursivo", False),
                 ocultos=filtro.get("ocultos", False),
+                excluir=carpetas_excluidas(filtro.get("excluir", "")),
             ),
         )
         patron = re.compile(filtro["patron"], re.IGNORECASE) if "patron" in filtro else None
@@ -108,6 +110,7 @@ class Motor:
     ) -> tuple[Path, list[Resultado]]:
         """La carpeta en la que trabaja y qué le pasaría a cada archivo. No toca nada."""
         base = self.carpeta(accion, carpeta)
+        accion.comprobar_destino(base)
         archivos = self.seleccionar(base, accion.filtro, accion.excluir(base))
         try:
             return base, accion.planificar(archivos, base)

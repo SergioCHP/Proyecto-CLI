@@ -51,6 +51,43 @@
         "imagenes-ia",
         "ordenar-descargas"
       ]
+    },
+    {
+      "nombre": "usb-a-pc",
+      "descripcion": "Trae al PC lo nuevo del USB de clase (DAM), con sus subcarpetas; lo que ya está no se copia otra vez",
+      "tipo": "copiar",
+      "carpeta": "~/pruebas-navaja/USB/DAM",
+      "filtro": {
+        "recursivo": true,
+        "excluir": [
+          "node_modules",
+          "__pycache__",
+          "build",
+          "dist",
+          "target"
+        ]
+      },
+      "destino": "~/pruebas-navaja/PC/DAM",
+      "si_cambia": "el-mas-nuevo",
+      "_nota": "Si un archivo es distinto en los dos sitios, gana el más reciente y el viejo va a la papelera de navaja: acciones deshacer lo devuelve, pero solo hasta la siguiente acción y si no has vaciado la papelera (duplicados vaciar). No copia ocultos (.gitignore, .vscode…): añade \"ocultos\": true al filtro si los quieres. Si el USB sale con otra letra, cámbiala aquí."
+    },
+    {
+      "nombre": "pc-a-usb",
+      "descripcion": "Lleva al USB de clase lo nuevo de ESTUDIO/DAM del PC, con sus subcarpetas",
+      "tipo": "copiar",
+      "carpeta": "~/pruebas-navaja/PC/DAM",
+      "filtro": {
+        "recursivo": true,
+        "excluir": [
+          "node_modules",
+          "__pycache__",
+          "build",
+          "dist",
+          "target"
+        ]
+      },
+      "destino": "~/pruebas-navaja/USB/DAM",
+      "si_cambia": "el-mas-nuevo"
     }
   ]
 }

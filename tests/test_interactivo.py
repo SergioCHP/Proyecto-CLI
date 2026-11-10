@@ -434,3 +434,37 @@ def test_comando_desconocido_sugiere(carpeta, capsys):
 def test_sin_terminal_no_se_abre():
     # Bajo pytest la entrada no es una terminal: navaja enseña la bienvenida y sale.
     assert interactivo.puede_iniciar() is False
+
+
+def test_copiar_usb_y_deshacer_funcionan_igual_dentro_de_navaja(tmp_path, capsys, monkeypatch):
+    import json
+
+    pc, usb = tmp_path / "PC", tmp_path / "USB"
+    (usb / "tema1").mkdir(parents=True)
+    (usb / "tema1" / "apuntes.md").write_text("de clase", encoding="utf-8")
+    (pc / "Proyecto" / "node_modules").mkdir(parents=True)
+    (pc / "Proyecto" / "node_modules" / "lib.js").write_text("x", encoding="utf-8")
+    config = tmp_path / "acciones.json"
+    filtro = {"recursivo": True, "excluir": ["node_modules"]}
+    config.write_text(json.dumps({"version": 1, "acciones": [
+        {"nombre": "usb-a-pc", "descripcion": "USB → PC", "tipo": "copiar", "carpeta": str(usb),
+         "destino": str(pc), "si_cambia": "el-mas-nuevo", "filtro": filtro},
+        {"nombre": "pc-a-usb", "descripcion": "PC → USB", "tipo": "copiar", "carpeta": str(pc),
+         "destino": str(usb), "si_cambia": "el-mas-nuevo", "filtro": filtro},
+    ]}), encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("builtins.input", lambda *_: "s")  # a «¿Copiar…? [s/n]»
+    interactivo.iniciar(app, lector(
+        "acciones ejecutar usb-a-pc --config acciones.json",
+        "acciones ejecutar pc-a-usb --simular --config acciones.json",
+        "acciones deshacer",
+        "salir",
+    ))
+    texto = " ".join(salida(capsys).split())
+    assert "1 archivo copiado" in texto
+    assert "ya está copiado" in texto  # la vuelta no repite lo que acaba de llegar
+    assert "lib.js" not in texto  # node_modules no viaja
+    assert "Deshecho: 1 archivo" in texto
+    assert not (pc / "tema1" / "apuntes.md").exists()
+    assert (usb / "tema1" / "apuntes.md").exists()  # el original no se toca
+    assert "Hasta luego" in texto

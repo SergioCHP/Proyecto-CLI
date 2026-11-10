@@ -163,6 +163,8 @@ Están en [acciones.json](acciones.json):
 | `instaladores-viejos` | borrar | Manda a la papelera de navaja los instaladores de hace más de un mes. |
 | `fotos-con-fecha` | renombrar | `IMG_1234.jpg` → `2026-10-26_IMG_1234.jpg`; solo las que empiezan por `IMG_` o `PXL_`, así que no se renombran dos veces. |
 | `limpieza-semanal` | rutina | `instaladores-viejos` → `imagenes-ia` → `ordenar-descargas`, en ese orden. |
+| `usb-a-pc` | copiar | Trae al PC (`~/Documents/ESTUDIO/DAM`) lo nuevo del USB de clase (`D:/DAM`), con sus subcarpetas. Si un archivo es distinto en los dos sitios, gana el más reciente. |
+| `pc-a-usb` | copiar | Lo mismo al revés. Las dos se saltan `node_modules`, `__pycache__`, `build`, `dist` y `target`, y los ocultos. Con el USB sin conectar, se paran antes de empezar. |
 
 ### Esquema
 
@@ -190,7 +192,8 @@ Están en [acciones.json](acciones.json):
 | `tipo` | obligatorio | `mover`, `copiar`, `ordenar`, `renombrar`, `borrar` o `rutina`. |
 | `carpeta` | opcional | Dónde trabaja (`~/Downloads`). Sin ella, en la carpeta actual. Al ejecutar puedes darle otra. |
 | `filtro` | opcional | Qué archivos se tocan (tabla de abajo). Sin filtro, todos. |
-| `destino` | mover, copiar (en ordenar, opcional) | A qué carpeta van. Si no existe, se crea. Una ruta relativa se cuenta desde la carpeta de la acción. |
+| `destino` | mover, copiar (en ordenar, opcional) | A qué carpeta van. Si no existe, se crea. Una ruta relativa se cuenta desde la carpeta de la acción. Si está en una unidad que no existe (un USB sin conectar), la acción no empieza. |
+| `si_cambia` | copiar, opcional | Si en el destino ya hay uno distinto con el mismo nombre: `copia-aparte` (por defecto: guarda `nombre (1)` al lado, una sola vez) o `el-mas-nuevo` (se queda el más reciente; el viejo va a la papelera de navaja y `acciones deshacer` lo devuelve hasta la siguiente acción, salvo que vacíes la papelera). Copia primero a un temporal: si se corta a medias, no queda un archivo roto. `deshacer` no quita una copia que hayas editado después. |
 | `por` | ordenar | `tipo`, `mes`, `año`, `día` o `letra`. |
 | `plantilla` | renombrar | El nombre nuevo con huecos: `{fecha:%Y-%m-%d}`, `{n:03}`, `{nombre}` y `{ext}`. |
 | `orden` | renombrar | En qué orden se cuenta `{n}`: `nombre` (por defecto) o `fecha`. |
@@ -200,7 +203,7 @@ Están en [acciones.json](acciones.json):
 | Tipo | Qué le pasa a cada archivo |
 | --- | --- |
 | `mover` | Va a `destino`. Con `recursivo`, conserva las subcarpetas. |
-| `copiar` | Se copia a `destino` y el original se queda. Si la copia ya está igual (mismo tamaño y fecha), no se repite. |
+| `copiar` | Se copia a `destino` y el original se queda. Si la copia ya está igual (mismo tamaño y fecha), no se repite; una hora justa de diferencia cuenta como igual (el cambio de hora en un USB FAT32). |
 | `ordenar` | Va a una subcarpeta según `por`, como `navaja ordena`. |
 | `renombrar` | Cambia de nombre según `plantilla`, como `navaja renombra plantilla`. |
 | `borrar` | Va a la papelera de navaja (se recupera con `acciones deshacer`). Necesita un filtro: sin él mandaría la carpeta entera. |
@@ -215,6 +218,7 @@ Están en [acciones.json](acciones.json):
 | `mayor_que` | `"100MB"` | Los que ocupan al menos eso. |
 | `recursivo` | `true` | Mirar también en las subcarpetas. |
 | `ocultos` | `true` | Incluir ocultos y de sistema (`desktop.ini`…). |
+| `excluir` | `"node_modules, build"`, `["dist"]` | Con `recursivo`, carpetas en las que no entra, se llamen así donde estén (sin mirar mayúsculas). Nombres, no rutas ni comodines. Sin `recursivo`, `validar` avisa de que no hace nada. |
 
 Si pones varios filtros, el archivo tiene que cumplirlos todos. En Windows las rutas se
 escriben con `/` (`C:/Users/sergi/Downloads` o `~/Downloads`): con `\` sueltas el JSON no

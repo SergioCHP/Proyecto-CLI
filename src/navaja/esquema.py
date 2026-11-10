@@ -34,6 +34,7 @@ FILTRO: dict[str, type | tuple[type, ...]] = {
     "mayor_que": str,
     "recursivo": bool,
     "ocultos": bool,
+    "excluir": (str, list),
 }
 RUTAS = ("carpeta", "destino")
 NOMBRE = re.compile(r"[a-z0-9ñ]+(?:[-_][a-z0-9ñ]+)*")
@@ -51,6 +52,9 @@ DOC_CAMPOS = [
     ("filtro", "opcional", "Qué archivos de la carpeta se tocan (abajo). Sin filtro, todos."),
     ("destino", "mover, copiar", "A qué carpeta van. Si no existe, se crea. En «ordenar» es "
      "opcional: dónde se crean las subcarpetas."),
+    ("si_cambia", "copiar, opcional", "Si allí ya hay uno distinto con el mismo nombre: "
+     "copia-aparte (por defecto: guarda «nombre (1)» al lado) o el-mas-nuevo (se queda el más "
+     "reciente; el viejo va a la papelera de navaja)."),
     ("por", "ordenar", "tipo, mes, año, día o letra."),
     ("plantilla", "renombrar", "El nombre nuevo con huecos: {fecha:%Y-%m-%d}, {n:03}, {nombre} "
      "y {ext}."),
@@ -69,6 +73,9 @@ DOC_FILTRO = [
     ("mayor_que", "Solo los que ocupan al menos eso: \"100MB\", \"1GB\"."),
     ("recursivo", "true para mirar también en las subcarpetas."),
     ("ocultos", "true para incluir ocultos y de sistema (desktop.ini…)."),
+    ("excluir", "Con recursivo, carpetas en las que no entra, se llamen así donde estén: "
+     "\"node_modules, __pycache__\" (también una lista), sin mirar mayúsculas. Nombres, no rutas "
+     "ni comodines. Sin recursivo no hace nada (validar lo avisa)."),
 ]
 
 PLANTILLA_INICIAL = {
@@ -271,6 +278,19 @@ def comprobar_ruta(nombre: str, campo: str, valor: Any) -> None:
         )
 
 
+NO_VALEN_EN_NOMBRE = set('<>:"/\\|?*')
+"""Lo que no puede llevar un nombre de carpeta en Windows (y delata una ruta o un comodín)."""
+
+
+def carpetas_excluidas(excluir: str | list[str]) -> tuple[str, ...]:
+    """«node_modules, build» o ["node_modules", "build"] → ("node_modules", "build").
+
+    En la lista también se parte por comas: ["node_modules, build"] vale lo mismo.
+    """
+    textos = [excluir] if isinstance(excluir, str) else excluir
+    return tuple(parte.strip() for texto in textos for parte in texto.split(",") if parte.strip())
+
+
 def comprobar_filtro(nombre: str, filtro: Any) -> None:
     if not isinstance(filtro, dict):
         raise AccionNoValida(nombre, "filtro", 'tiene que ser un objeto: {"solo": "imagenes"}')
@@ -290,6 +310,24 @@ def comprobar_filtro(nombre: str, filtro: Any) -> None:
     solo = filtro.get("solo")
     if isinstance(solo, list) and not all(isinstance(s, str) and s.strip() for s in solo):
         raise AccionNoValida(nombre, "filtro.solo", 'tiene que ser una lista de textos: ["jpg", "png"]')
+    if "excluir" in filtro:
+        excluir = filtro["excluir"]
+        if isinstance(excluir, list) and not all(isinstance(e, str) and e.strip() for e in excluir):
+            raise AccionNoValida(
+                nombre, "filtro.excluir", 'tiene que ser una lista de textos: ["node_modules", "build"]'
+            )
+        carpetas = carpetas_excluidas(excluir)
+        if not carpetas:
+            raise AccionNoValida(
+                nombre, "filtro.excluir", 'está vacío; pon nombres de carpeta: ["node_modules"]'
+            )
+        for carpeta in carpetas:
+            if any(letra in NO_VALEN_EN_NOMBRE for letra in carpeta) or carpeta in (".", ".."):
+                raise AccionNoValida(
+                    nombre, "filtro.excluir",
+                    f"«{carpeta}» no es un nombre de carpeta; pon solo el nombre, sin rutas, "
+                    "unidades ni comodines (node_modules)",
+                )
     if "patron" in filtro:
         try:
             re.compile(filtro["patron"])
@@ -336,10 +374,25 @@ def comprobar_rutinas(acciones: list[dict[str, Any]]) -> None:
 
 
 def avisos(acciones: list[dict[str, Any]]) -> list[str]:
-    """Lo que no es un error pero conviene saber: carpetas que ahora mismo no existen."""
+    """Lo que no es un error pero conviene saber: carpetas o unidades que ahora mismo no
+    existen y un «excluir» que no hace nada porque falta «recursivo»."""
     mensajes = []
     for accion in acciones:
+        nombre = accion["nombre"]
         carpeta = accion.get("carpeta")
         if carpeta and not Path(carpeta).expanduser().is_dir():
-            mensajes.append(f"«{accion['nombre']}»: la carpeta {carpeta} no existe ahora mismo.")
+            mensajes.append(f"«{nombre}»: la carpeta {carpeta} no existe ahora mismo.")
+        destino = accion.get("destino")
+        unidad = Path(destino).expanduser().anchor if isinstance(destino, str) else ""
+        if unidad and not Path(unidad).exists():
+            mensajes.append(
+                f"«{nombre}»: el destino {destino} está en una unidad que no existe ahora mismo "
+                "(¿el USB sin conectar?)."
+            )
+        filtro = accion.get("filtro") or {}
+        if "excluir" in filtro and not filtro.get("recursivo"):
+            mensajes.append(
+                f"«{nombre}»: «excluir» solo sirve con \"recursivo\": true; sin él no entra en "
+                "ninguna subcarpeta."
+            )
     return mensajes

@@ -252,9 +252,15 @@ def iterar_archivos(
     recursivo: bool = False,
     ocultos: bool = False,
     patron: str = "*",
+    excluir: tuple[str, ...] = (),
 ) -> list[Path]:
-    """Lista archivos (sin seguir enlaces) filtrando por glob y ocultos."""
+    """Lista archivos (sin seguir enlaces) filtrando por glob y ocultos.
+
+    Con ``recursivo``, no entra en las carpetas que se llamen como alguno de ``excluir``
+    (sin mirar mayúsculas, estén donde estén: node_modules, __pycache__…).
+    """
     encontrados: list[Path] = []
+    saltar = {nombre.lower() for nombre in excluir}
 
     if not recursivo:
         try:
@@ -278,6 +284,8 @@ def iterar_archivos(
     for actual, dirs, archivos in os.walk(ruta):
         if not ocultos:
             dirs[:] = [nombre for nombre in dirs if not es_oculto(Path(actual) / nombre)]
+        if saltar:
+            dirs[:] = [nombre for nombre in dirs if nombre.lower() not in saltar]
         for nombre in sorted(archivos):
             if not fnmatch.fnmatch(nombre, patron):
                 continue

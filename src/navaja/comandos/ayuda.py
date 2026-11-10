@@ -268,14 +268,22 @@ EXTRA: dict[str, str] = {
     ),
     "acciones ejecutar": (
         "Enseña «archivo → dónde va» y pregunta [s/n]; con --simular solo mira. Nunca "
-        "sobrescribe: si el nombre ya existe, añade (1), (2)… Una rutina hace sus pasos en "
+        "sobrescribe: si el nombre ya existe, añade (1), (2)… Solo «copiar» con «si_cambia»: "
+        "«el-mas-nuevo» sustituye uno más viejo, y el viejo va a la papelera de navaja. Lo que "
+        "ya está copiado igual se salta, así que puedes repetirla (USB ↔ PC) sin duplicar. Si "
+        "el destino está en una unidad que no existe (el USB sin conectar), no empieza. Una "
+        "rutina hace sus pasos en "
         "orden y pregunta en cada uno; si dices que no, no hace los que quedan. Prueba "
         "primero en una carpeta de pruebas: acciones ejecutar ordenar-descargas "
         "~/pruebas --simular."
     ),
     "acciones deshacer": (
         "Devuelve a su sitio lo movido, renombrado u ordenado, saca de la papelera lo borrado "
-        "y quita las copias (solo si el original sigue ahí). En una rutina, la deshace entera."
+        "y quita las copias (a la papelera de navaja; solo si el original sigue ahí y la copia "
+        "no ha cambiado: si la editaste después, la deja y avisa). Si una copia sustituyó a otra "
+        "más vieja, devuelve la vieja, mientras siga en la papelera. Solo deshace la última "
+        "acción; si algo falla, lo guarda para volver a intentarlo. En una rutina, la deshace "
+        "entera."
     ),
     "acciones editar": (
         "Usa el Bloc de notas en Windows (o el editor de la variable EDITOR). Si no tienes "
