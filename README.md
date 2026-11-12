@@ -11,7 +11,7 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
 3. **Uso:** `navaja ORDEN [CARPETA] [opciones]`. Sin orden (`navaja`), abre un menú
    interactivo. Alias corto: `nav`.
 4. **Órdenes que ya tiene:** `listar`, `ocupa`, `limpia`, `ordena`, `renombra`,
-   `duplicados`, `notas`, `acciones` (`ver`, `ejecutar`, `deshacer`, `versiones`,
+   `duplicados`, `copia`, `notas`, `acciones` (`ver`, `ejecutar`, `deshacer`, `versiones`,
    `editar`, `validar`), `tema`, `config` (también `config autocompletar`, Tab en PowerShell),
    `manual` y `version`. Dentro de navaja, Tab completa y ↑ ↓ recuperan lo de antes.
 5. **Órdenes previstas:**
@@ -49,6 +49,7 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
 | `navaja ordena` | Ordena una carpeta: por tipo, por fecha (mes, año o día), los archivos de unas fechas a una carpeta, por un texto del nombre o por letra. Con deshacer. |
 | `navaja renombra` | Renombrado masivo sin saber regex: cambiar texto, añadir delante o detrás, numerar, poner la fecha, arreglar nombres o una plantilla. Con deshacer. |
 | `navaja duplicados` | Encuentra archivos repetidos por contenido y los manda a una papelera recuperable. |
+| `navaja copia a DESTINO [ARCHIVOS]` | Copia los archivos de una carpeta (o solo los que digas: `horario.pdf`, `*.pdf`) a otra al momento, sin escribir una acción; los originales se quedan. Con filtros, simulación y `copia deshacer`. |
 | `navaja notas` | Notas y enlaces con etiquetas, guardados en SQLite. Lo que empieza por `https://` o `www.` es un enlace. |
 | `navaja acciones` | Tus tareas de siempre guardadas con un nombre en `acciones.json` (ordenar Descargas, copiar apuntes, quitar instaladores viejos…) para hacerlas con una orden. Con simulación, confirmación y deshacer; lo que sustituye una copia se guarda en `acciones versiones`. |
 | `navaja tema` | `ver` los temas y `elegir` uno (clasico, morado, terminal, pastel). |
@@ -69,7 +70,7 @@ Escribe `navaja` sin nada más y entras en navaja: sale un menú numerado y se
 queda esperando órdenes hasta que escribas `salir`. Trabaja en la carpeta desde
 la que entras, que se ve siempre en el prompt.
 
-El menú (y `navaja --help`) va en tres grupos. Las **herramientas** (1-7) se usan al
+El menú (y `navaja --help`) va en tres grupos. Las **herramientas** (1-8) se usan al
 momento: les dices qué hacer y lo hacen. **Lo que repites** son tus acciones: recetas
 guardadas en `acciones.json` que se hacen con una palabra (`acciones ejecutar
 usb-a-pc`). Y **navaja**: colores, tu nombre y el manual.
@@ -108,7 +109,7 @@ PS C:\Users\sergi\Descargas>
 
 | Dentro de navaja | Qué hace |
 | --- | --- |
-| un número | Elige esa opción. Si es un grupo (`ordena`, `notas`…) abre su submenú; si no, lo ejecuta en la carpeta actual y pregunta solo lo necesario. Lo que cambia archivos (`ordena`, `renombra`, `limpia`, `duplicados borrar`) pregunta primero «¿En qué carpeta?» (Intro = la actual; vale una ruta completa, `~\Documents` o arrastrar la carpeta desde el explorador). En `ordena` y `renombra` pregunta al final «¿Con qué archivos?» (todos, de un tipo, los que llevan un texto o los de unas fechas), salvo en `renombra cambiar` y `avanzado` y en `ordena nombre`, donde el texto ya dice qué archivos se tocan. Debajo te dice qué opciones tiene. |
+| un número | Elige esa opción. Si es un grupo (`ordena`, `notas`…) abre su submenú; si no, lo ejecuta en la carpeta actual y pregunta solo lo necesario. Lo que cambia archivos (`ordena`, `renombra`, `copia`, `limpia`, `duplicados borrar`) pregunta primero «¿En qué carpeta?» (Intro = la actual; vale una ruta completa, `~\Documents` o arrastrar la carpeta desde el explorador). `copia a` pregunta primero «¿Qué quieres copiar?»: toda una carpeta (y luego «¿Con qué archivos?») o unos archivos que eliges de una lista numerada (`1 3`, `2-5` o un nombre como `*.pdf`); después, a qué carpeta: una lista con Documentos, Descargas, Escritorio, Imágenes, Música, Vídeos, los USB y discos conectados y la carpeta actual, o una ruta escrita (`Documentos\ESTUDIO`, `E:\DAM`; Tab completa carpetas). Al elegir, entras en ella: Intro copia ahí, un número baja a una subcarpeta, `..` sube y `+` crea una nueva. Si escribes una que no existe, lo dice con su ruta entera y pregunta antes de crearla. Al final, qué hacer si allí ya hay uno distinto. En `ordena` y `renombra` pregunta al final «¿Con qué archivos?» (todos, de un tipo, los que llevan un texto o los de unas fechas), salvo en `renombra cambiar` y `avanzado` y en `ordena nombre`, donde el texto ya dice qué archivos se tocan. Debajo te dice qué opciones tiene. |
 | un comando | Igual que en la terminal, sin escribir `navaja` delante: `ocupa -n 5`, `ordena tipo --solo imagenes`. Si le falta algo obligatorio, lo pregunta. |
 | `ayuda` · `?` | Explica lo que puedes hacer donde estás: en el menú principal, todas las opciones; dentro de una opción (`config`, `ordena`…), esa opción con las suyas, su uso y sus parámetros. |
 | `menu` | Vuelve a enseñar el menú (en un submenú, el de ese grupo). |
@@ -357,6 +358,15 @@ navaja duplicados borrar ~/Descargas -r
 navaja duplicados restaurar
 navaja duplicados vaciar        # libera el espacio de verdad (no se puede deshacer)
 
+# Copiar una vez, sin crear una acción (para repetirlo siempre, mejor una acción)
+navaja copia a E:/DAM -c ~/Documents/DAM -r --simular   # qué copiaría, sin tocar nada
+navaja copia a E:/DAM -c ~/Documents/DAM -r             # enseña el plan y pregunta [s/n]
+navaja copia a ~/Copia --solo pdf --desde "hace 7 días"  # solo los PDF de esta semana
+navaja copia a E:/DAM -r --si-cambia el-mas-nuevo       # si ya está allí, gana el más reciente
+navaja copia a E:/DAM horario.pdf "tema 3.docx"         # solo esos archivos
+navaja copia a E:/DAM "*.pdf" -c ~/Downloads             # los PDF de Descargas (el * se busca en -c)
+navaja copia deshacer                                   # quita lo que copiaste la última vez
+
 # Notas y enlaces
 navaja notas agregar "Repasar Python" "Decoradores y generadores" -e estudio,python
 navaja notas agregar "Docs de Typer" https://typer.tiangolo.com -e docs   # es un enlace
@@ -374,7 +384,7 @@ navaja config ver
 
 ## Seguridad
 
-- `ordena` y `renombra` enseñan siempre el plan y preguntan `[s/n]` antes de tocar nada; con `--simular` solo miran. Los dos tienen `deshacer`.
+- `ordena`, `renombra` y `copia` enseñan siempre el plan y preguntan `[s/n]` antes de tocar nada; con `--simular` solo miran. Los tres tienen `deshacer`. `copia` nunca pisa un archivo distinto: guarda `nombre (1)` al lado o, con `--si-cambia el-mas-nuevo`, aparta el viejo a `acciones versiones`.
 - `acciones` comprueba `acciones.json` entero antes de tocar un solo archivo, enseña el plan y pregunta `[s/n]`; `--simular` solo mira y `acciones deshacer` lo revierte (una rutina, entera). Lo que borra va a la papelera de navaja.
 - Nunca se sobrescribe un archivo, y se saltan los ocultos y los de sistema de Windows (`desktop.ini`, `Thumbs.db`), salvo con `--ocultos`.
 - Fechas fáciles en `--desde`, `--hasta` y `ordena tramo`: `1/9/2026`, `septiembre 2026`, `2026`, `hoy`, `hace 30 días`. Un mes o un año valen enteros.

@@ -25,6 +25,7 @@ src/navaja/
     ├── ordena.py       # sub-app: tipo / fecha / tramo / nombre / letra / tipos / deshacer
     ├── renombra.py     # sub-app: cambiar / delante / detras / numerar / fecha / arreglar / plantilla / avanzado / deshacer
     ├── duplicados.py   # sub-app: buscar / borrar (a papelera) / restaurar / vaciar
+    ├── copia.py        # sub-app: a / deshacer (una acción copiar hecha al momento)
     ├── notas.py        # sub-app SQLite: agregar / listar / buscar / abrir / borrar / etiquetas
     ├── mis_acciones.py # sub-app acciones: ver / ejecutar / deshacer / (versiones) / editar / validar
     ├── versiones.py    # acciones versiones: ver / recuperar / borrar
@@ -68,6 +69,13 @@ es el error típico de escribir la carpeta donde va el texto del nombre.
 En las órdenes de `EL_TEXTO_YA_ELIGE` (`renombra cambiar`, `renombra avanzado`,
 `ordena nombre`) no se pregunta «¿Con qué archivos?»: el texto que se escribe ya
 dice qué archivos se tocan.
+
+Las órdenes de `PREGUNTAS_PROPIAS` (hoy, `copia a` → `pasos_copia`) hacen sus
+propias preguntas en vez de las de siempre, porque unas dependen de otras: primero
+«¿Qué quieres copiar?» (toda una carpeta o unos archivos de una lista, con
+`elegir_archivos`) y según eso se pregunta la lista o «¿Con qué archivos?». Una
+pregunta que no toca devuelve `None` en vez de una lista: `guiado` la salta, y al
+volver hacia atrás también, para no quedarse atascado en ella.
 
 Lo que se escribe se lee con el lector de `entrada.py` (prompt_toolkit): el prompt del
 menú con `lector.orden(prompt, camino)`, que completa con Tab según el submenú y guarda

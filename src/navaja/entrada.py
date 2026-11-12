@@ -171,15 +171,18 @@ def crear_lector(raiz: Any) -> Any | None:
 
         def __init__(self) -> None:
             self.palabras: list[str] = []
+            self.carpetas: Any = None  # con «con_carpetas»: las carpetas de un sitio
 
         def get_completions(self, document: Any, complete_event: Any) -> Iterable[Any]:
-            if not self.palabras:
+            if not self.palabras and self.carpetas is None:
                 yield from rutas.get_completions(document, complete_event)
                 return
             escrito = document.text_before_cursor.strip()
             for palabra in self.palabras:
                 if palabra.lower().startswith(escrito.lower()):
                     yield Completion(palabra, start_position=-len(document.text_before_cursor))
+            if self.carpetas is not None:
+                yield from self.carpetas.get_completions(document, complete_event)
 
     class Lector:
         """Se llama como ``console.input``: ``lector(prompt)`` para las preguntas y
@@ -214,6 +217,20 @@ def crear_lector(raiz: Any) -> Any | None:
                 yield
             finally:
                 self.respuestas.palabras = []
+
+        @contextlib.contextmanager
+        def con_carpetas(self, palabras: list[str], dentro: Path) -> Iterator[None]:
+            """Mientras dura, Tab completa estas palabras (Documentos, Descargas…) y las
+            carpetas que hay en ``dentro`` (o en la ruta que se esté escribiendo)."""
+            self.respuestas.palabras = list(palabras)
+            self.respuestas.carpetas = PathCompleter(
+                expanduser=True, only_directories=True, get_paths=lambda: [str(dentro)]
+            )
+            try:
+                yield
+            finally:
+                self.respuestas.palabras = []
+                self.respuestas.carpetas = None
 
     try:
         return Lector()

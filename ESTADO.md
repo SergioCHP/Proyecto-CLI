@@ -572,6 +572,78 @@ cosas mal:
 - En Git Bash no sale la barra (Python no ve una terminal); apuntado en el README.
 - 350 tests pasando (1 nuevo: barra a 60 columnas con el tema pastel).
 
+### 2026-11-12 — `navaja copia`: copiar una vez sin crear una acción
+
+- `navaja copia a DESTINO` copia los archivos de la carpeta actual (o `-c CARPETA`) a
+  otra, con los filtros de siempre (`--solo`, `--contiene`, `--desde`, `--hasta`, `-r`,
+  `--ocultos`), `--simular`, `--si` y `--si-cambia copia-aparte|el-mas-nuevo`.
+  `navaja copia deshacer` quita lo copiado la última vez.
+- Por dentro es una acción `copiar` hecha al momento (`Accion.desde_config` + `Motor`):
+  la misma copia segura, las versiones viejas en `acciones versiones`, la barra y Ctrl+C.
+  Su deshacer tiene su propio registro («copia»), separado del de `acciones`.
+- De `acciones ejecutar` salen dos funciones para compartir: `hacer()` (barra, Ctrl+C,
+  fallos y guardar para deshacer) y `deshacer_registro()`.
+- Va en «Herramientas» (7) y el menú pasa a 12 opciones. En el modo guiado pregunta
+  carpeta, destino, si cambia y «¿Con qué archivos?».
+- Solo copia (no `mueve`): mover suelto ya lo hacen `ordena` y `renombra` en casi todo.
+- 359 tests pasando (9 nuevos en `test_copia.py`).
+
+### 2026-11-12 — `copia` de archivos concretos
+
+- `navaja copia a DESTINO horario.pdf "tema 3.docx" *.pdf`: solo esos archivos. Sin ruta
+  se buscan en `-c` (por defecto, la actual); cada uno va al destino con su nombre, sin
+  subcarpetas. Mismo plan, barra y `copia deshacer`.
+- Los comodines los expande `copia` en la carpeta de `-c`: igual en PowerShell (que no
+  los expande), en bash y dentro de navaja.
+- Se para, con un mensaje y sin traza: un archivo que no está, un comodín sin
+  coincidencias, una carpeta (dice que use `-c`), dos con el mismo nombre (se pisarían)
+  y archivos mezclados con filtros (`--solo`, `-r`…).
+- `main()` llama a la app con `windows_expand_args=False`. Click, en Windows, expandía
+  `*` en la carpeta actual antes de que el comando lo viera: chocaba con `-c` y podía
+  estropear un patrón con `*` de `renombra`. En bash el shell expande igual que antes.
+- Por menú no cambia nada: las listas opcionales no se preguntan, sigue siendo la carpeta.
+- 364 tests pasando (4 nuevos en `test_copia.py`, 1 en `test_salida.py`).
+
+### 2026-11-12 — `copia` guiada: carpeta o archivos de una lista
+
+- Por menú, `copia a` pregunta primero «¿Qué quieres copiar?»: 1 toda una carpeta (o
+  parte, con «¿Con qué archivos?») o 2 unos archivos de una lista. Con 2 enseña los de
+  la carpeta numerados, con su tamaño, y se eligen con `1 3`, `2-5`, `1,4` o por
+  nombre o patrón (`*.pdf`). Un número que no está se vuelve a preguntar; una carpeta
+  sin archivos devuelve a «¿En qué carpeta?».
+- «¿A qué carpeta?» y «Si allí ya hay uno distinto…» (1 al lado como «nombre (1)» / 2 el
+  más reciente) con texto propio, corto, en vez de la ayuda de `--help`.
+- `guiado` admite preguntas propias por orden (`PREGUNTAS_PROPIAS`) y preguntas que no
+  tocan (devuelven `None`): se saltan, también al escribir «volver».
+- 369 tests pasando (6 del modo guiado en `test_copia.py`).
+
+### 2026-11-12 — Copiar a una carpeta que no existe
+
+- Sergio copió por menú a `sergi/Descargas` desde `Documents`: al ser relativa, navaja
+  creó `Documents\sergi\Descargas` y copió allí, sin avisar. (Y en Windows la carpeta de
+  descargas se llama `Downloads`: «Descargas» es solo lo que enseña el Explorador.)
+- Ahora el plan dice siempre «A <ruta entera>», también si queda dentro de la carpeta de
+  origen, y añade «(no existe: se creará)». Vale para `copia` y para las acciones.
+- En el modo guiado, si el destino no existe lo dice con su ruta entera y pregunta:
+  crearla ahí, escribir otra o, si el nombre es Descargas, Documentos, Escritorio,
+  Imágenes, Música o Vídeos, usar la de verdad (`~\Downloads`…).
+- 372 tests pasando (3 nuevos en `test_copia.py`).
+
+### 2026-11-12 — Elegir la carpeta de destino, guiado
+
+- Sergio: «¿A qué carpeta?» con un ejemplo de USB no ayudaba; quería elegirla fácil,
+  con Tab. Ahora es una lista: Documentos, Descargas, Escritorio, Imágenes, Música y
+  Vídeos (las que existen, con su ruta de verdad: `~\Documents`…), los USB y discos
+  conectados (`os.listdrives()` + `GetDriveTypeW` en Windows; `/media/<usuario>` y
+  `/Volumes` en Linux y macOS) y «Esta carpeta». También se puede escribir una ruta; si
+  empieza por un nombre en castellano (`documentos\ESTUDIO`) se traduce al de verdad.
+- Al elegir un sitio se entra en él (`navegar`): Intro copia ahí, un número entra en una
+  subcarpeta, `..` sube, `+` pide el nombre de una nueva y 0 vuelve a la lista.
+- Tab en estas preguntas (`Lector.con_carpetas` en `entrada.py`): completa los nombres
+  en castellano y las carpetas del sitio en el que estás (o de la ruta que escribes).
+- 374 tests pasando (2 nuevos en `test_copia.py`: bajar por la lista y subir, y
+  «documentos\ESTUDIO» escrito con carpeta nueva).
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.
@@ -598,7 +670,7 @@ cosas mal:
 
 ## Pendientes / ideas
 
-- [ ] **Que se entienda la diferencia entre herramientas y acciones** (A hecha el 2026-11-12) (Sergio, 2026-11-10:
+- [ ] **Que se entienda la diferencia entre herramientas y acciones** (A y B hechas el 2026-11-12) (Sergio, 2026-11-10:
   «no sé por qué unas opciones están del 1 al 7 y otras en acciones»). Del 1 al 7 son
   herramientas que se usan al momento diciéndoles qué hacer; las acciones son recetas
   guardadas en acciones.json para repetir con una palabra; 9-11, ajustes y ayuda. El
@@ -607,7 +679,7 @@ cosas mal:
   - [x] **A. Agrupar el menú** en «Herramientas» (1-7), «Lo que repites» (acciones) y
     «navaja» (tema, config, manual), con `rich_help_panel` para que `--help` salga igual.
     Empezar por esta.
-  - **B. `navaja copia` suelto**: hoy copiar y mover solo existen como acciones, así que
+  - [x] **B. `navaja copia` suelto**: hoy copiar y mover solo existen como acciones, así que
     para copiar una vez hay que crear una acción.
   - **C. «Guardar como acción»** desde una orden (`navaja ordena tipo ~/Downloads --guardar
     ordenar-descargas`), para pasar de herramienta a receta sin escribir el JSON a mano.

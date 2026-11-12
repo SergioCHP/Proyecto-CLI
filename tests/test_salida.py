@@ -62,7 +62,7 @@ def test_main_sale_sin_traza_si_la_tuberia_se_cierra(monkeypatch):
 
     from navaja import app as modulo
 
-    def escribe_en_tuberia_cerrada():
+    def escribe_en_tuberia_cerrada(**_):
         raise OSError(22, "Invalid argument")
 
     monkeypatch.setattr(sys, "stdout", SalidaCerrada())
@@ -76,10 +76,21 @@ def test_main_sale_sin_traza_si_la_tuberia_se_cierra(monkeypatch):
 def test_main_no_se_traga_otros_errores(monkeypatch):
     from navaja import app as modulo
 
-    def otro_error():
+    def otro_error(**_):
         raise OSError(22, "Invalid argument")  # con la salida bien: es otra cosa
 
     monkeypatch.setattr(modulo, "app", otro_error)
     monkeypatch.setattr(modulo, "preparar_salida", lambda flujo: None)
     with pytest.raises(OSError):
         modulo.main()
+
+
+def test_main_no_expande_comodines_en_windows(monkeypatch):
+    """«*.pdf» llega tal cual: lo expande quien lo usa (copia, en la carpeta de -c)."""
+    from navaja import app as modulo
+
+    recibido = {}
+    monkeypatch.setattr(modulo, "app", lambda **kwargs: recibido.update(kwargs))
+    monkeypatch.setattr(modulo, "preparar_salida", lambda flujo: None)
+    modulo.main()
+    assert recibido == {"windows_expand_args": False}

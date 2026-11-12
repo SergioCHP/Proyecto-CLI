@@ -109,8 +109,11 @@ def test_help_y_menu_ensenan_las_secciones(capsys):
 
     interactivo.mostrar_menu(RAIZ, [])
     menu = plano(capsys.readouterr().out)
-    assert "7 notas" in menu and "8 acciones" in menu and "11 manual" in menu
-    assert menu.index("7 notas") < menu.index(REPITES) < menu.index("8 acciones")
+    numero = {n: i for i, (n, _) in enumerate(subcomandos(RAIZ), start=1)}
+    ultima = por_secciones(RAIZ)[0][1][-1][0]  # la última herramienta
+    filas = [f"{numero[n]} {n}" for n in (ultima, "acciones", "manual")]
+    assert all(fila in menu for fila in filas)
+    assert menu.index(filas[0]) < menu.index(REPITES) < menu.index(filas[1])
 
 
 # ── --help y errores en castellano ─────────────────────────────────────────

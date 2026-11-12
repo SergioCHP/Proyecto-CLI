@@ -16,6 +16,7 @@ from . import __version__, interactivo
 from .comandos import (
     ajustes,
     ayuda,
+    copia,
     duplicados,
     listar,
     mis_acciones,
@@ -31,7 +32,7 @@ app = typer.Typer(
     help=(
         "Caja de herramientas de terminal con utilidades cotidianas.\n\n"
         "Comandos: [bold]listar[/], [bold]ocupa[/], [bold]limpia[/], [bold]ordena[/], "
-        "[bold]renombra[/], [bold]duplicados[/], [bold]notas[/], [bold]acciones[/], "
+        "[bold]renombra[/], [bold]duplicados[/], [bold]copia[/], [bold]notas[/], [bold]acciones[/], "
         "[bold]tema[/], [bold]config[/] y [bold]manual[/] (explica todo)."
     ),
     add_completion=False,
@@ -112,7 +113,9 @@ def version_orden() -> None:
     typer.echo(f"navaja {__version__}")
 
 
-for modulo in (listar, ocupa, ordena, renombra, duplicados, notas, mis_acciones, ajustes, ayuda):
+for modulo in (
+    listar, ocupa, ordena, renombra, duplicados, copia, notas, mis_acciones, ajustes, ayuda
+):
     modulo.registrar(app)
 
 
@@ -148,7 +151,9 @@ def main() -> None:
     preparar_salida(sys.stdout)  # Git Bash / salida redirigida: ✔ y → sin trazas
     preparar_salida(sys.stderr)
     try:
-        app()
+        # Sin expandir * en Windows: Click lo haría en la carpeta actual (no en la de -c)
+        # y estropearía patrones como 'IMG_*' de renombra. Quien los necesita los expande.
+        app(windows_expand_args=False)
     except OSError as error:
         if not tuberia_cerrada(error):
             raise

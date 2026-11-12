@@ -194,13 +194,20 @@ def mostrar_plan(accion: AccionDeArchivos, carpeta: Path, plan: list[Resultado])
     saltados = [r for r in plan if r.estado == "saltado"]
     # Si todo va a una carpeta de fuera (el USB, otro disco…), se dice una vez arriba y la
     # columna solo lleva la ruta desde allí, en vez de repetirla entera en cada fila.
-    destino = accion.destino_comun(carpeta)
+    comun = accion.destino_comun(carpeta)
+    destino = comun
     if destino is not None and destino.resolve().is_relative_to(carpeta.resolve()):
-        destino = None  # dentro de la carpeta ya se ve corto: «PDF\factura.pdf»
+        destino = None  # dentro de la carpeta, la columna ya se ve corta: «PDF\factura.pdf»
+    # «A …» sale siempre entera: con una ruta relativa («sergi/Descargas») es como se ve
+    # que va dentro de la carpeta actual y no donde creías; y si no existe, se dice.
+    a_donde = ""
+    if comun is not None:
+        nueva = "" if comun.exists() else " [aviso](no existe: se creará)[/]"
+        a_donde = f"[pista]A[/] {escape(bonita(comun.resolve()))}{nueva}\n"
     resumen = (
         f"[pista]{escape(accion.descripcion)}[/]\n"
         f"[pista]En[/] {escape(bonita(carpeta.resolve()))}\n"
-        + (f"[pista]A[/] {escape(bonita(destino.resolve()))}\n" if destino is not None else "")
+        + a_donde
         + f"[bold]{cuantos(len(pendientes), 'archivo')}[/] {accion.para}"
     )
     if saltados:
@@ -323,32 +330,7 @@ def ejecutar(
             cancelado = True
             break
 
-        try:
-            with barra_de_archivos([r.origen for r in plan if r.estado == "pendiente"]) as avance:
-                paso.ejecutar(plan, avance)
-        except KeyboardInterrupt:  # Ctrl+C a medias: lo ya hecho se puede deshacer
-            hechos = [r for r in plan if r.estado == "hecho"]
-            para_deshacer += [paso.para_deshacer(r) for r in hechos]
-            if para_deshacer:
-                guardar_acciones("acciones", para_deshacer)
-                detalle = f": {paso.hecho(len(hechos))} antes de cortar" if hechos else ""
-                console.print(
-                    f"[aviso]Cortado a medias{detalle}.[/] "
-                    f"[pista]Para deshacer lo hecho: {como_se_escribe('acciones deshacer')}[/]"
-                )
-            raise
-        hechos = [r for r in plan if r.estado == "hecho"]
-        malos = [r for r in plan if r.estado == "fallo"]
-        for resultado in malos:
-            error_console.print(
-                f"[error]No se pudo con[/] {escape(resultado.origen.name)}: {escape(resultado.motivo)}",
-                soft_wrap=True,
-            )
-        fallos += len(malos)
-        if hechos:
-            para_deshacer += [paso.para_deshacer(r) for r in hechos]
-            guardar_acciones("acciones", para_deshacer)  # después de cada paso, por si se cancela
-            console.print(f"[ok]{paso.hecho(len(hechos)).capitalize()}.[/]")
+        fallos += hacer(paso, plan, "acciones", para_deshacer)
 
     if simular:
         console.print("[pista]Simulación: no se ha tocado nada. Sin --simular, lo hace.[/]")
@@ -365,14 +347,61 @@ def ejecutar(
         raise typer.Exit(1)
 
 
+def hacer(
+    paso: AccionDeArchivos, plan: list[Resultado], registro: str, para_deshacer: list[dict[str, str]]
+) -> int:
+    """Hace lo pendiente del plan con la barra de progreso y devuelve cuántos fallaron.
+
+    Lo hecho se añade a ``para_deshacer`` y se guarda en el registro ``registro``
+    («acciones», «copia»…), también si se corta con Ctrl+C: así «<registro> deshacer»
+    lo puede deshacer. Lo usan «acciones ejecutar» y «copia a».
+    """
+    orden_deshacer = como_se_escribe(f"{registro} deshacer")
+    try:
+        with barra_de_archivos([r.origen for r in plan if r.estado == "pendiente"]) as avance:
+            paso.ejecutar(plan, avance)
+    except KeyboardInterrupt:  # Ctrl+C a medias: lo ya hecho se puede deshacer
+        hechos = [r for r in plan if r.estado == "hecho"]
+        para_deshacer += [paso.para_deshacer(r) for r in hechos]
+        if para_deshacer:
+            guardar_acciones(registro, para_deshacer)
+            detalle = f": {paso.hecho(len(hechos))} antes de cortar" if hechos else ""
+            console.print(
+                f"[aviso]Cortado a medias{detalle}.[/] "
+                f"[pista]Para deshacer lo hecho: {orden_deshacer}[/]"
+            )
+        raise
+    hechos = [r for r in plan if r.estado == "hecho"]
+    malos = [r for r in plan if r.estado == "fallo"]
+    for resultado in malos:
+        error_console.print(
+            f"[error]No se pudo con[/] {escape(resultado.origen.name)}: {escape(resultado.motivo)}",
+            soft_wrap=True,
+        )
+    if hechos:
+        para_deshacer += [paso.para_deshacer(r) for r in hechos]
+        guardar_acciones(registro, para_deshacer)  # después de cada paso, por si se cancela
+        console.print(f"[ok]{paso.hecho(len(hechos)).capitalize()}.[/]")
+    return len(malos)
+
+
 # ── deshacer y editar ──────────────────────────────────────────────────────
 
 
 def deshacer(si: bool = OPCION_SI) -> None:
     """Deja los archivos como estaban antes de la última acción (también una rutina entera)."""
-    registros = cargar_acciones("acciones")
+    deshacer_registro("acciones", "la última acción", "No hay ninguna acción que deshacer.", si)
+
+
+def deshacer_registro(nombre: str, que: str, vacio: str, si: bool) -> None:
+    """Deshace lo guardado en el registro ``nombre`` («acciones», «copia»…).
+
+    ``que`` va en la pregunta («¿Deshacer la última copia?») y ``vacio`` es el aviso si
+    no hay nada guardado.
+    """
+    registros = cargar_acciones(nombre)
     if not registros:
-        console.print("[aviso]No hay ninguna acción que deshacer.[/]")
+        console.print(f"[aviso]{vacio}[/]")
         return
     copias = sum(r.get("como") == "copiado" for r in registros)
     viejas = sum("apartado" in r and Path(r["apartado"]).exists() for r in registros)
@@ -399,7 +428,7 @@ def deshacer(si: bool = OPCION_SI) -> None:
             "versiones borrar»?): esas copias se quedan como están.[/]",
             soft_wrap=True,
         )
-    if not confirmar("¿Deshacer la última acción?", saltar=si, por_defecto=False):
+    if not confirmar(f"¿Deshacer {que}?", saltar=si, por_defecto=False):
         console.print("[aviso]Cancelado.[/]")
         return
 
@@ -443,14 +472,14 @@ def deshacer(si: bool = OPCION_SI) -> None:
 
     console.print(f"[ok]Deshecho: {cuantos(hechos, 'archivo')}.[/]")
     if errores:
-        guardar_acciones("acciones", list(reversed(pendientes)))  # para volver a intentarlo
+        guardar_acciones(nombre, list(reversed(pendientes)))  # para volver a intentarlo
         console.print(
             f"[aviso]No se pudo deshacer: {cuantos(errores, 'archivo')}.[/] "
-            f"[pista]Se guardan para probar otra vez con {como_se_escribe('acciones deshacer')}.[/]",
+            f"[pista]Se guardan para probar otra vez con {como_se_escribe(f'{nombre} deshacer')}.[/]",
             soft_wrap=True,
         )
         raise typer.Exit(1)
-    limpiar_acciones("acciones")
+    limpiar_acciones(nombre)
 
 
 def deshacer_copia(origen: Path, destino: Path, apartado: str | None, papelera: Path) -> bool:
