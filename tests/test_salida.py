@@ -93,4 +93,19 @@ def test_main_no_expande_comodines_en_windows(monkeypatch):
     monkeypatch.setattr(modulo, "app", lambda **kwargs: recibido.update(kwargs))
     monkeypatch.setattr(modulo, "preparar_salida", lambda flujo: None)
     modulo.main()
-    assert recibido == {"windows_expand_args": False}
+    assert recibido["windows_expand_args"] is False
+
+
+def test_en_windows_sigue_entendiendo_la_carpeta_de_usuario(monkeypatch):
+    """Sin la expansión de Click, ~ y %VARIABLES% los convierte navaja (no los *)."""
+    import os
+
+    from navaja.app import argumentos_de_windows
+
+    monkeypatch.setenv("NAVAJA_PRUEBA", "valor")
+    argumentos = ["ordena", "tipo", "-c", "~/Descargas", "*.pdf", "%NAVAJA_PRUEBA%"]
+    assert argumentos_de_windows(argumentos, windows=True) == [
+        "ordena", "tipo", "-c", os.path.expanduser("~/Descargas"), "*.pdf",
+        os.path.expandvars("%NAVAJA_PRUEBA%"),
+    ]
+    assert argumentos_de_windows(argumentos, windows=False) is None  # lo hace el shell

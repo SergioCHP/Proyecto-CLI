@@ -152,7 +152,7 @@ def test_por_menu_eliges_los_archivos_de_una_lista(tmp_path, capsys, monkeypatch
     preguntas = por_menu(tmp_path, monkeypatch, "2", "USB", "1 3-4", "PC", "", "")
     texto = plano(capsys.readouterr().out)
     assert "horario.pdf" in texto  # la lista
-    assert f"→ navaja copia a --carpeta USB {tmp_path / 'PC'} apuntes.md c.txt horario.pdf" in texto
+    assert f"→ navaja copia a --carpeta USB -- {tmp_path / 'PC'} apuntes.md c.txt horario.pdf" in texto
     assert relativos(tmp_path / "PC") == {"apuntes.md", "c.txt", "horario.pdf"}
     assert not any("¿Con qué archivos?" in p for p in preguntas)
 
@@ -311,3 +311,85 @@ def test_archivos_con_errores_claros(tmp_path):
         assert mensaje in plano(resultado.output), (argumentos, resultado.output)
         assert "Traceback" not in resultado.output
     assert not (tmp_path / "USB").exists()
+
+
+# ── Lo que vio el revisor ──────────────────────────────────────────────────
+
+
+def test_por_menu_archivo_que_empieza_por_guion(tmp_path, capsys, monkeypatch):
+    crear(tmp_path / "USB" / "-borrador.txt")
+    por_menu(tmp_path, monkeypatch, "2", "USB", "1", "PC", "", "")
+    assert relativos(tmp_path / "PC") == {"-borrador.txt"}
+
+
+def test_por_menu_lista_de_archivos_entiende_y_avisa(tmp_path, capsys, monkeypatch):
+    for nombre in ("a.txt", "b.txt", "c.txt", "Factura 1,5.pdf"):
+        crear(tmp_path / "USB" / nombre)
+    # 3-1 al revés · un número que no está · un nombre que no está · luego bien:
+    # «1,2» y el nombre con coma entre comillas
+    por_menu(
+        tmp_path, monkeypatch, "2", "USB", "3-1", "9", "no-esta.pdf", '1,2 "Factura 1,5.pdf"',
+        "PC", "", "",
+    )
+    texto = plano(capsys.readouterr().out)
+    assert "«3-1» va al revés: escribe 1-3." in texto
+    assert "No hay ningún 9" in texto
+    assert "No encuentro «no-esta.pdf»" in texto
+    assert relativos(tmp_path / "PC") == {"a.txt", "b.txt", "Factura 1,5.pdf"}
+
+
+def test_por_menu_cero_en_la_lista_vuelve_a_la_carpeta(tmp_path, capsys, monkeypatch):
+    crear(tmp_path / "USB" / "a.txt")
+    crear(tmp_path / "Otra" / "z.txt")
+    por_menu(tmp_path, monkeypatch, "2", "USB", "0", "Otra", "1", "PC", "", "")
+    assert relativos(tmp_path / "PC") == {"z.txt"}
+
+
+def test_navegar_documentos_dentro_de_una_carpeta_no_se_va_a_tu_usuario(
+    tmp_path, capsys, monkeypatch
+):
+    casa = tmp_path / "casa"
+    (casa / "Documents").mkdir(parents=True)
+    monkeypatch.setattr(Path, "home", lambda: casa)
+    crear(tmp_path / "USB" / "a.txt")
+    (tmp_path / "PC" / "Documentos").mkdir(parents=True)
+    # dentro de PC, «Documentos» es PC\Documentos (no ~\Documents)
+    por_menu(tmp_path, monkeypatch, "2", "USB", "1", "PC", "Documentos", "", "", crear_pc=False)
+    assert relativos(tmp_path / "PC" / "Documentos") == {"a.txt"}
+    assert relativos(casa / "Documents") == set()
+
+
+def test_navegar_carpeta_nueva_con_nombre_que_no_vale(tmp_path, capsys, monkeypatch):
+    crear(tmp_path / "USB" / "a.txt")
+    por_menu(tmp_path, monkeypatch, "2", "USB", "1", "PC", "+", "a:b", "con", "copias", "")
+    texto = plano(capsys.readouterr().out)
+    assert "No puede llevar :" in texto
+    assert "«con» es un nombre reservado de Windows" in texto
+    assert relativos(tmp_path / "PC" / "copias") == {"a.txt"}
+
+
+def test_navegar_avisa_de_la_carpeta_con_nombre_de_numero(tmp_path, capsys, monkeypatch):
+    crear(tmp_path / "USB" / "a.txt")
+    (tmp_path / "PC" / "2026").mkdir(parents=True)
+    por_menu(tmp_path, monkeypatch, "2", "USB", "1", "PC", str(Path(".") / "2026"), "", "")
+    texto = plano(capsys.readouterr().out)
+    assert "Para entrar en la carpeta «2026», escribe" in texto
+    assert relativos(tmp_path / "PC" / "2026") == {"a.txt"}
+
+
+def test_destino_que_es_un_archivo(tmp_path):
+    crear(tmp_path / "USB" / "a.txt")
+    crear(tmp_path / "PC.txt")
+    resultado = copia("a", str(tmp_path / "PC.txt"), "-c", str(tmp_path / "USB"))
+    assert resultado.exit_code == 1
+    assert "es un archivo, no una carpeta" in plano(resultado.output)
+
+
+def test_destino_igual_al_origen(tmp_path):
+    crear(tmp_path / "USB" / "a.txt")
+    resultado = copia("a", str(tmp_path / "USB"), "-c", str(tmp_path / "USB"))
+    assert resultado.exit_code == 1
+    assert "misma carpeta de la que copias" in plano(resultado.output)
+    resultado = copia("a", str(tmp_path / "USB"), "a.txt", "-c", str(tmp_path / "USB"))
+    assert resultado.exit_code == 1
+    assert "Ese archivo ya está en" in plano(resultado.output)

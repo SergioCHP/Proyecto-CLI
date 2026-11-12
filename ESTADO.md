@@ -644,6 +644,26 @@ cosas mal:
 - 374 tests pasando (2 nuevos en `test_copia.py`: bajar por la lista y subir, y
   «documentos\ESTUDIO» escrito con carpeta nueva).
 
+### 2026-11-12 — `copia`: lo que vio el revisor
+
+- **`~` fuera de navaja volvía a fallar** (lo rompió `windows_expand_args=False`): Click,
+  además de `*`, expandía `~` y `%VARIABLES%`, y cmd y Windows PowerShell no lo hacen. Ahora
+  `main()` los expande él en Windows (`argumentos_de_windows`) y sigue sin tocar `*`.
+- Archivos que empiezan por «-» («-borrador.txt»): por menú, el destino y los archivos
+  van al final de la orden, detrás de `--`.
+- Dentro de una carpeta, escribir «Documentos» ya no te lleva a `~\Documents`: solo se
+  traduce en la primera pregunta (`interpretar_carpeta(..., traducir=False)`).
+- `copia a` con un destino que es un archivo, en una unidad que no está (con un consejo
+  que vale para `copia`, no `--destino`) o igual que el origen: lo dice antes del plan.
+- Lista de archivos: 0 vuelve; las comas solo separan números («1,4»), así que «"Factura
+  1,5.pdf"» vale; «5-2» dice que va al revés; un nombre que no está se avisa ya, sin
+  perder las respuestas.
+- Al elegir la carpeta: una que no se puede leer lo dice; «..» en la raíz avisa; el
+  nombre de una carpeta nueva se comprueba (sin `: * ? …`, ni CON, NUL…, ni acabar en
+  punto); si una subcarpeta se llama como un número, dice cómo entrar (`.\2026`).
+- `es_numero()`: solo cifras 0-9 («²» es dígito para Python y `int()` fallaba).
+- 383 tests pasando (8 nuevos en `test_copia.py`, 1 en `test_salida.py`).
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.
@@ -714,6 +734,16 @@ cosas mal:
   - En `pc-a-usb` la versión vieja del USB va a la papelera de C: (lento; un archivo de
     solo lectura falla).
 - [x] Ctrl+C en mitad de una copia: temporal, versiones y deshacer.
+- [ ] De la revisión de `copia`, sin arreglar:
+  - Deshacer quita también las carpetas que quedan vacías aunque ya existieran antes
+    (`destino.parent` y su padre). No se pierde nada, pero puede borrar una carpeta
+    vacía tuya.
+  - Los comodines cogen también los ocultos (desktop.ini, Thumbs.db) que la lista del
+    menú esconde; y «tema[1].pdf», si no existe, se toma como patrón (cogería tema1.pdf).
+  - `unidades()`: una unidad de red desconectada puede tardar segundos al hacer la lista.
+  - Con OneDrive, Documentos y Escritorio están en otra ruta (Known Folders de Windows):
+    la lista no los encontraría.
+  - Nombres repetidos sin normalizar Unicode (NFC/NFD en macOS).
 - [ ] `excluir` compara el nombre tal cual: en macOS un nombre con tildes en NFD no coincide
   con el del JSON (en NFC).
 - [x] Traza `UnicodeEncodeError` con `✔` o `→` en Git Bash o con la salida redirigida.

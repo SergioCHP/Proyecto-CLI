@@ -30,6 +30,7 @@ from .comandos.ayuda import (
 from .comandos.ayuda import subcomandos as opciones_de
 from .comun import AJUSTE, PALABRAS_VOLVER, console, error_console, es_oculto, tamano_legible
 from .entrada import crear_lector, palabras_del_argumento
+from .errores import NavajaError
 from .filtros import (
     CATEGORIAS,
     EJEMPLOS_FECHA,
@@ -410,6 +411,11 @@ def pasos_filtro(comando: Any, leer: Lector) -> list[Paso]:
     return [functools.partial(preguntar_filtro, filtros, leer)] if filtros else []
 
 
+def es_numero(texto: str) -> bool:
+    """Solo cifras de 0 a 9 («²» o «٣» también son dígitos para Python, pero int() falla)."""
+    return texto.isascii() and texto.isdigit()
+
+
 def elegir_numero(leer: Lector, prompt: str, cuantas: int, intro: int | None = None) -> int:
     """Pide un número de una lista. 0 o «volver» lanzan ``Atras``; Intro elige ``intro``."""
     while True:
@@ -418,7 +424,7 @@ def elegir_numero(leer: Lector, prompt: str, cuantas: int, intro: int | None = N
             raise Atras
         if not respuesta and intro is not None:
             return intro
-        if respuesta.isdigit() and 1 <= int(respuesta) <= cuantas:
+        if es_numero(respuesta) and 1 <= int(respuesta) <= cuantas:
             return int(respuesta)
         console.print(f"  [aviso]Elige un número del 1 al {cuantas} (0 para volver).[/]")
 
@@ -510,9 +516,9 @@ def pista_opciones(nombres: list[str], comando: Any) -> None:
 def pasos_copia(comando: Any, leer: Lector) -> list[Paso]:
     """«copia a» por menú: primero qué copiar (toda una carpeta o unos archivos de una
     lista) y, según eso, lo demás. Lo elegido se guarda en ``eleccion`` para las
-    preguntas de después; los archivos van detrás del destino (es su sitio en la orden).
+    preguntas de después; el destino y los archivos se escriben al final de la orden.
     """
-    eleccion: dict[str, Any] = {"archivos": False, "carpeta": Path("."), "nombres": []}
+    eleccion: dict[str, Any] = {"archivos": False, "carpeta": Path("."), "nombres": [], "destino": ""}
     filtros = {
         max(p.opts, key=len)
         for p in comando.params
@@ -524,7 +530,8 @@ def pasos_copia(comando: Any, leer: Lector) -> list[Paso]:
         console.print("    [acento]1[/]  Toda una carpeta (o parte, con un filtro)")
         console.print("    [acento]2[/]  Unos archivos que eliges de una lista")
         console.print("    [acento]0[/]  [pista]volver[/]")
-        eleccion["archivos"] = elegir_numero(leer, "  Elige [pista](Intro = 1)[/]: ", 2, intro=1) == 2
+        numero = elegir_numero(leer, "  Elige [pista](Intro = 1)[/]: ", 2, intro=1)
+        eleccion["archivos"] = numero == 2
         return []
 
     def carpeta() -> list[str]:
@@ -539,7 +546,8 @@ def pasos_copia(comando: Any, leer: Lector) -> list[Paso]:
         return []
 
     def destino() -> list[str]:
-        return [elegir_destino(leer)] + (eleccion["nombres"] if eleccion["archivos"] else [])
+        eleccion["destino"] = elegir_destino(leer)
+        return []
 
     def si_cambia() -> list[str]:
         console.print("  [bold]Si allí ya hay uno distinto con el mismo nombre:[/]")
@@ -552,7 +560,15 @@ def pasos_copia(comando: Any, leer: Lector) -> list[Paso]:
     def filtro() -> list[str] | None:
         return None if eleccion["archivos"] else preguntar_filtro(filtros, leer)
 
-    return [que_copiar, carpeta, archivos, destino, si_cambia, filtro]
+    def destino_y_archivos() -> list[str]:
+        """No pregunta: pone el destino y los archivos al final de la orden, detrás de
+        «--», para que un archivo que empieza por «-» («-borrador.txt») no se lea como
+        una opción. Las opciones (--si-cambia, --solo…) ya han ido antes."""
+        if not eleccion["archivos"]:
+            return [eleccion["destino"]]
+        return ["--", eleccion["destino"], *eleccion["nombres"]]
+
+    return [que_copiar, carpeta, archivos, destino, si_cambia, filtro, destino_y_archivos]
 
 
 CARPETAS_DE_WINDOWS = {
@@ -593,7 +609,8 @@ def confirmar_destino(valor: str, leer: Lector) -> str:
     conocida = carpeta_de_windows(valor)
     opciones = [("crear", f"Crearla ahí: {entera}")]
     if conocida is not None:
-        opciones.insert(0, ("conocida", f"Usar {escape(str(conocida))} (es tu {Path(valor).name})"))
+        texto = f"Usar {escape(str(conocida))} (es tu {escape(Path(valor).name)})"
+        opciones.insert(0, ("conocida", texto))
     opciones.append(("otra", "Escribir otra"))
     for numero, (_, texto) in enumerate(opciones, start=1):
         console.print(f"    [acento]{numero}[/]  {texto}", soft_wrap=True)
@@ -621,12 +638,13 @@ NOMBRES_DE_WINDOWS = {
 para Tab) y el que tienen en el disco."""
 
 
-def interpretar_carpeta(texto: str, dentro: Path) -> Path:
-    """La ruta que se ha escrito, entera. Relativa, va desde ``dentro``; si empieza por el
-    nombre en castellano de una carpeta de Windows («Documentos\\ESTUDIO»), por la de
-    verdad («C:\\Users\\tú\\Documents\\ESTUDIO»)."""
+def interpretar_carpeta(texto: str, dentro: Path, traducir: bool = True) -> Path:
+    """La ruta que se ha escrito, entera. Relativa, va desde ``dentro``. Con ``traducir``,
+    si empieza por el nombre en castellano de una carpeta de Windows
+    («Documentos\\ESTUDIO»), va a la de verdad («C:\\Users\\tú\\Documents\\ESTUDIO»).
+    Dentro de una carpeta concreta no se traduce: «Documentos» es una subcarpeta de ahí."""
     ruta = Path(expandir(quitar_comillas(texto.strip())))
-    if not ruta.is_absolute() and ruta.parts:
+    if traducir and not ruta.is_absolute() and ruta.parts:
         ingles = CARPETAS_DE_WINDOWS.get(sin_tildes(ruta.parts[0]).lower())
         if ingles is not None and not (dentro / ruta).exists() and (Path.home() / ingles).is_dir():
             return Path.home() / ingles / Path(*ruta.parts[1:])
@@ -717,7 +735,7 @@ def elegir_destino(leer: Lector) -> str:
         if not respuesta:
             console.print("  [aviso]Elige un número o escribe una ruta.[/]")
             continue
-        if respuesta.isdigit() and 1 <= int(respuesta) <= len(sitios):
+        if es_numero(respuesta) and 1 <= int(respuesta) <= len(sitios):
             base = sitios[int(respuesta) - 1][1]
         else:
             base = interpretar_carpeta(respuesta, actual)
@@ -744,8 +762,13 @@ def navegar(carpeta: Path, leer: Lector, limite: int = 50) -> str | None:
                 (c for c in carpeta.iterdir() if c.is_dir() and not es_oculto(c)),
                 key=lambda c: sin_tildes(c.name).lower(),
             )
-        except OSError:
-            subcarpetas = []
+        except OSError as exc:
+            console.print(
+                f"  [aviso]No puedo entrar en {escape(str(carpeta))}: "
+                f"{escape(exc.strerror or str(exc))}[/]",
+                soft_wrap=True,
+            )
+            return None
         console.print(f"  [bold]En {escape(str(carpeta))}[/]", soft_wrap=True)
         tabla = Table.grid(padding=(0, 2))
         tabla.add_column(style="acento", justify="right")
@@ -763,6 +786,12 @@ def navegar(carpeta: Path, leer: Lector, limite: int = 50) -> str | None:
                 f"    [pista]Hay {len(subcarpetas)}; salen {limite}. Las demás, escribiendo su "
                 "nombre (Tab completa).[/]"
             )
+        tapadas = [c.name for c in subcarpetas if es_numero(c.name) or c.name in ("+", "..")]
+        if tapadas:  # «3» es la opción 3, no la carpeta «3»
+            ejemplo = escape(f".{os.sep}{tapadas[0]}")
+            console.print(
+                f"    [pista]Para entrar en la carpeta «{escape(tapadas[0])}», escribe {ejemplo}[/]"
+            )
         respuesta = leer_con_carpetas(
             leer,
             "  Elige [pista](Intro = aquí)[/]: ",
@@ -774,17 +803,19 @@ def navegar(carpeta: Path, leer: Lector, limite: int = 50) -> str | None:
         if es_volver(respuesta) or respuesta == "0":
             return None
         if respuesta == "..":
+            if carpeta.parent == carpeta:
+                console.print(f"  [aviso]Ya estás arriba del todo, en {escape(str(carpeta))}.[/]")
             carpeta = carpeta.parent
             continue
         if respuesta == "+":
-            nombre = leer_texto(leer, "  Nombre de la carpeta nueva [pista](Intro = ninguna)[/]: ", "")
-            if nombre.strip():
-                return str(carpeta / nombre.strip())
+            nueva = pedir_carpeta_nueva(carpeta, leer)
+            if nueva is not None:
+                return str(nueva)
             continue
-        if respuesta.isdigit() and 1 <= int(respuesta) <= min(len(subcarpetas), limite):
+        if es_numero(respuesta) and 1 <= int(respuesta) <= min(len(subcarpetas), limite):
             carpeta = subcarpetas[int(respuesta) - 1]
             continue
-        ruta = interpretar_carpeta(respuesta, carpeta)
+        ruta = interpretar_carpeta(respuesta, carpeta, traducir=False)
         if ruta.is_dir():
             carpeta = ruta
             continue
@@ -794,6 +825,50 @@ def navegar(carpeta: Path, leer: Lector, limite: int = 50) -> str | None:
         valor = confirmar_destino(str(ruta), leer)
         if valor:
             return valor
+
+
+NOMBRES_RESERVADOS = {"con", "prn", "aux", "nul"} | {
+    f"{puerto}{numero}" for puerto in ("com", "lpt") for numero in range(1, 10)
+}
+"""Nombres que Windows no deja usar para un archivo ni una carpeta (con o sin extensión)."""
+
+
+def problema_del_nombre(nombre: str) -> str:
+    """Por qué no vale como nombre de carpeta nueva, o "" si vale (en Windows, que es lo
+    más estricto: así la carpeta también se puede llevar a un USB)."""
+    if nombre in (".", ".."):
+        return "Ese nombre no vale: es «aquí» o «arriba»."
+    malos = sorted({c for c in nombre if c in '<>:"/\\|?*' or ord(c) < 32})
+    if malos:
+        return f"No puede llevar {' '.join(malos)}."
+    if nombre[-1] in ". ":
+        return "No puede acabar en punto ni en espacio."
+    if nombre.split(".")[0].lower() in NOMBRES_RESERVADOS:
+        return f"«{nombre}» es un nombre reservado de Windows."
+    return ""
+
+
+def pedir_carpeta_nueva(carpeta: Path, leer: Lector) -> Path | None:
+    """Pide el nombre de una carpeta nueva dentro de ``carpeta`` (se crea al copiar).
+    Intro o volver: None (sigue en la carpeta)."""
+    while True:
+        try:
+            nombre = leer_texto(
+                leer, "  Nombre de la carpeta nueva [pista](Intro = ninguna)[/]: ", ""
+            ).strip()
+        except Atras:
+            return None
+        if not nombre:
+            return None
+        problema = problema_del_nombre(nombre)
+        if problema:
+            console.print(f"  [aviso]{escape(problema)}[/]")
+            continue
+        nueva = carpeta / nombre
+        if nueva.exists() and not nueva.is_dir():
+            console.print(f"  [aviso]Ahí ya hay un archivo que se llama «{escape(nombre)}».[/]")
+            continue
+        return nueva
 
 
 def elegir_archivos(carpeta: Path, leer: Lector, limite: int = 100) -> list[str]:
@@ -832,35 +907,55 @@ def elegir_archivos(carpeta: Path, leer: Lector, limite: int = 100) -> list[str]
         )
     while True:
         respuesta = leer("  ¿Cuáles? [pista](números: 1 3 · 2-5 · o nombres: *.pdf)[/]: ")
-        if es_volver(respuesta):
+        if es_volver(respuesta) or respuesta.strip() == "0":
             raise Atras
-        try:
-            trozos = dividir(respuesta.replace(",", " "))
-        except ValueError:
-            console.print("  [aviso]Falta cerrar unas comillas.[/]")
+        elegidos = entender_archivos(respuesta, visibles, carpeta)
+        if elegidos:
+            return elegidos
+
+
+def entender_archivos(respuesta: str, visibles: list[Path], carpeta: Path) -> list[str]:
+    """Lo escrito en «¿Cuáles?»: números («1 3», «1,4»), rangos («2-5») y nombres o
+    patrones («"tema 3.docx"», *.pdf), que se comprueban ya en la carpeta. Si algo no
+    vale, lo dice y devuelve [] (se vuelve a preguntar)."""
+    from .comandos.copia import buscar_archivos  # aquí: copia importa medio navaja
+
+    try:
+        trozos = dividir(respuesta)
+    except ValueError:
+        console.print("  [aviso]Falta cerrar unas comillas.[/]")
+        return []
+    if not trozos:
+        console.print("  [aviso]Elige al menos uno.[/]")
+        return []
+    elegidos: list[str] = []
+    for trozo in trozos:
+        if not re.fullmatch(r"[\d,\-]+", trozo) or not re.search(r"\d", trozo):
+            try:  # un nombre o un patrón (con comas dentro, si las lleva): que exista ya
+                buscar_archivos([trozo], carpeta)
+            except NavajaError as error:
+                console.print(f"  [aviso]{escape(str(error))}[/]", soft_wrap=True)
+                return []
+            elegidos.append(trozo)
             continue
-        if not trozos:
-            console.print("  [aviso]Elige al menos uno.[/]")
-            continue
-        elegidos: list[str] = []
-        malos: list[str] = []
-        for trozo in trozos:
-            numeros = re.fullmatch(r"(\d+)(?:-(\d+))?", trozo)
-            if not numeros:
-                elegidos.append(trozo)  # un nombre o un patrón: lo busca copia
-                continue
+        for parte in filter(None, trozo.split(",")):  # «1,4» o «1,3-5»
+            numeros = re.fullmatch(r"(\d+)(?:-(\d+))?", parte)
+            if numeros is None:
+                console.print(f"  [aviso]No entiendo «{escape(parte)}»: escribe 3, o 2-5.[/]")
+                return []
             desde, hasta = int(numeros[1]), int(numeros[2] or numeros[1])
+            if desde > hasta:
+                console.print(
+                    f"  [aviso]«{escape(parte)}» va al revés: escribe {hasta}-{desde}.[/]"
+                )
+                return []
             if not 1 <= desde <= hasta <= len(visibles):
-                malos.append(trozo)
-                continue
+                console.print(
+                    f"  [aviso]No hay ningún {escape(parte)}: elige entre 1 y {len(visibles)}.[/]"
+                )
+                return []
             elegidos += [visibles[i - 1].name for i in range(desde, hasta + 1)]
-        if malos:
-            console.print(
-                f"  [aviso]No hay ningún {escape(', '.join(malos))}: elige entre 1 y "
-                f"{len(visibles)}.[/]"
-            )
-            continue
-        return list(dict.fromkeys(elegidos))  # sin repetir, en el orden en que se dijeron
+    return list(dict.fromkeys(elegidos))  # sin repetir, en el orden en que se dijeron
 
 
 PREGUNTAS_PROPIAS: dict[str, Callable[[Any, Lector], list[Paso]]] = {"copia a": pasos_copia}

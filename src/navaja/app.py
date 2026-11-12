@@ -147,13 +147,25 @@ def silenciar_salida() -> None:
         pass
 
 
+def argumentos_de_windows(argumentos: list[str], windows: bool = os.name == "nt") -> list[str] | None:
+    """En Windows, ``~`` y ``%VARIABLES%`` de cada argumento, como hace Click, pero sin
+    expandir ``*``: Click lo haría en la carpeta actual (no en la de ``-c``) y estropearía
+    patrones como ``IMG_*`` de renombra; quien necesita un comodín lo expande él.
+
+    cmd y Windows PowerShell no convierten ``~`` al llamar a un programa: sin esto,
+    ``navaja ordena tipo -c ~\\Descargas`` diría que la carpeta no existe. En Linux y
+    macOS lo hace el shell, y se devuelve None (Click lee los argumentos como siempre).
+    """
+    if not windows:
+        return None
+    return [os.path.expandvars(os.path.expanduser(argumento)) for argumento in argumentos]
+
+
 def main() -> None:
     preparar_salida(sys.stdout)  # Git Bash / salida redirigida: ✔ y → sin trazas
     preparar_salida(sys.stderr)
     try:
-        # Sin expandir * en Windows: Click lo haría en la carpeta actual (no en la de -c)
-        # y estropearía patrones como 'IMG_*' de renombra. Quien los necesita los expande.
-        app(windows_expand_args=False)
+        app(args=argumentos_de_windows(sys.argv[1:]), windows_expand_args=False)
     except OSError as error:
         if not tuberia_cerrada(error):
             raise

@@ -61,6 +61,22 @@ def accion_de_copia(
     return accion
 
 
+def comprobar_destino(destino: Path) -> None:
+    """Antes de hacer el plan: el destino tiene que poder ser una carpeta. ``NavajaError``
+    si es un archivo o está en una unidad que no existe ahora mismo (el USB sin conectar).
+    """
+    ruta = destino.expanduser()
+    if ruta.exists() and not ruta.is_dir():
+        raise NavajaError(f"El destino {destino} es un archivo, no una carpeta.")
+    unidad = ruta.absolute().anchor  # «E:\» en Windows; «/» en Linux y macOS
+    if unidad and not Path(unidad).exists():
+        letra = unidad.rstrip("\\/")
+        raise NavajaError(
+            f"El destino {destino} está en una unidad que no existe ahora mismo ({letra}). "
+            "¿Está conectado el USB? Si ahora tiene otra letra, escríbela: navaja copia a E:/DAM."
+        )
+
+
 def buscar_archivos(pedidos: list[str], carpeta: Path) -> list[Path]:
     """Los archivos que se han escrito, buscados en ``carpeta`` si no llevan ruta.
 
@@ -171,6 +187,7 @@ def a(
         error_console.print(f"[error]✘ La carpeta {escape(str(carpeta))} {que}.[/]", soft_wrap=True)
         raise typer.Exit(1)
     try:
+        comprobar_destino(destino)
         paso = accion_de_copia(carpeta, destino, si_cambia.value, filtro)
         if archivos:
             if filtro:
@@ -179,8 +196,18 @@ def a(
                     "archivos, o filtras la carpeta entera."
                 )
             elegidos = buscar_archivos(archivos, carpeta.expanduser())
+            if all(a.resolve().parent == destino.expanduser().resolve() for a in elegidos):
+                raise NavajaError(
+                    f"{'Ese archivo ya está' if len(elegidos) == 1 else 'Esos archivos ya están'}"
+                    f" en {destino}: cada uno iría encima de sí mismo. Elige otro destino."
+                )
             base, plan = planificar_archivos(paso, elegidos, carpeta.expanduser())
         else:
+            if destino.expanduser().resolve() == carpeta.expanduser().resolve():
+                raise NavajaError(
+                    "El destino es la misma carpeta de la que copias: cada archivo iría encima "
+                    "de sí mismo. Elige otro destino."
+                )
             base, plan = Motor([]).planificar(paso, carpeta)
     except NavajaError as error:
         fallar(error)
