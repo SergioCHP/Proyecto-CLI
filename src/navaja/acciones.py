@@ -18,6 +18,7 @@ import contextlib
 import os
 import shutil
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -28,6 +29,11 @@ from .comun import carpeta_papelera, cuantos, destino_libre, ruta_libre
 from .errores import AccionNoValida, NavajaError
 from .filtros import sin_tildes
 from .versiones import Version, apuntar, carpeta_versiones
+
+
+Avance = Callable[[Path], None]
+"""Aviso que ``ejecutar`` da antes de cada archivo, con su ruta: la barra de progreso de
+``acciones ejecutar`` se cuelga de aquí sin que las acciones sepan nada de la pantalla."""
 
 
 @dataclass
@@ -182,11 +188,16 @@ class AccionDeArchivos(Accion):
     def aplicar(self, resultado: Resultado) -> None:
         """Lo hace con un archivo. Lanza ``OSError`` si no puede."""
 
-    def ejecutar(self, plan: list[Resultado]) -> list[Resultado]:
-        """Hace lo pendiente del plan; cada archivo acaba «hecho» o «fallo»."""
+    def ejecutar(self, plan: list[Resultado], avance: Avance | None = None) -> list[Resultado]:
+        """Hace lo pendiente del plan; cada archivo acaba «hecho» o «fallo».
+
+        ``avance``, si se da, se llama con el origen justo antes de cada archivo.
+        """
         for resultado in plan:
             if resultado.estado != "pendiente":
                 continue
+            if avance is not None:
+                avance(resultado.origen)
             try:
                 self.aplicar(resultado)
                 resultado.estado = "hecho"
@@ -359,18 +370,21 @@ class Copiar(Mover):
             plan.append(Resultado(archivo, destino_libre(deseado, reservados)))
         return plan
 
-    def ejecutar(self, plan: list[Resultado]) -> list[Resultado]:
+    def ejecutar(self, plan: list[Resultado], avance: Avance | None = None) -> list[Resultado]:
         # las versiones viejas que se sustituyan van juntas a una carpeta con fecha de
         # «versiones» (no a la papelera común: así «duplicados vaciar» no las borra)
         cuando = datetime.now()
         self._versiones = carpeta_versiones() / cuando.strftime("%Y%m%d-%H%M%S")
-        super().ejecutar(plan)
-        # también las de un fallo a medias que no se pudieron devolver: así se recuperan
-        apuntar([
-            Version(r.apartado, r.destino, self.nombre, cuando)
-            for r in plan
-            if r.apartado is not None and r.destino is not None
-        ])
+        try:
+            super().ejecutar(plan, avance)
+        finally:
+            # también con Ctrl+C a medias, y las de un fallo que no se pudieron devolver:
+            # así «acciones versiones» las lista y se recuperan
+            apuntar([
+                Version(r.apartado, r.destino, self.nombre, cuando)
+                for r in plan
+                if r.apartado is not None and r.destino is not None
+            ])
         return plan
 
     def aplicar(self, resultado: Resultado) -> None:
@@ -389,10 +403,16 @@ class Copiar(Mover):
                 assert self._versiones is not None
                 resultado.apartado = apartar(destino, self._versiones)
             os.replace(temporal, destino)
-        except OSError:
+        except BaseException as error:  # también Ctrl+C: que no quede el temporal
             with contextlib.suppress(OSError):
                 temporal.unlink(missing_ok=True)
-            self.devolver_apartado(resultado)
+            if isinstance(error, OSError):
+                self.devolver_apartado(resultado)
+            else:
+                # Con Ctrl+C se corta igual: si la vieja no se puede devolver, se queda
+                # apartada (y apuntada en «versiones»), y un OSError aquí taparía el corte
+                with contextlib.suppress(OSError):
+                    self.devolver_apartado(resultado)
             raise
 
     @staticmethod
@@ -568,10 +588,10 @@ class Borrar(AccionDeArchivos):
     def planificar(self, archivos: list[Path], carpeta: Path) -> list[Resultado]:
         return [Resultado(archivo, None) for archivo in archivos]
 
-    def ejecutar(self, plan: list[Resultado]) -> list[Resultado]:
+    def ejecutar(self, plan: list[Resultado], avance: Avance | None = None) -> list[Resultado]:
         # una carpeta por vez, como hace «duplicados borrar»
         self._papelera = carpeta_papelera() / datetime.now().strftime("%Y%m%d-%H%M%S")
-        return super().ejecutar(plan)
+        return super().ejecutar(plan, avance)
 
     def aplicar(self, resultado: Resultado) -> None:
         assert self._papelera is not None

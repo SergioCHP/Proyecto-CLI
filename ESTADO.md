@@ -512,6 +512,66 @@ Más claro:
   en `--help` y en el manual, porque se generan del orden de `registrar()`.
 - 339 tests pasando.
 
+### 2026-11-12 — Menú en tres grupos: herramientas, lo que repites y navaja
+
+- En el menú principal salían 11 opciones seguidas y no se veía por qué unas están del 1 al
+  7 y otra es «acciones». Ahora van en tres grupos, cada uno con una frase:
+  **Herramientas** (1-7, se usan al momento), **Lo que repites** (acciones: recetas de
+  acciones.json) y **navaja** (tema, config, manual). Igual en `navaja --help` y en la
+  bienvenida sin terminal. Los números no cambian.
+- Cada comando dice su grupo con `rich_help_panel` al registrarse; los nombres y las
+  frases están en `comun.py` (`SECCIONES`). `ayuda.por_secciones()` los reparte sin
+  reordenar (corta cuando cambia el grupo), así que el número de cada opción sigue
+  siendo su posición en `subcomandos()`.
+- Los submenús no tienen grupos: salen como antes.
+- 342 tests pasando (3 nuevos en `test_ayuda.py`).
+
+### 2026-11-12 — Barra de progreso al hacer una acción
+
+- Copiar varios GB al USB (`usb-a-pc`, `pc-a-usb`) tardaba minutos sin decir nada. Ahora
+  `acciones ejecutar` enseña una barra: el archivo en curso, «N de M», porcentaje y
+  tiempo transcurrido. Sale en todas las acciones de archivos; en las rápidas (mover en
+  el mismo disco) apenas se ve.
+- Avanza por tamaño, no por número de archivos. Se borra al terminar y fuera de una
+  terminal (salida redirigida, tests) no sale.
+- No enseña el tiempo que queda: Rich lo calcula con la velocidad de los primeros
+  archivos y, si son pequeños, sale disparatado (119 horas).
+- `AccionDeArchivos.ejecutar(plan, avance)`: `avance` se llama con el origen antes de
+  cada archivo. Las acciones no saben nada de la pantalla; la barra está en
+  `comun.barra_de_archivos`.
+- Un archivo grande no mueve la barra hasta acabar (`shutil.copy2` no avisa por el
+  camino); el nombre en pantalla y el reloj enseñan que sigue trabajando.
+- 345 tests pasando (3 nuevos en `test_acciones.py`).
+
+### 2026-11-12 — Ctrl+C en mitad de una acción
+
+Con la barra se ve avanzar una copia larga y es más fácil cortarla. Ctrl+C dejaba tres
+cosas mal:
+
+- El temporal oculto `.nombre.navaja-copiando` en el destino. `Copiar.aplicar` ahora
+  limpia también con Ctrl+C (no solo con `OSError`) y devuelve la versión vieja si ya
+  la había apartado. Si no puede devolverla, no lanza su `OSError`: taparía el corte y
+  la copia seguiría con el siguiente archivo.
+- Las versiones viejas ya apartadas no se apuntaban: `acciones versiones` no las
+  listaba. Ahora `Copiar.ejecutar` las apunta en un `finally`.
+- Lo copiado en ese paso no se guardaba para `acciones deshacer`. Ahora se guarda antes
+  de cortar y avisa: «Cortado a medias: 1 archivo copiado antes de cortar. Para deshacer
+  lo hecho: navaja acciones deshacer».
+- Sale con código 130, como cualquier programa cortado con Ctrl+C.
+- 349 tests pasando (4 nuevos en `test_acciones.py`).
+
+### 2026-11-12 — Barra de progreso: lo que vio el revisor
+
+- Colores del tema: el porcentaje y el reloj salían en magenta y amarillo (los de Rich).
+  Ahora el porcentaje lleva `pista` en su formato, el fondo de la barra `borde`, y el
+  reloj se pinta con `pista` mientras dura la barra (`console.use_theme`).
+- Nombres largos: se partían en varias líneas y la barra cambiaba de altura. Ahora el
+  nombre es la única columna que encoge (`ratio=1`, `expand=True`) y se corta con «…».
+  Con solo `no_wrap`, Rich apretaba las demás columnas y la cuenta salía como «2…».
+- Spinner de rayitas en la consola clásica de Windows (el de puntos es braille).
+- En Git Bash no sale la barra (Python no ve una terminal); apuntado en el README.
+- 350 tests pasando (1 nuevo: barra a 60 columnas con el tema pastel).
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.
@@ -538,6 +598,19 @@ Más claro:
 
 ## Pendientes / ideas
 
+- [ ] **Que se entienda la diferencia entre herramientas y acciones** (A hecha el 2026-11-12) (Sergio, 2026-11-10:
+  «no sé por qué unas opciones están del 1 al 7 y otras en acciones»). Del 1 al 7 son
+  herramientas que se usan al momento diciéndoles qué hacer; las acciones son recetas
+  guardadas en acciones.json para repetir con una palabra; 9-11, ajustes y ayuda. El
+  menú no lo enseña: son 11 opciones seguidas al mismo nivel. Ideas, de menos a más
+  trabajo:
+  - [x] **A. Agrupar el menú** en «Herramientas» (1-7), «Lo que repites» (acciones) y
+    «navaja» (tema, config, manual), con `rich_help_panel` para que `--help` salga igual.
+    Empezar por esta.
+  - **B. `navaja copia` suelto**: hoy copiar y mover solo existen como acciones, así que
+    para copiar una vez hay que crear una acción.
+  - **C. «Guardar como acción»** desde una orden (`navaja ordena tipo ~/Downloads --guardar
+    ordenar-descargas`), para pasar de herramienta a receta sin escribir el JSON a mano.
 - [x] Buscar duplicados por contenido.
 
 - [ ] `--json` en `ocupa` y `notas listar` para scripting.
@@ -568,6 +641,7 @@ Más claro:
     montar se copiaría al disco interno) ni distingue otro USB que coja la misma letra.
   - En `pc-a-usb` la versión vieja del USB va a la papelera de C: (lento; un archivo de
     solo lectura falla).
+- [x] Ctrl+C en mitad de una copia: temporal, versiones y deshacer.
 - [ ] `excluir` compara el nombre tal cual: en macOS un nombre con tildes en NFD no coincide
   con el del JSON (en NFC).
 - [x] Traza `UnicodeEncodeError` con `✔` o `→` en Git Bash o con la salida redirigida.

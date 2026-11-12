@@ -15,6 +15,7 @@ from rich.panel import Panel
 from rich.text import Text
 
 from ..comun import (
+    HERRAMIENTAS,
     AJUSTE,
     como_se_escribe,
     confirmar,
@@ -296,4 +297,4 @@ def registrar(app: typer.Typer) -> None:
     sub.command("abrir", help="Abre un enlace en el navegador o enseña (o cambia) una nota.")(abrir)
     sub.command("borrar", help="Borra una nota o enlace.")(borrar)
     sub.command("etiquetas", help="Lista las etiquetas existentes.")(etiquetas)
-    app.add_typer(sub, name="notas")
+    app.add_typer(sub, name="notas", rich_help_panel=HERRAMIENTAS)

@@ -4,8 +4,14 @@ from typer.testing import CliRunner
 
 from navaja import interactivo
 from navaja.app import app
-from navaja.comun import PALABRAS_VOLVER
-from navaja.comandos.ayuda import argumentos, opciones_visibles, subcomandos, todos
+from navaja.comun import HERRAMIENTAS, NAVAJA, PALABRAS_VOLVER, REPITES, SECCIONES
+from navaja.comandos.ayuda import (
+    argumentos,
+    opciones_visibles,
+    por_secciones,
+    subcomandos,
+    todos,
+)
 
 runner = CliRunner()
 RAIZ = typer.main.get_command(app)
@@ -77,6 +83,34 @@ def test_manual_de_algo_que_no_existe():
 
 def test_manual_va_el_ultimo_del_menu():
     assert subcomandos(RAIZ)[-1][0] == "manual"
+
+
+# ── Secciones del menú principal ───────────────────────────────────────────
+
+
+def test_cada_comando_tiene_su_seccion_y_no_se_reordena():
+    secciones = por_secciones(RAIZ)
+    assert [s for s, _ in secciones] == [HERRAMIENTAS, REPITES, NAVAJA]
+    assert all(s in SECCIONES for s, _ in secciones)
+    # Juntas, en el mismo orden que subcomandos: los números del menú no cambian
+    assert [n for _, cs in secciones for n, _ in cs] == [n for n, _ in subcomandos(RAIZ)]
+    assert [n for n, _ in secciones[1][1]] == ["acciones"]
+
+
+def test_un_submenu_no_tiene_secciones():
+    assert [s for s, _ in por_secciones(RAIZ.commands["acciones"])] == [""]
+
+
+def test_help_y_menu_ensenan_las_secciones(capsys):
+    texto = plano(runner.invoke(app, ["--help"]).output)
+    for seccion, explicacion in SECCIONES.items():
+        assert f"{seccion} — {explicacion}" in texto
+    assert texto.index("notas") < texto.index(REPITES) < texto.index("acciones")
+
+    interactivo.mostrar_menu(RAIZ, [])
+    menu = plano(capsys.readouterr().out)
+    assert "7 notas" in menu and "8 acciones" in menu and "11 manual" in menu
+    assert menu.index("7 notas") < menu.index(REPITES) < menu.index("8 acciones")
 
 
 # ── --help y errores en castellano ─────────────────────────────────────────

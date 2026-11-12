@@ -11,6 +11,7 @@ from rich.markup import escape
 from rich.theme import Theme
 
 from ..comun import (
+    NAVAJA,
     TEMAS,
     aplicar_tema,
     cargar_config,
@@ -208,7 +209,7 @@ def registrar(app: typer.Typer) -> None:
     tema = typer.Typer(help="Elige los colores de navaja.", no_args_is_help=True)
     tema.command("ver", help="Muestra los temas con una muestra de sus colores.")(ver)
     tema.command("elegir", help="Cambia los colores de navaja.")(elegir)
-    app.add_typer(tema, name="tema")
+    app.add_typer(tema, name="tema", rich_help_panel=NAVAJA)
 
     config = typer.Typer(
         help="Tu nombre para el saludo y dónde guarda navaja tus datos.", no_args_is_help=True
@@ -218,4 +219,4 @@ def registrar(app: typer.Typer) -> None:
     config.command(
         "autocompletar", help="Tab en PowerShell o bash: navaja ord⇥ → navaja ordena."
     )(autocompletar)
-    app.add_typer(config, name="config")
+    app.add_typer(config, name="config", rich_help_panel=NAVAJA)

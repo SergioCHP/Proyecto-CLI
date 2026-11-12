@@ -12,12 +12,23 @@ import stat
 import subprocess
 import sys
 import tempfile
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 
 from rich.console import Console
+from rich.markup import escape
+from rich.progress import (
+    BarColumn,
+    Progress,
+    SpinnerColumn,
+    TaskProgressColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
 from rich.prompt import Confirm, InvalidResponse
-from rich.table import Table
+from rich.table import Column, Table
 from rich.text import Text
 from rich.theme import Theme
 
@@ -75,6 +86,17 @@ que abres el menú te pregunta cómo quieres que te llame)."""
 AJUSTE = "Ajustes"
 """Panel de --help (``rich_help_panel``) de las opciones que el modo interactivo
 pregunta al elegir el comando por número, con Intro para dejar su valor."""
+
+HERRAMIENTAS = "Herramientas"
+REPITES = "Lo que repites"
+NAVAJA = "navaja"
+SECCIONES = {
+    HERRAMIENTAS: "Se usan al momento: les dices qué hacer y lo hacen.",
+    REPITES: "Recetas guardadas en acciones.json: se hacen con una palabra.",
+    NAVAJA: "Colores, tu nombre y el manual.",
+}
+"""Grupos de comandos del menú principal y de ``navaja --help``, con lo que los
+distingue. Cada comando dice el suyo con ``rich_help_panel`` al registrarse."""
 
 def preparar_salida(flujo: object, entorno: dict[str, str] | None = None) -> None:
     """Que escribir ✔, → o … nunca rompa navaja con una traza.
@@ -336,6 +358,70 @@ def crear_tabla(columnas: list[str], titulo: str | None = None) -> Table:
     for columna in columnas:
         tabla.add_column(columna, overflow="fold")
     return tabla
+
+
+def _peso(ruta: Path) -> int:
+    """Lo que cuenta un archivo en la barra: su tamaño (1 si está vacío o no se puede leer,
+    para que también avance)."""
+    try:
+        return max(ruta.stat().st_size, 1)
+    except OSError:
+        return 1
+
+
+@contextmanager
+def barra_de_archivos(rutas: list[Path]) -> Iterator[Callable[[Path], None]]:
+    """Barra de progreso para hacer algo con ``rutas``, una tras otra.
+
+    Da una función a la que se llama con cada ruta justo antes de empezar con ella:
+    enseña su nombre, «N de M» y el tiempo que lleva, y suma lo que pesaba la anterior.
+    El tiempo que queda no: con los primeros archivos pequeños sale disparatado.
+
+    Avanza por tamaño, no por número de archivos: un vídeo de 2 GB pesa más que un
+    .txt. Al terminar se borra (lo que queda en pantalla es el resumen), y fuera de
+    una terminal no sale (tampoco en Git Bash: Python no lo ve como terminal).
+
+    Todo con los colores del tema. Un nombre largo se corta con «…» para que la barra
+    sea siempre de una línea, y en la consola clásica de Windows el spinner es de rayitas
+    (el de puntos es braille y ahí puede salir como cuadraditos).
+    """
+    total = len(rutas)
+    pesos = {ruta: _peso(ruta) for ruta in rutas}
+    progreso = Progress(
+        SpinnerColumn("line" if console.legacy_windows else "dots", style="acento"),
+        TextColumn("[pista]{task.fields[cuenta]}[/]"),
+        BarColumn(
+            bar_width=24, style="borde", complete_style="acento", finished_style="ok",
+            pulse_style="pista",
+        ),
+        TaskProgressColumn(text_format="[pista]{task.percentage:>3.0f}%[/]"),
+        TimeElapsedColumn(),
+        # el nombre es lo único que encoge (ratio): lo demás no se aprieta ni se parte
+        TextColumn(
+            "{task.description}", table_column=Column(no_wrap=True, overflow="ellipsis", ratio=1)
+        ),
+        console=console,
+        expand=True,
+        transient=True,
+        disable=not console.is_terminal,
+    )
+    # Lo que Rich pinta con sus colores (el reloj), con los del tema
+    colores = Theme({"progress.elapsed": console.get_style("pista")})
+    tarea = progreso.add_task("", total=sum(pesos.values()), cuenta=f"0 de {total}")
+    empezados = 0
+    anterior = 0  # lo que pesa el archivo en curso: se suma al empezar el siguiente
+
+    def avance(ruta: Path) -> None:
+        nonlocal empezados, anterior
+        progreso.advance(tarea, anterior)
+        anterior = pesos.get(ruta, 1)
+        empezados += 1
+        progreso.update(
+            tarea, description=escape(ruta.name), cuenta=f"{empezados} de {total}"
+        )
+
+    with console.use_theme(colores), progreso:
+        yield avance
 
 
 def guardar_acciones(nombre: str, acciones: list[dict]) -> None:

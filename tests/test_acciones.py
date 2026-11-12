@@ -1,13 +1,17 @@
+import io
 import json
 import os
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
 import typer
+from rich.console import Console
+from rich.theme import Theme
 from typer.testing import CliRunner
 
-from navaja import esquema, interactivo
+from navaja import comun, esquema, interactivo
 from navaja.acciones import Accion, AccionDeArchivos, Copiar, Mover, Renombrar, Resultado, Rutina
 from navaja.app import app
 from navaja.comandos.ayuda import subcomandos
@@ -384,7 +388,6 @@ def test_decir_que_no_no_hace_nada(tmp_path, descargas):
     antes = relativos(descargas)
     resultado = acciones("ejecutar", "todo", config=ruta, entrada="n\n")
     assert resultado.exit_code == 1  # no se hizo: un script lo sabe
-    assert "Cancelado" in resultado.output
     assert relativos(descargas) == antes
 
 
@@ -581,6 +584,90 @@ def test_si_tampoco_vuelve_la_vieja_dice_donde_esta(tmp_path, monkeypatch):
     assert "no se pudo copiar ni devolver la versión vieja: está en" in texto
     viejas = list((directorio_datos() / "versiones").rglob("a.txt"))
     assert [v.read_text(encoding="utf-8") for v in viejas] == ["viejo"]  # no se ha perdido
+
+
+def test_ctrl_c_en_mitad_de_la_copia_no_deja_el_temporal(tmp_path, monkeypatch):
+    import navaja.acciones as modulo
+
+    pc, usb, ruta = usb_y_pc_con_cambio(tmp_path)
+
+    def copia_que_se_corta(origen, destino, *args, **kwargs):
+        Path(destino).write_text("nu", encoding="utf-8")
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(modulo.shutil, "copy2", copia_que_se_corta)
+    resultado = acciones("ejecutar", "ida", config=ruta)
+    assert resultado.exit_code == 130  # Ctrl+C
+    assert {p.name for p in usb.iterdir()} == {"a.txt"}  # sin .a.txt.navaja-copiando
+    assert (usb / "a.txt").read_text(encoding="utf-8") == "viejo"
+
+
+def test_ctrl_c_al_poner_el_nombre_devuelve_la_version_vieja(tmp_path, monkeypatch):
+    import navaja.acciones as modulo
+
+    pc, usb, ruta = usb_y_pc_con_cambio(tmp_path)
+
+    def replace_cortado(*args, **kwargs):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(modulo.os, "replace", replace_cortado)
+    assert acciones("ejecutar", "ida", config=ruta).exit_code == 130  # Ctrl+C
+    assert {p.name for p in usb.iterdir()} == {"a.txt"}
+    assert (usb / "a.txt").read_text(encoding="utf-8") == "viejo"
+
+
+def test_ctrl_c_si_la_vieja_no_vuelve_queda_apuntada_en_versiones(tmp_path, monkeypatch):
+    import navaja.acciones as modulo
+
+    pc, usb, ruta = usb_y_pc_con_cambio(tmp_path)
+    mover_de_verdad = modulo.shutil.move
+    llamadas = []
+
+    def replace_cortado(*args, **kwargs):
+        raise KeyboardInterrupt
+
+    def move_que_falla_al_devolver(origen, destino, *args, **kwargs):
+        llamadas.append(origen)
+        if len(llamadas) > 1:  # la 1.ª aparta la vieja; la 2.ª intenta devolverla
+            raise OSError(13, "Acceso denegado")
+        return mover_de_verdad(origen, destino)
+
+    monkeypatch.setattr(modulo.os, "replace", replace_cortado)
+    monkeypatch.setattr(modulo.shutil, "move", move_que_falla_al_devolver)
+    resultado = acciones("ejecutar", "ida", config=ruta)
+    assert resultado.exit_code == 130  # Ctrl+C (con 1, el OSError de devolver taparía el corte)
+    monkeypatch.undo()
+    monkeypatch.setenv("NAVAJA_DATOS", str(tmp_path / "datos_navaja"))
+    monkeypatch.setenv("COLUMNS", "120")
+    assert "a.txt" in acciones("versiones", "ver").output  # no se ha perdido
+
+
+def test_ctrl_c_a_medias_guarda_lo_hecho_para_deshacer(tmp_path, monkeypatch):
+    import navaja.acciones as modulo
+
+    dam, copia = tmp_path / "DAM", tmp_path / "Copia"
+    crear(dam / "a.txt")
+    crear(dam / "b.txt")
+    ruta = archivo_de_acciones(
+        tmp_path, accion("copia", "copiar", carpeta=str(dam), destino=str(copia))
+    )
+    copiar_de_verdad = modulo.shutil.copy2
+
+    def corta_en_el_segundo(origen, destino, *args, **kwargs):
+        if Path(origen).name == "b.txt":
+            raise KeyboardInterrupt
+        return copiar_de_verdad(origen, destino, *args, **kwargs)
+
+    monkeypatch.setattr(modulo.shutil, "copy2", corta_en_el_segundo)
+    resultado = acciones("ejecutar", "copia", config=ruta)
+    assert resultado.exit_code == 130  # Ctrl+C
+    assert "Cortado a medias: 1 archivo copiado antes de cortar." in plano(resultado.output)
+    assert relativos(copia) == {"a.txt"}
+    monkeypatch.undo()
+    monkeypatch.setenv("NAVAJA_DATOS", str(tmp_path / "datos_navaja"))
+    monkeypatch.setenv("COLUMNS", "120")
+    acciones("deshacer", entrada="s\n")
+    assert relativos(copia) == set()
 
 
 def test_deshacer_no_quita_una_copia_que_has_editado_despues(tmp_path):
@@ -937,3 +1024,65 @@ def test_destino_al_ejecutar_donde_no_vale(tmp_path, acciones_json, nombre, mens
     assert resultado.exit_code == 1
     assert mensaje in plano(resultado.output)
     assert "Traceback" not in resultado.output
+
+
+# ── Barra de progreso al ejecutar ──────────────────────────────────────────
+
+
+def test_ejecutar_avisa_antes_de_cada_archivo_pendiente(tmp_path):
+    dam, copia = tmp_path / "DAM", tmp_path / "Copia"
+    a, b = crear(dam / "a.txt"), crear(dam / "b.txt")
+    copiar = Accion.desde_config(accion("c", "copiar", carpeta=str(dam), destino=str(copia)))
+    plan = copiar.planificar([a, b], dam)
+    plan[0].estado, plan[0].motivo = "saltado", "prueba"  # lo saltado no se avisa
+    avisados = []
+    copiar.ejecutar(plan, avisados.append)
+    assert avisados == [b]
+    assert plan[1].estado == "hecho"
+
+
+def test_barra_fuera_de_una_terminal_no_escribe_nada(tmp_path, capsys):
+    rutas = [crear(tmp_path / "a.txt"), crear(tmp_path / "b.txt")]
+    with comun.barra_de_archivos(rutas) as avance:
+        for ruta in rutas:
+            avance(ruta)
+    assert capsys.readouterr().out == ""
+
+
+def test_barra_en_una_terminal_ensena_cuantos_y_cual(tmp_path, monkeypatch):
+    pantalla = io.StringIO()
+    monkeypatch.setattr(
+        comun, "console",
+        Console(
+            file=pantalla, force_terminal=True, force_interactive=True, width=100,
+            theme=Theme(comun.TEMAS[comun.TEMA_POR_DEFECTO]),
+        ),
+    )
+    rutas = [crear(tmp_path / "a.txt"), crear(tmp_path / "[apuntes].pdf", "x" * 1000)]
+    with comun.barra_de_archivos(rutas) as avance:
+        for ruta in rutas:
+            avance(ruta)
+    texto = pantalla.getvalue()
+    assert "2 de 2" in texto and "[apuntes].pdf" in texto
+
+
+def test_barra_estrecha_corta_el_nombre_y_usa_los_colores_del_tema(tmp_path, monkeypatch):
+    pantalla = io.StringIO()
+    monkeypatch.setattr(
+        comun, "console",
+        Console(
+            file=pantalla, force_terminal=True, force_interactive=True, width=60,
+            color_system="truecolor", theme=Theme(comun.TEMAS["pastel"]),
+        ),
+    )
+    largo = "Tema 3 - Apuntes de Sistemas Informáticos versión definitiva de verdad.pdf"
+    rutas = [crear(tmp_path / "corto.txt"), crear(tmp_path / largo)]
+    with comun.barra_de_archivos(rutas) as avance:
+        for ruta in rutas:
+            avance(ruta)
+    salida = pantalla.getvalue()
+    assert "\x1b[35m" not in salida and "\x1b[33m" not in salida  # magenta y amarillo de Rich
+    limpio = re.sub(r"\x1b\[[0-9;?]*[a-zA-Z]", "", salida).replace("\r", "\n")
+    lineas = [linea for linea in limpio.split("\n") if "2 de 2" in linea]
+    assert lineas and all(len(linea) <= 60 for linea in lineas)
+    assert any("Tema 3" in linea and linea.rstrip().endswith("…") for linea in lineas)

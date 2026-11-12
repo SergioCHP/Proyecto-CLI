@@ -8,7 +8,7 @@ from pathlib import Path
 import typer
 from rich.markup import escape
 
-from ..comun import console, crear_tabla, cuantos, error_console, es_oculto, tamano_legible
+from ..comun import HERRAMIENTAS, console, crear_tabla, cuantos, error_console, es_oculto, tamano_legible
 from ..filtros import sin_tildes
 
 
@@ -77,4 +77,6 @@ def listar(
 
 
 def registrar(app: typer.Typer) -> None:
-    app.command("listar", help="Muestra qué hay en una carpeta.")(listar)
+    app.command(
+        "listar", help="Muestra qué hay en una carpeta.", rich_help_panel=HERRAMIENTAS
+    )(listar)

@@ -29,7 +29,9 @@ from ..acciones import (
     relativa,
 )
 from ..comun import (
+    REPITES,
     abrir_en_editor,
+    barra_de_archivos,
     bonita,
     cargar_acciones,
     carpeta_papelera,
@@ -321,7 +323,20 @@ def ejecutar(
             cancelado = True
             break
 
-        paso.ejecutar(plan)
+        try:
+            with barra_de_archivos([r.origen for r in plan if r.estado == "pendiente"]) as avance:
+                paso.ejecutar(plan, avance)
+        except KeyboardInterrupt:  # Ctrl+C a medias: lo ya hecho se puede deshacer
+            hechos = [r for r in plan if r.estado == "hecho"]
+            para_deshacer += [paso.para_deshacer(r) for r in hechos]
+            if para_deshacer:
+                guardar_acciones("acciones", para_deshacer)
+                detalle = f": {paso.hecho(len(hechos))} antes de cortar" if hechos else ""
+                console.print(
+                    f"[aviso]Cortado a medias{detalle}.[/] "
+                    f"[pista]Para deshacer lo hecho: {como_se_escribe('acciones deshacer')}[/]"
+                )
+            raise
         hechos = [r for r in plan if r.estado == "hecho"]
         malos = [r for r in plan if r.estado == "fallo"]
         for resultado in malos:
@@ -507,4 +522,4 @@ def registrar(app: typer.Typer) -> None:
     versiones.registrar_en(sub)
     sub.command("editar", help="Abre acciones.json en tu editor y lo comprueba al cerrar.")(editar)
     sub.command("validar", help="Comprueba que acciones.json está bien escrito, sin tocar nada.")(validar)
-    app.add_typer(sub, name="acciones")
+    app.add_typer(sub, name="acciones", rich_help_panel=REPITES)

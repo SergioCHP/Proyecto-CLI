@@ -17,6 +17,7 @@ from rich.markup import escape
 from rich.panel import Panel
 
 from ..comun import (
+    HERRAMIENTAS,
     AJUSTE,
     cargar_acciones,
     carpeta_papelera,
@@ -480,4 +481,4 @@ def registrar(app: typer.Typer) -> None:
         restaurar
     )
     sub.command("vaciar", help="Borra para siempre la papelera de navaja.")(vaciar)
-    app.add_typer(sub, name="duplicados")
+    app.add_typer(sub, name="duplicados", rich_help_panel=HERRAMIENTAS)

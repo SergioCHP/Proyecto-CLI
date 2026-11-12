@@ -69,6 +69,11 @@ Escribe `navaja` sin nada más y entras en navaja: sale un menú numerado y se
 queda esperando órdenes hasta que escribas `salir`. Trabaja en la carpeta desde
 la que entras, que se ve siempre en el prompt.
 
+El menú (y `navaja --help`) va en tres grupos. Las **herramientas** (1-7) se usan al
+momento: les dices qué hacer y lo hacen. **Lo que repites** son tus acciones: recetas
+guardadas en `acciones.json` que se hacen con una palabra (`acciones ejecutar
+usb-a-pc`). Y **navaja**: colores, tu nombre y el manual.
+
 ```text
 PS C:\Users\sergi\Descargas> navaja
 ¡Hola! Es la primera vez que abres navaja.         ← solo la primera vez
@@ -76,10 +81,15 @@ PS C:\Users\sergi\Descargas> navaja
 ╭────────── navaja ───────────╮
 │ Buenos días, Sergio         │
 ╰─────────────────────────────╯
-1  listar      Muestra qué hay en una carpeta.
-2  ocupa       Muestra qué ocupa espacio en disco.
-…
-0  salir
+Herramientas — Se usan al momento: les dices qué hacer y lo hacen.
+ 1  listar      Muestra qué hay en una carpeta.
+ 2  ocupa       Muestra qué ocupa espacio en disco.
+ …
+Lo que repites — Recetas guardadas en acciones.json: se hacen con una palabra.
+ 8  acciones    Tus acciones guardadas en acciones.json: verlas, comprobarlas y…
+navaja — Colores, tu nombre y el manual.
+ 9  tema        …
+ 0  salir
 
 Descargas> 2                       ← un número: lo ejecuta aquí mismo
 …
@@ -138,6 +148,12 @@ navaja acciones deshacer                             # deja todo como estaba
 navaja acciones validar                              # comprueba el archivo sin hacer nada
 navaja acciones editar                               # lo abre en el Bloc de notas y lo comprueba al cerrar
 ```
+
+Mientras hace una acción sale una barra con el archivo por el que va, cuántos lleva
+(«23 de 140»), el porcentaje y el tiempo. Avanza por tamaño, así que en una copia al
+USB un vídeo grande cuenta más que un .txt. Al terminar se borra y queda el resumen.
+En Git Bash no sale (Python no lo ve como una terminal): la acción se hace igual, solo
+que sin barra. En PowerShell y Windows Terminal sí.
 
 navaja usa el `acciones.json` de la carpeta en la que estás y, si no hay, el de tus datos
 (`%LOCALAPPDATA%\navaja\acciones.json` en Windows). Con `--config RUTA` usa otro, escrito

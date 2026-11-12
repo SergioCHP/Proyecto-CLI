@@ -21,7 +21,9 @@ from .comandos.ayuda import (
     ayuda_corta,
     es_grupo,
     opciones_visibles,
+    por_secciones,
     resolver,
+    titulo_seccion,
     valor_texto,
 )
 from .comandos.ayuda import subcomandos as opciones_de
@@ -136,14 +138,37 @@ def texto_prompt(camino: list[str]) -> str:
 
 
 def mostrar_menu(grupo: Any, camino: list[str]) -> None:
-    tabla = Table.grid(padding=(0, 2))
-    tabla.add_column(style="acento", justify="right")
-    tabla.add_column(style="bold", no_wrap=True)
-    tabla.add_column(style="pista")
-    for numero, (nombre, comando) in enumerate(opciones_de(grupo), start=1):
-        tabla.add_row(str(numero), nombre, escape(comando.get_short_help_str(70)))
-    tabla.add_row("0", "volver" if camino else "salir", "")
-    console.print(tabla)
+    """Las opciones numeradas; en el menú principal, con el título de cada sección.
+
+    Una tabla por sección con las columnas igual de anchas en todas, para que los
+    números y los nombres queden alineados de arriba abajo.
+    """
+    secciones = por_secciones(grupo)
+    opciones = [opcion for _, comandos in secciones for opcion in comandos]
+    ancho_numero = len(str(len(opciones)))
+    ancho_nombre = max([len(n) for n, _ in opciones] + [len("volver")])
+
+    def tabla_nueva() -> Table:
+        tabla = Table.grid(padding=(0, 2))
+        tabla.add_column(style="acento", justify="right", min_width=ancho_numero)
+        tabla.add_column(style="bold", no_wrap=True, min_width=ancho_nombre)
+        tabla.add_column(style="pista")
+        return tabla
+
+    numero = 0
+    for posicion, (seccion_, comandos) in enumerate(secciones):
+        if seccion_:
+            console.print(("\n" if posicion else "") + titulo_seccion(seccion_))
+        tabla = tabla_nueva()
+        for nombre, comando in comandos:
+            numero += 1
+            tabla.add_row(str(numero), nombre, escape(comando.get_short_help_str(70)))
+        console.print(tabla)
+    final = tabla_nueva()
+    final.add_row("0", "volver" if camino else "salir", "")
+    if any(seccion_ for seccion_, _ in secciones):
+        console.print()
+    console.print(final)
     if camino:
         console.print(
             "[acento]ayuda[/][pista] explica estas opciones · Intro o [/][acento]0[/]"

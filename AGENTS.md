@@ -20,7 +20,6 @@ Reglas de `acciones.json`: la skill `acciones-json`.
   `--config pruebas/acciones-prueba.json` y `--simular`. Las acciones sin `--simular`
   las ejecuta Sergio, no el agente.
 - No tocar `.env` ni escribir claves en ningún archivo.
-- No hacer `git push` ni commits: los hace Sergio. Como mucho, proponer el mensaje.
 - Antes de cambiar un archivo, explicar en 2-3 líneas qué se va a hacer.
 - Errores previsibles: `NavajaError` / `ConfigError` / `AccionNoValida` con mensaje en
   castellano; nunca una traza de Python.

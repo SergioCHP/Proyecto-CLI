@@ -12,6 +12,7 @@ from rich.markup import escape
 from rich.panel import Panel
 
 from ..comun import (
+    HERRAMIENTAS,
     confirmar,
     console,
     crear_tabla,
@@ -322,5 +323,9 @@ def limpia(
 
 
 def registrar(app: typer.Typer) -> None:
-    app.command("ocupa", help="Muestra qué ocupa espacio en disco.")(ocupa)
-    app.command("limpia", help="Borra cachés y archivos temporales.")(limpia)
+    app.command(
+        "ocupa", help="Muestra qué ocupa espacio en disco.", rich_help_panel=HERRAMIENTAS
+    )(ocupa)
+    app.command(
+        "limpia", help="Borra cachés y archivos temporales.", rich_help_panel=HERRAMIENTAS
+    )(limpia)

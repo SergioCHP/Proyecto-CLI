@@ -11,7 +11,6 @@ import typer
 from rich.markup import escape
 from typer.completion import completion_init
 from rich.panel import Panel
-from rich.table import Table
 
 from . import __version__, interactivo
 from .comandos import (
@@ -70,12 +69,7 @@ def _mostrar_cabecera(config: dict[str, str]) -> None:
 
 def _mostrar_bienvenida(config: dict[str, str]) -> None:
     _mostrar_cabecera(config)
-    tabla = Table.grid(padding=(0, 2))
-    tabla.add_column(style="acento", no_wrap=True)
-    tabla.add_column()
-    for nombre, texto in resumen_comandos(app):
-        tabla.add_row(nombre, texto)
-    console.print(tabla)
+    console.print(ayuda.tabla_secciones(typer.main.get_command(app)))
     console.print(
         "\n[pista]Ayuda de un comando: navaja <comando> --help · Todo explicado: navaja manual[/]"
     )

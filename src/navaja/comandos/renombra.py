@@ -18,6 +18,7 @@ from rich.markup import escape
 from rich.panel import Panel
 
 from ..comun import (
+    HERRAMIENTAS,
     AJUSTE,
     cargar_acciones,
     confirmar,
@@ -580,4 +581,4 @@ def registrar(app: typer.Typer) -> None:
     sub.command("plantilla", help="Tú decides el formato con huecos ({fecha}_{n:03}{ext}).")(plantilla)
     sub.command("avanzado", help="Con expresiones regulares, para casos difíciles.")(avanzado)
     sub.command("deshacer", help="Deja los nombres como estaban antes del último renombrado.")(deshacer)
-    app.add_typer(sub, name="renombra")
+    app.add_typer(sub, name="renombra", rich_help_panel=HERRAMIENTAS)

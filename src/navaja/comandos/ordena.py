@@ -19,6 +19,7 @@ from rich.markup import escape
 from rich.panel import Panel
 
 from ..comun import (
+    HERRAMIENTAS,
     AJUSTE,
     cargar_acciones,
     confirmar,
@@ -454,4 +455,4 @@ def registrar(app: typer.Typer) -> None:
     sub.command("letra", help="Por letra: una carpeta por inicial (A, B… y 0-9 para números).")(letra)
     sub.command("tipos", help="Qué extensiones van a cada carpeta de tipo.")(tipos)
     sub.command("deshacer", help="Devuelve a su sitio lo último que ordenaste.")(deshacer)
-    app.add_typer(sub, name="ordena")
+    app.add_typer(sub, name="ordena", rich_help_panel=HERRAMIENTAS)

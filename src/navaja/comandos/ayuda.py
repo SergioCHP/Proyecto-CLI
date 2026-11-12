@@ -15,12 +15,13 @@ from pathlib import Path
 from typing import Any
 
 import typer
+from rich.console import Group
 from rich.markup import escape
 from rich.padding import Padding
 from rich.table import Table
 
 from .. import __version__
-from ..comun import TEMAS, console, directorio_datos, error_console
+from ..comun import NAVAJA, SECCIONES, TEMAS, console, directorio_datos, error_console
 from .ocupa import BASURA_ARCHIVOS, BASURA_DIRS, BASURA_EN_PROYECTOS, BASURA_PATRONES
 from ..filtros import EJEMPLOS_FECHA, NOMBRES
 
@@ -46,6 +47,49 @@ def subcomandos(grupo: Any) -> list[tuple[str, Any]]:
     ]
     nombres.sort(key=lambda n: n == "manual")
     return [(n, grupo.commands[n]) for n in nombres]
+
+
+def por_secciones(grupo: Any) -> list[tuple[str, list[tuple[str, Any]]]]:
+    """Los ``subcomandos`` repartidos por su sección (``rich_help_panel``).
+
+    Se corta cada vez que cambia la sección, sin reordenar nada: así el número de cada
+    comando en el menú sigue siendo su posición en ``subcomandos``. Los comandos sin
+    sección (los de un submenú) van en una sin título: «».
+    """
+    secciones: list[tuple[str, list[tuple[str, Any]]]] = []
+    for nombre, comando in subcomandos(grupo):
+        seccion_ = getattr(comando, "rich_help_panel", None) or ""
+        if not secciones or secciones[-1][0] != seccion_:
+            secciones.append((seccion_, []))
+        secciones[-1][1].append((nombre, comando))
+    return secciones
+
+
+def titulo_seccion(seccion_: str) -> str:
+    """«Herramientas — Se usan al momento…», con markup."""
+    texto = SECCIONES.get(seccion_, "")
+    return f"[titulo]{escape(seccion_)}[/]" + (f" [pista]— {escape(texto)}[/]" if texto else "")
+
+
+def tabla_secciones(grupo: Any, ancho: int = 90) -> Group:
+    """Nombre y ayuda corta de cada comando, con el título de cada sección encima.
+
+    Una tabla por sección, todas con la primera columna igual de ancha para que las
+    ayudas queden alineadas.
+    """
+    secciones = por_secciones(grupo)
+    columna = max((len(n) for _, comandos in secciones for n, _ in comandos), default=0)
+    partes: list[Any] = []
+    for posicion, (seccion_, comandos) in enumerate(secciones):
+        if seccion_:
+            partes.append(("\n" if posicion else "") + titulo_seccion(seccion_))
+        tabla = Table.grid(padding=(0, 2))
+        tabla.add_column(style="acento", no_wrap=True, min_width=columna)
+        tabla.add_column()
+        for nombre, comando in comandos:
+            tabla.add_row(nombre, escape(comando.get_short_help_str(ancho)))
+        partes.append(Padding(tabla, (0, 0, 0, 2)) if seccion_ else tabla)
+    return Group(*partes)
 
 
 def argumentos(comando: Any) -> list[Any]:
@@ -736,7 +780,9 @@ def manual_cmd(
 
 def registrar(app: typer.Typer) -> None:
     app.command(
-        "manual", help="El manual completo: cómo se usa todo navaja, con opciones y atajos."
+        "manual",
+        help="El manual completo: cómo se usa todo navaja, con opciones y atajos.",
+        rich_help_panel=NAVAJA,
     )(manual_cmd)
 
 
@@ -765,12 +811,7 @@ def ayuda_terminal(obj: Any, ctx: Any, markup_mode: Any = None) -> None:
             "Uso: [acento]navaja[/] abre el menú · [acento]navaja <comando> \\[opciones][/] "
             "hace una cosa y vuelve a la terminal\n"
         )
-        tabla = Table.grid(padding=(0, 2))
-        tabla.add_column(style="acento", no_wrap=True)
-        tabla.add_column()
-        for nombre, comando in subcomandos(obj):
-            tabla.add_row(nombre, escape(comando.get_short_help_str(90)))
-        console.print(tabla)
+        console.print(tabla_secciones(obj))
         console.print(
             "\n[pista]Ayuda de un comando: navaja ocupa --help · Todo explicado: navaja manual "
             "· Versión: navaja --version[/]"

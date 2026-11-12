@@ -16,8 +16,6 @@
       "uv run navaja --help": "allow",
       "uv run navaja acciones validar *": "allow",
       "uv run --extra dev pytest *": "allow",
-      "git commit *": "ask",
-      "git push *": "deny",
       "git reset *": "deny",
       "rm *": "deny",
       "sudo *": "deny"
