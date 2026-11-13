@@ -1,9 +1,19 @@
+import os
 from pathlib import Path
 
+import pytest
+from rich.cells import cell_len
 from typer.testing import CliRunner
 
+from navaja import comun
 from navaja.app import app
-from navaja.comandos.ocupa import _buscar_basura, _recolectar, _tamano_ruta
+from navaja.comandos.ocupa import (
+    BARRA_MAXIMA,
+    _buscar_basura,
+    _recolectar,
+    _tamano_ruta,
+    columnas_que_caben,
+)
 
 runner = CliRunner()
 
@@ -67,3 +77,41 @@ def test_limpia_simular_no_borra(tmp_path):
     assert resultado.exit_code == 0, resultado.output
     assert "caché de Python" in resultado.output and "Simulación" in resultado.output
     assert (tmp_path / "__pycache__" / "x.pyc").exists()
+
+
+def test_columnas_que_caben_segun_el_ancho():
+    assert columnas_que_caben(200, 6, 8) == (BARRA_MAXIMA, True)
+    barra, con_archivos = columnas_que_caben(60, 6, 8)
+    assert 6 <= barra < BARRA_MAXIMA and con_archivos  # barra más corta
+    assert columnas_que_caben(48, 6, 8) == (0, True)  # sin barra, solo el porcentaje
+    assert columnas_que_caben(36, 6, 8) == (0, False)  # y sin «Archivos»
+    # la ruta larga se queda con el sitio de la barra antes que partirse
+    assert columnas_que_caben(80, 6, 8, 30)[0] < columnas_que_caben(80, 6, 8, 10)[0]
+
+
+@pytest.mark.parametrize("ancho", [36, 44, 60, 80, 120])
+def test_ocupa_cabe_en_la_ventana_sin_cortar_nada(tmp_path, monkeypatch, ancho):
+    (tmp_path / "Apuntes" / "Tema1").mkdir(parents=True)
+    (tmp_path / "Apuntes" / "Tema1" / "a.txt").write_text("x" * 300, encoding="utf-8")
+    (tmp_path / "foto.jpg").write_text("y" * 100, encoding="utf-8")
+    monkeypatch.setattr(comun.console, "_width", ancho)
+    resultado = runner.invoke(app, ["ocupa", str(tmp_path), "-p", "2"])
+    assert resultado.exit_code == 0, resultado.output
+    lineas = resultado.output.splitlines()
+    assert all(cell_len(linea) <= ancho for linea in lineas)
+    assert sum(linea.startswith("┌") or linea.startswith("╭") for linea in lineas) == 1  # un recuadro
+    # en una ventana estrecha una ruta puede seguir en la línea de abajo, pero entera
+    seguido = "".join(resultado.output.replace("│", "").split())
+    for ruta in ("Apuntes/", f"Apuntes{os.sep}Tema1/", "foto.jpg"):
+        assert ruta in seguido
+    if ancho >= 60:  # con sitio, cada ruta en su fila, sin partir
+        assert f"Apuntes{os.sep}Tema1/" in resultado.output
+
+
+def test_ocupa_carpeta_vacia(tmp_path, monkeypatch):
+    vacia = tmp_path / "vacia"
+    vacia.mkdir()
+    monkeypatch.setattr(comun.console, "_width", 80)
+    resultado = runner.invoke(app, ["ocupa", str(vacia)])
+    assert resultado.exit_code == 0, resultado.output
+    assert "Uso de disco" in resultado.output and "vacía" in resultado.output

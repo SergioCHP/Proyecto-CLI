@@ -698,6 +698,32 @@ cosas mal:
   - `NAVAJA_SIN_ICONOS=1` quita los iconos.
   - Tests con ancho fijo y consola sin color.
 - 394 tests pasando.
+
+### 2026-11-13 — `ocupa` en un solo recuadro que cabe en la ventana
+
+- Antes, «Uso de disco» ocupaba todo el ancho y la tabla iba en otro cuadro aparte; en
+  una ventana estrecha las cabeceras se partían («Tamañ / o») y la barra ocupaba 4 líneas.
+- Ahora un solo recuadro que mide lo que su contenido: carpeta, lo que ocupa y lo libre
+  arriba, y la tabla dentro, sin borde propio. El porcentaje va detrás de la barra.
+- `columnas_que_caben()`: se guarda sitio para la ruta más larga (de 12 a 30 columnas);
+  la barra se acorta para que quepa, se quita si quedan menos de 6 y, si aun así falta,
+  se quita «Archivos» (el total ya sale arriba). Tamaños y números no se parten nunca;
+  solo una ruta que no cabe sigue en la línea de abajo, entera.
+- Tests con anchos de 36 a 120.
+- `listar` con el mismo formato: recuadro «Contenido» con la carpeta y lo que tiene
+  (carpetas, archivos y lo que suman) arriba, y la tabla dentro. Si falta sitio se quita
+  «Tipo» (la extensión ya está en el nombre), luego la hora y, si el nombre ya tiene solo
+  16 columnas, la fecha. Nombre y tamaño siempre.
+- Las piezas comunes en `comun.py`: `recuadro()`, `resumen()`, `tabla_ligera()` y las
+  medidas `MARCO` y `HUECO` para calcular qué columnas caben.
+- Revisión del revisor:
+  - `listar` ya no saca una traza con una fecha de antes de 1970 en Windows (sale «—»).
+  - La extensión va con `escape()` (`informe.[b]` perdía el «[b]»).
+  - Una carpeta con solo ocultos dice «No hay nada visible: N ocultos» en vez de «vacía».
+  - En `ocupa -p 2` las rutas van sin sangría: si una se parte, la línea de abajo se lee
+    igual.
+  - Con la salida a un archivo sin UTF-8, la barra sale con `#` y `-`.
+- 409 tests pasando.
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.
@@ -789,6 +815,11 @@ cosas mal:
 - [ ] Que el agente no pueda ejecutar acciones en ningún caso (ahora pide permiso).
 - [ ] Con `COLUMNS=40`, `test_help_de_un_comando_en_castellano` falla (el `--help` se parte
   en líneas estrechas). Ya pasaba antes del menú nuevo.
+- [ ] Un nombre con un emoji de dos partes (❤️, con U+FE0F) mide 1 columna para Rich y 2 en
+  Windows Terminal: en `listar` y `ocupa` esa fila descoloca el borde derecho. Es un límite
+  de Rich; se podría dejar una columna de margen.
+- [ ] La barra de `ocupa` con `#` y `-` (salida sin UTF-8) no se ha probado a mano: desde Git
+  Bash navaja siempre escribe en UTF-8.
 - [ ] Linter/formateador (ruff) y CI (GitHub Actions).
 - [ ] Empaquetado y publicación (pipx / PyPI).
 

@@ -8,16 +8,22 @@ import shutil
 from pathlib import Path
 
 import typer
+from rich.cells import cell_len
 from rich.markup import escape
-from rich.panel import Panel
+from rich.text import Text
 
 from ..comun import (
     HERRAMIENTAS,
+    HUECO,
+    MARCO,
     confirmar,
     console,
     crear_tabla,
     cuantos,
     error_console,
+    recuadro,
+    resumen,
+    tabla_ligera,
     tamano_legible,
 )
 
@@ -133,10 +139,45 @@ def _medir(ruta: Path, profundidad: int, nivel: int) -> tuple[list[tuple], int, 
     return resultado, total, num_total
 
 
-def _barra(porcentaje: float, ancho: int = 18) -> str:
+BARRA_MAXIMA = 18
+"""Lo más larga que se hace la barra de «Uso»; en una ventana estrecha se acorta."""
+
+
+def _barra(porcentaje: float, ancho: int = BARRA_MAXIMA) -> str:
+    """La barra de uso con el porcentaje detrás (sin barra si ``ancho`` es 0)."""
+    numero = f"{porcentaje:5.1f}%"
+    if ancho <= 0:
+        return numero
     llenos = round(max(0.0, min(100.0, porcentaje)) / 100 * ancho)
     estilo = "ok" if porcentaje < 60 else "aviso" if porcentaje < 85 else "error"
-    return f"[{estilo}]{'━' * llenos}[/][borde]{'━' * (ancho - llenos)}[/]"
+    # con la salida a un archivo en Windows (cp1252) «━» saldría «?»: allí, # y -
+    lleno, vacio = ("#", "-") if console.options.ascii_only else ("━", "━")
+    return f"[{estilo}]{lleno * llenos}[/][borde]{vacio * (ancho - llenos)}[/] {numero}"
+
+
+RUTA_MINIMA = 12
+RUTA_MAXIMA = 30
+"""Lo que se guarda para la ruta antes de dar sitio a la barra o a «Archivos»: lo que
+mide la más larga, entre 12 y 30 columnas. Una ruta más larga se parte en líneas."""
+
+
+def columnas_que_caben(
+    ancho_consola: int, ancho_tamano: int, ancho_archivos: int, ancho_ruta: int = 0
+) -> tuple[int, bool]:
+    """Cuánta barra cabe y si cabe la columna «Archivos», sin que la tabla parta nada.
+
+    Cuenta el recuadro (``MARCO``), los huecos entre columnas (``HUECO``), el tamaño,
+    « 56.6%» y la ruta más larga (entre ``RUTA_MINIMA`` y ``RUTA_MAXIMA``). Primero se
+    quita la barra (si quedan menos de 6) y, si aun así no cabe, «Archivos»: el total ya
+    sale arriba.
+    """
+    ruta = max(RUTA_MINIMA, min(ancho_ruta, RUTA_MAXIMA))
+    fijo = MARCO + ancho_tamano + HUECO + 6 + HUECO + ruta
+    con_archivos = ancho_consola >= fijo + HUECO + ancho_archivos
+    if con_archivos:
+        fijo += HUECO + ancho_archivos
+    sitio = ancho_consola - fijo - 1  # el espacio entre la barra y el porcentaje
+    return (min(BARRA_MAXIMA, sitio) if sitio >= 6 else 0), con_archivos
 
 
 def ocupa(
@@ -169,35 +210,45 @@ def ocupa(
         entradas, total, num_archivos = _medir(ruta, profundidad, 0)
     libre = shutil.disk_usage(ruta).free
 
-    resumen = (
-        f"[bold]{escape(str(ruta.resolve()))}[/]\n"
-        f"Tamaño: [titulo]{tamano_legible(total)}[/]  ·  "
-        f"Archivos: [bold]{num_archivos:,}[/]  ·  "
-        f"Libre en el disco: [logro]{tamano_legible(libre)}[/]"
+    datos = resumen(
+        [
+            ("Carpeta", f"[bold]{escape(str(ruta.resolve()))}[/]"),
+            ("Ocupa", f"[titulo]{tamano_legible(total)}[/] en {cuantos(num_archivos, 'archivo')}"),
+            ("Libre", f"[logro]{tamano_legible(libre)}[/] en el disco"),
+        ]
     )
-    console.print(Panel(resumen, title="Uso de disco", border_style="marco"))
-
-    if not entradas:
-        console.print("[aviso]La carpeta está vacía.[/]")
-        return
 
     entradas.sort(key=lambda item: item[1], reverse=True)
     visibles = entradas[:mayores]
-
-    tabla = crear_tabla(["Tamaño", "%", "Uso", "Archivos", "Ruta"])
-    for ruta_entrada, tam, num, nivel, es_dir in visibles:
-        porcentaje = (tam / total * 100) if total else 0.0
-        nombre = os.path.relpath(ruta_entrada, ruta)
-        sangria = "  " * nivel
-        etiqueta = escape(f"{sangria}{nombre}{'/' if es_dir else ''}")
-        tabla.add_row(
-            tamano_legible(tam),
-            f"{porcentaje:5.1f}%",
-            _barra(porcentaje),
-            f"{num:,}",
-            etiqueta,
+    if visibles:
+        filas = []
+        for ruta_entrada, tam, num, _nivel, es_dir in visibles:
+            porcentaje = (tam / total * 100) if total else 0.0
+            # la ruta desde la carpeta, sin sangría: si no cabe y sigue en la línea de
+            # abajo, se lee igual (con sangría, la segunda línea perdería el escalón)
+            nombre = os.path.relpath(ruta_entrada, ruta)
+            etiqueta = f"{nombre}{'/' if es_dir else ''}"
+            filas.append((tamano_legible(tam), porcentaje, f"{num:,}", etiqueta))
+        ancho_tamano = max(len("Tamaño"), *(cell_len(f[0]) for f in filas))
+        ancho_archivos = max(len("Archivos"), *(cell_len(f[2]) for f in filas))
+        ancho_ruta = max(cell_len(f[3]) for f in filas)
+        barra, con_archivos = columnas_que_caben(
+            console.width, ancho_tamano, ancho_archivos, ancho_ruta
         )
-    console.print(tabla)
+
+        tabla = tabla_ligera()
+        tabla.add_column("Tamaño", justify="right", no_wrap=True)
+        tabla.add_column("Uso", no_wrap=True)
+        if con_archivos:
+            tabla.add_column("Archivos", justify="right", no_wrap=True)
+        tabla.add_column("Ruta", overflow="fold")
+        for tam_texto, porcentaje, num_texto, etiqueta in filas:
+            celdas = [tam_texto, _barra(porcentaje, barra)]
+            celdas += [num_texto] if con_archivos else []
+            tabla.add_row(*celdas, escape(etiqueta))
+        console.print(recuadro("Uso de disco", datos, tabla))
+    else:
+        console.print(recuadro("Uso de disco", datos, Text("La carpeta está vacía.", style="aviso")))
 
     if len(entradas) > len(visibles):
         console.print(

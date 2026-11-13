@@ -18,8 +18,10 @@ from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 
-from rich.console import Console
+from rich import box
+from rich.console import Console, Group, RenderableType
 from rich.markup import escape
+from rich.panel import Panel
 from rich.progress import (
     BarColumn,
     Progress,
@@ -364,6 +366,59 @@ def iterar_archivos(
             except OSError:
                 continue
     return encontrados
+
+
+MARCO = 4
+"""Columnas que se come un ``recuadro``: los dos bordes y un espacio a cada lado."""
+
+HUECO = 3
+"""Columnas entre una columna y la siguiente en una ``tabla_ligera``: un espacio a cada
+lado y el separador (que en esta tabla es un espacio)."""
+
+
+def resumen(filas: list[tuple[str, str]]) -> Table:
+    """Lo de arriba de un recuadro: «Carpeta  ~/Descargas», «Ocupa  219 B», una por fila.
+
+    La etiqueta en gris y sin partir; el valor (con markup) se parte si no cabe.
+    """
+    datos = Table.grid(padding=(0, 2))
+    datos.add_column(style="pista", no_wrap=True)
+    datos.add_column(overflow="fold")
+    for etiqueta, valor in filas:
+        datos.add_row(etiqueta, valor)
+    return datos
+
+
+def tabla_ligera() -> Table:
+    """Tabla sin bordes propios, para ir dentro de un ``recuadro``: solo la línea bajo
+    las cabeceras."""
+    return Table(
+        box=box.SIMPLE_HEAD,
+        show_edge=False,
+        header_style="titulo",
+        border_style="borde",
+        pad_edge=False,
+        expand=False,
+    )
+
+
+def recuadro(titulo: str, *partes: RenderableType) -> Panel:
+    """El recuadro de una herramienta (ocupa, listar): mide lo que su contenido, nunca
+    más que la ventana, con las partes una debajo de otra y una línea entre ellas."""
+    separadas: list[RenderableType] = []
+    for parte in partes:
+        if separadas:
+            separadas.append(Text(""))
+        separadas.append(parte)
+    return Panel(
+        Group(*separadas),
+        title=f"[titulo]{escape(titulo)}[/]",
+        title_align="left",
+        border_style="marco",
+        box=box.ROUNDED,
+        expand=False,
+        padding=(0, 1),
+    )
 
 
 def crear_tabla(columnas: list[str], titulo: str | None = None) -> Table:
