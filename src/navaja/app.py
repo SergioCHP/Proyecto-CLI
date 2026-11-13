@@ -8,11 +8,9 @@ import sys
 from datetime import datetime
 
 import typer
-from rich.markup import escape
 from typer.completion import completion_init
-from rich.panel import Panel
 
-from . import __version__, interactivo
+from . import __version__, interactivo, logo
 from .comandos import (
     ajustes,
     ayuda,
@@ -61,11 +59,9 @@ def resumen_comandos(raiz: typer.Typer) -> list[tuple[str, str]]:
 
 
 def _mostrar_cabecera(config: dict[str, str]) -> None:
-    texto = (
-        f"[titulo]{escape(saludo(datetime.now().hour, nombre_para_saludar(config)))}[/]\n"
-        f"[pista]navaja {__version__} · tema {config['tema']}[/]"
-    )
-    console.print(Panel(texto, title="navaja", border_style="marco", expand=False))
+    hola = saludo(datetime.now().hour, nombre_para_saludar(config))
+    detalle = f"navaja {__version__} · tema {config['tema']}"
+    console.print(logo.rotulo(console, hola, detalle))
 
 
 def _mostrar_bienvenida(config: dict[str, str]) -> None:

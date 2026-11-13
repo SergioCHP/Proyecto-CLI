@@ -13,8 +13,13 @@ from pathlib import Path
 from typing import Any
 
 import typer
+from rich import box
+from rich.cells import cell_len
+from rich.console import Group
 from rich.markup import escape
 from rich.padding import Padding
+from rich.panel import Panel
+from rich.text import Text
 from rich.table import Table
 
 from .comandos.ayuda import (
@@ -24,11 +29,22 @@ from .comandos.ayuda import (
     opciones_visibles,
     por_secciones,
     resolver,
-    titulo_seccion,
     valor_texto,
 )
 from .comandos.ayuda import subcomandos as opciones_de
-from .comun import AJUSTE, PALABRAS_VOLVER, console, error_console, es_oculto, tamano_legible
+from .comun import (
+    AJUSTE,
+    HERRAMIENTAS,
+    NAVAJA,
+    PALABRAS_VOLVER,
+    REPITES,
+    SECCIONES,
+    console,
+    error_console,
+    es_oculto,
+    es_utf8,
+    tamano_legible,
+)
 from .entrada import crear_lector, palabras_del_argumento
 from .errores import NavajaError
 from .filtros import (
@@ -69,8 +85,7 @@ EL_TEXTO_YA_ELIGE = {"renombra cambiar", "renombra avanzado", "ordena nombre"}
 archivos?» (los filtros siguen valiendo escritos: --solo, --desde…)."""
 
 AYUDA = (
-    "[pista]Elige un número o escribe un comando · [/][acento]ayuda[/][pista] te explica "
-    "lo que puedes hacer aquí · [/][acento]salir[/]"
+    "[pista]·  un número o un comando  ·  [/][acento]ayuda[/][pista] lo explica todo[/]"
 )
 
 activo = False
@@ -140,45 +155,189 @@ def texto_prompt(camino: list[str]) -> str:
     return f"[acento]{escape(carpeta)}[/]{sub}[pista]>[/] "
 
 
-def mostrar_menu(grupo: Any, camino: list[str]) -> None:
-    """Las opciones numeradas; en el menú principal, con el título de cada sección.
+ICONOS = {
+    "listar": "📂",
+    "ocupa": "📊",
+    "limpia": "🧹",
+    "ordena": "📦",
+    "renombra": "🔤",
+    "duplicados": "👯",
+    "copia": "📋",
+    "notas": "📝",
+    "acciones": "⚡",
+    "tema": "🎨",
+    "config": "👤",
+    "manual": "📖",
+    HERRAMIENTAS: "🧰",
+    REPITES: "🔁",
+    NAVAJA: "🔧",
+}
+"""Icono de cada comando y de cada sección del menú. Todos son emojis de un solo carácter
+y de dos columnas (sin el selector U+FE0F), para que Rich y la terminal midan igual."""
 
-    Una tabla por sección con las columnas igual de anchas en todas, para que los
-    números y los nombres queden alineados de arriba abajo.
+ANCHO_MENU = 80
+"""Lo más ancho que se hacen los recuadros del menú, aunque la ventana sea mayor."""
+
+ANCHO_MINIMO = 30
+"""Aunque la ventana sea más estrecha, los recuadros no se hacen más pequeños que esto."""
+
+LARGO_MENU = 46
+"""Lo más que mide la frase de cada opción del menú: así cabe en una fila en una ventana
+de 80 columnas, con el número, el icono y el nombre más largo delante."""
+
+CORTO = {
+    "ordena": "Por tipo, por fecha, por nombre o por letra.",
+    "renombra": "En masa: cambiar texto, numerar, la fecha…",
+    "duplicados": "Archivos repetidos, quitados sin perder nada.",
+    "copia": "Copia archivos sin tocar los originales.",
+    "acciones": "Tus recetas guardadas: verlas y hacerlas.",
+    "config": "Tu nombre y dónde guarda navaja tus datos.",
+    "manual": "Todo navaja explicado, con opciones y atajos.",
+    "ordena tipo": "Imágenes, Documentos, Vídeos… a su carpeta.",
+    "ordena fecha": "Una carpeta por mes, por año o por día.",
+    "ordena tramo": "Junta los archivos de unas fechas (del… al…).",
+    "ordena nombre": "Por nombre: si llevan un texto, juntos.",
+    "ordena letra": "Una carpeta por inicial (A, B… y 0-9).",
+    "renombra cambiar": "Cambia un texto por otro (IMG_ → foto_).",
+    "renombra delante": "Añade texto delante (2026_informe.pdf).",
+    "renombra detras": "Añade texto detrás (informe_v2.pdf).",
+    "renombra numerar": "Un nombre y un número (playa_001.jpg…).",
+    "renombra fecha": "Pone la fecha delante (2026-10-26_IMG_1.jpg).",
+    "renombra arreglar": "Minúsculas, sin tildes ni espacios.",
+    "renombra plantilla": "Tu formato con huecos ({fecha}_{n:03}{ext}).",
+    "renombra avanzado": "Con expresiones regulares (casos difíciles).",
+    "renombra deshacer": "Deja los nombres como estaban antes.",
+    "copia a": "Copia una carpeta (o unos archivos) a otra.",
+    "notas agregar": "Añade una nota o un enlace.",
+    "notas abrir": "Abre un enlace o enseña (o cambia) una nota.",
+    "acciones ejecutar": "Hace una acción: enseña el plan y pregunta.",
+    "acciones editar": "Abre acciones.json en tu editor.",
+    "acciones validar": "Comprueba acciones.json sin tocar nada.",
+    "acciones versiones": "Versiones viejas: verlas, recuperarlas…",
+    "acciones versiones ver": "Lista las versiones viejas guardadas.",
+    "acciones versiones recuperar": "Las devuelve a su sitio, sin pisar nada.",
+    "acciones versiones borrar": "Borra para siempre las que ya no quieres.",
+    "tema ver": "Los temas, con una muestra de sus colores.",
+    "config ver": "Tu nombre, tu tema y dónde están tus datos.",
+    "config nombre": "Cambia el nombre con el que te saluda.",
+    "config autocompletar": "Tab en PowerShell o bash (ord⇥ → ordena).",
+}
+"""Frase del menú de las opciones cuya ayuda no cabe en ``LARGO_MENU``. Solo para el
+menú: ``--help`` y el manual siguen con la frase entera. Las demás usan su ayuda tal cual
+(``test_ayuda`` falla si alguna no cabe y no está aquí)."""
+
+
+def frase_del_menu(camino: list[str], nombre: str, comando: Any) -> str:
+    """Lo que hace la opción, en una frase que cabe en una fila del menú."""
+    return CORTO.get(" ".join([*camino, nombre])) or comando.get_short_help_str(LARGO_MENU)
+
+
+def con_iconos() -> bool:
+    """¿Se pueden poner emojis? Hace falta UTF-8 y, en Windows, una terminal moderna
+    (Windows Terminal o la de VS Code): la consola antigua los pinta como cuadrados.
+
+    Se mira por las variables que esas terminales ponen (``WT_SESSION``,
+    ``TERM_PROGRAM``); se heredan, así que una consola antigua abierta desde Windows
+    Terminal también las tiene. Con ``NAVAJA_SIN_ICONOS`` no salen nunca.
+    """
+    if os.environ.get("NAVAJA_SIN_ICONOS") or not es_utf8(console):
+        return False
+    if sys.platform == "win32":
+        return bool(os.environ.get("WT_SESSION") or os.environ.get("TERM_PROGRAM"))
+    return True
+
+
+def icono(clave: str, iconos: bool) -> str:
+    """El icono seguido de un espacio, o nada si no hay o no se pueden poner."""
+    return f"{ICONOS[clave]} " if iconos and clave in ICONOS else ""
+
+
+def recuadro(
+    titulo: str,
+    subtitulo: str,
+    filas: list[tuple[int, str, str]],
+    ancho_numero: int,
+    ancho_nombre: int,
+    iconos: bool,
+) -> Panel:
+    """Un grupo del menú: número, icono, nombre y lo que hace, una fila por opción.
+
+    Los anchos vienen de fuera para que todos los recuadros queden alineados. Cada fila
+    se monta a mano: el número y el nombre no se recortan nunca y, si la ventana es
+    estrecha, la frase se acorta con «…» en vez de pasar a la línea de abajo.
+    Con ``iconos``, cada fila lleva el de su comando (solo en el menú principal: en un
+    submenú, «listar» de notas no es el «listar» de navaja).
+    """
+    ancho = max(min(console.width, ANCHO_MENU), ANCHO_MINIMO)
+    dentro = ancho - 4  # los dos bordes y un espacio a cada lado
+    lineas = []
+    for numero, nombre, frase in filas:
+        linea = Text(no_wrap=True, overflow="ellipsis")
+        linea.append(f" {numero:>{ancho_numero}}  ", style="boton")
+        linea.append(icono(nombre, iconos))
+        linea.append(nombre, style="bold")
+        linea.append(" " * (ancho_nombre - cell_len(nombre)))
+        sitio = dentro - linea.cell_len - 2
+        if sitio >= 8:  # con menos no se entiende la frase: mejor sin ella
+            resto = Text(frase, style="pista")
+            resto.truncate(sitio, overflow="ellipsis")
+            linea.append("  ")
+            linea.append_text(resto)
+        lineas.append(linea)
+    cabe_subtitulo = bool(subtitulo) and cell_len(subtitulo) + 6 <= ancho
+    return Panel(
+        Group(*lineas),
+        title=f"[titulo]{escape(titulo)}[/]" if titulo else None,
+        title_align="left",
+        # el subtítulo solo si cabe en el borde de abajo
+        subtitle=f"[pista]{escape(subtitulo)}[/]" if cabe_subtitulo else None,
+        subtitle_align="right",
+        border_style="marco",
+        box=box.ROUNDED,
+        width=ancho,
+        padding=(0, 1),
+    )
+
+
+def mostrar_menu(grupo: Any, camino: list[str]) -> None:
+    """Las opciones numeradas, un recuadro por sección (en un submenú, uno solo).
+
+    Todos los recuadros miden lo mismo, para que se vean como una columna.
     """
     secciones = por_secciones(grupo)
-    opciones = [opcion for _, comandos in secciones for opcion in comandos]
-    ancho_numero = len(str(len(opciones)))
-    ancho_nombre = max([len(n) for n, _ in opciones] + [len("volver")])
-
-    def tabla_nueva() -> Table:
-        tabla = Table.grid(padding=(0, 2))
-        tabla.add_column(style="acento", justify="right", min_width=ancho_numero)
-        tabla.add_column(style="bold", no_wrap=True, min_width=ancho_nombre)
-        tabla.add_column(style="pista")
-        return tabla
-
+    nombres = [nombre for _, comandos in secciones for nombre, _ in comandos]
+    ancho_numero = len(str(len(nombres)))
+    ancho_nombre = max(cell_len(nombre) for nombre in nombres)
+    iconos = con_iconos()
     numero = 0
-    for posicion, (seccion_, comandos) in enumerate(secciones):
-        if seccion_:
-            console.print(("\n" if posicion else "") + titulo_seccion(seccion_))
-        tabla = tabla_nueva()
+    for seccion_, comandos in secciones:
+        filas = []
         for nombre, comando in comandos:
             numero += 1
-            tabla.add_row(str(numero), nombre, escape(comando.get_short_help_str(70)))
-        console.print(tabla)
-    final = tabla_nueva()
-    final.add_row("0", "volver" if camino else "salir", "")
-    if any(seccion_ for seccion_, _ in secciones):
-        console.print()
-    console.print(final)
+            filas.append((numero, nombre, frase_del_menu(camino, nombre, comando)))
+        if seccion_:
+            titulo = f"{icono(seccion_, iconos)}{seccion_}"
+            subtitulo = SECCIONES.get(seccion_, "")
+        else:  # un submenú: el título es el comando del que cuelga
+            titulo = f"{icono(camino[0], iconos)}{' '.join(camino)}" if camino else ""
+            subtitulo = ""
+        console.print(
+            recuadro(titulo, subtitulo, filas, ancho_numero, ancho_nombre, iconos and not camino)
+        )
     if camino:
         console.print(
-            "[acento]ayuda[/][pista] explica estas opciones · Intro o [/][acento]0[/]"
-            "[pista] para volver[/]"
+            f"   [boton]{0:>{ancho_numero}}[/]  [bold]volver[/]   [pista]·  Intro también  ·  [/]"
+            "[acento]ayuda[/][pista] explica estas opciones[/]",
+            no_wrap=True,
+            overflow="ellipsis",
         )
     else:
-        console.print(f"\n{AYUDA}\n")
+        console.print(
+            f"   [boton]{0:>{ancho_numero}}[/]  [bold]salir[/]   {AYUDA}",
+            no_wrap=True,
+            overflow="ellipsis",
+        )
+        console.print()
 
 
 def ejecutar(raiz: Any, argumentos: list[str]) -> int:

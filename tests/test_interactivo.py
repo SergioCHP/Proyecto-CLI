@@ -387,7 +387,7 @@ def test_menu_vuelve_a_ensenar_el_menu(carpeta, capsys):
 
     interactivo.iniciar(app, lector("ordena", "menu"))
     texto = salida(capsys)
-    assert texto.count("Junta en una carpeta los archivos de unas fechas") == 2
+    assert texto.count("Junta los archivos de unas fechas") == 2
 
 
 @pytest.mark.parametrize("pedido", ["ayuda", "?", "help"])

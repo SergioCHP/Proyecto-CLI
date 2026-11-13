@@ -66,8 +66,17 @@ Toda la ayuda está en castellano: `navaja ocupa --help` (o `-h`) enseña lo mis
 
 ## Modo interactivo
 
-Escribe `navaja` sin nada más y entras en navaja: sale un menú numerado y se
-queda esperando órdenes hasta que escribas `salir`. Trabaja en la carpeta desde
+Escribe `navaja` sin nada más y entras en navaja: te recibe el rótulo («NAVAJA»
+en letras grandes, con los colores de tu tema) y el saludo, sale un
+menú numerado y se queda esperando órdenes hasta que escribas `salir`. Si la ventana es
+muy estrecha (menos de 51 columnas) o la salida no es UTF-8, el saludo sale en un
+recuadro sencillo.
+
+El menú va en recuadros, uno por grupo (Herramientas, Lo que repites y navaja), con los
+números resaltados, un icono delante de cada comando (📂 listar, 📋 copia…) y una frase
+corta que cabe en una fila (la explicación entera está en `ayuda` y en el manual).
+Los iconos salen en Windows Terminal, en la terminal de VS Code y en las de Linux y macOS;
+en la consola antigua de Windows o con una salida que no es UTF-8 se quitan solos. Trabaja en la carpeta desde
 la que entras, que se ve siempre en el prompt.
 
 El menú (y `navaja --help`) va en tres grupos. Las **herramientas** (1-8) se usan al

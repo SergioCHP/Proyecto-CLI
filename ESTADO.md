@@ -664,6 +664,40 @@ cosas mal:
 - `es_numero()`: solo cifras 0-9 («²» es dígito para Python y `int()` fallaba).
 - 383 tests pasando (8 nuevos en `test_copia.py`, 1 en `test_salida.py`).
 
+### 2026-11-12 — Rótulo de bienvenida
+
+- Al abrir navaja, antes del saludo sale «NAVAJA» en letras grandes con sombra, al estilo
+  de OpenCode (`src/navaja/logo.py`). Dos tonos que siguen al tema: los bloques con
+  `titulo` y la sombra con `marco`. El saludo y la versión van debajo, sin recuadro.
+- Si la terminal tiene menos de 51 columnas o no escribe UTF-8 (salida redirigida en
+  PowerShell), sale el recuadro sencillo de antes en vez de un dibujo roto.
+- 387 tests pasando.
+
+### 2026-11-13 — Menú más visual
+
+- El menú del modo interactivo va en recuadros redondeados, uno por sección, con el
+  título a la izquierda y lo que la distingue abajo a la derecha. En un submenú, un solo
+  recuadro con el nombre del comando.
+- Los números van en negrita con un color propio (estilo nuevo `boton` en los cuatro
+  temas; al principio llevaban fondo, pero el cian salía azul y no se leían) y todos los
+  recuadros quedan alineados (mismo ancho, hasta 80 columnas).
+- Cada opción cabe en una fila: el menú tiene su propia frase corta (`CORTO`, como mucho
+  `LARGO_MENU` = 46 caracteres) para las que tienen una ayuda larga; `--help` y el manual
+  siguen con la entera. En una ventana más estrecha la frase se acorta con «…», pero el
+  número y el nombre no se recortan nunca. `test_ayuda` falla si una frase nueva no cabe.
+- Iconos delante de cada comando y sección (`ICONOS` en `interactivo.py`): emojis de un solo
+  carácter, sin U+FE0F, para que Rich y la terminal midan igual. Solo con UTF-8 y, en
+  Windows, con Windows Terminal o VS Code (`WT_SESSION` / `TERM_PROGRAM`).
+- Revisión del revisor:
+  - En un submenú las opciones no llevan icono: «listar» de notas salía con el 📂 del
+    «listar» de navaja y torcía la columna.
+  - `comun.es_utf8()` reconoce `utf_8`, `UTF8`…, y la usan el rótulo y los iconos.
+  - El rótulo grande solo sale en una terminal; con la salida a un archivo o a una tubería,
+    el recuadro sencillo.
+  - Los anchos se miden en columnas (`cell_len`) y los recuadros no bajan de 30 columnas.
+  - `NAVAJA_SIN_ICONOS=1` quita los iconos.
+  - Tests con ancho fijo y consola sin color.
+- 394 tests pasando.
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.
@@ -753,6 +787,8 @@ cosas mal:
   enseñe `[--config RUTA]`, y permitir también `acciones --config * validar` en los
   permisos del agente.
 - [ ] Que el agente no pueda ejecutar acciones en ningún caso (ahora pide permiso).
+- [ ] Con `COLUMNS=40`, `test_help_de_un_comando_en_castellano` falla (el `--help` se parte
+  en líneas estrechas). Ya pasaba antes del menú nuevo.
 - [ ] Linter/formateador (ruff) y CI (GitHub Actions).
 - [ ] Empaquetado y publicación (pipx / PyPI).
 

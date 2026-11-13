@@ -7,6 +7,7 @@ from navaja.app import app
 from navaja.comun import HERRAMIENTAS, NAVAJA, PALABRAS_VOLVER, REPITES, SECCIONES
 from navaja.comandos.ayuda import (
     argumentos,
+    es_grupo,
     opciones_visibles,
     por_secciones,
     subcomandos,
@@ -101,7 +102,9 @@ def test_un_submenu_no_tiene_secciones():
     assert [s for s, _ in por_secciones(RAIZ.commands["acciones"])] == [""]
 
 
-def test_help_y_menu_ensenan_las_secciones(capsys):
+def test_help_y_menu_ensenan_las_secciones(capsys, monkeypatch):
+    monkeypatch.setattr(interactivo, "con_iconos", lambda: False)
+    monkeypatch.setattr(interactivo.console, "_width", 80)
     texto = plano(runner.invoke(app, ["--help"]).output)
     for seccion, explicacion in SECCIONES.items():
         assert f"{seccion} — {explicacion}" in texto
@@ -166,3 +169,78 @@ def test_errores_de_uso_en_castellano(pedido, esperado):
     assert "Uso: navaja" in texto and "--help" in texto
     for ingles in ("Usage", "Invalid value", "Missing", "No such", "Error"):
         assert ingles not in texto
+
+
+def test_menu_con_iconos_y_sin_ellos(capsys, monkeypatch):
+    monkeypatch.setattr(interactivo, "con_iconos", lambda: True)
+    monkeypatch.setattr(interactivo.console, "_width", 80)
+    interactivo.mostrar_menu(RAIZ, [])
+    con = plano(capsys.readouterr().out)
+    assert "📂 listar" in con and "🧰 Herramientas" in con
+    assert set(interactivo.ICONOS) >= {n for n, _ in subcomandos(RAIZ)}  # ninguno sin icono
+
+    monkeypatch.setattr(interactivo, "con_iconos", lambda: False)
+    interactivo.mostrar_menu(RAIZ.commands["ordena"], ["ordena"])
+    sin = plano(capsys.readouterr().out)
+    assert "📦" not in sin and "ordena" in sin and "volver" in sin
+
+
+def test_iconos_solo_con_utf8_y_terminal_moderna(monkeypatch):
+    monkeypatch.setattr(interactivo.console, "_encoding", "cp1252", raising=False)
+    monkeypatch.setattr(type(interactivo.console), "encoding", property(lambda c: c._encoding))
+    assert not interactivo.con_iconos()
+    monkeypatch.setattr(interactivo.console, "_encoding", "utf_8", raising=False)
+    monkeypatch.setattr(interactivo.sys, "platform", "win32")
+    monkeypatch.delenv("WT_SESSION", raising=False)
+    monkeypatch.delenv("TERM_PROGRAM", raising=False)
+    assert not interactivo.con_iconos()  # la consola antigua de Windows
+    monkeypatch.setenv("WT_SESSION", "1")
+    assert interactivo.con_iconos()
+    monkeypatch.setenv("NAVAJA_SIN_ICONOS", "1")
+    assert not interactivo.con_iconos()
+
+
+def test_en_un_submenu_las_opciones_no_llevan_icono(capsys, monkeypatch):
+    """«listar» de notas no es el «listar» de navaja: ni icono ni columna torcida."""
+    monkeypatch.setattr(interactivo, "con_iconos", lambda: True)
+    monkeypatch.setattr(interactivo.console, "_width", 80)
+    interactivo.mostrar_menu(RAIZ.commands["notas"], ["notas"])
+    texto = capsys.readouterr().out
+    assert "📝 notas" in texto  # el título sí
+    filas = [linea for linea in texto.splitlines() if linea.startswith("│")]
+    assert not any("📂" in fila for fila in filas)
+    columnas = {fila.index(fila.split()[3]) for fila in filas}  # dónde empieza la frase
+    assert len(columnas) == 1
+
+
+def todas_las_opciones(grupo=RAIZ, camino=()):
+    """Cada opción de todos los menús, con el camino hasta ella."""
+    for nombre, comando in subcomandos(grupo):
+        yield list(camino), nombre, comando
+        if es_grupo(comando):
+            yield from todas_las_opciones(comando, (*camino, nombre))
+
+
+def test_las_frases_del_menu_caben_en_una_fila():
+    caminos = set()
+    for camino, nombre, comando in todas_las_opciones():
+        caminos.add(" ".join([*camino, nombre]))
+        frase = interactivo.frase_del_menu(camino, nombre, comando)
+        assert len(frase) <= interactivo.LARGO_MENU, f"{camino} {nombre}: añádela a CORTO"
+        assert not frase.endswith("..."), f"{camino} {nombre}: se corta; añádela a CORTO"
+    assert set(interactivo.CORTO) <= caminos  # ninguna sobra ni tiene el nombre mal
+
+
+def test_en_80_columnas_ninguna_fila_del_menu_se_parte(capsys, monkeypatch):
+    monkeypatch.setattr(interactivo, "con_iconos", lambda: True)
+    monkeypatch.setattr(interactivo.console, "_width", 80)  # sin tocar el ancho de los demás
+    for camino, nombre, comando in [([], "", RAIZ), *todas_las_opciones()]:
+        if not es_grupo(comando):
+            continue
+        interactivo.mostrar_menu(comando, [*camino, nombre] if nombre else [])
+        texto = capsys.readouterr().out
+        filas = [linea for linea in texto.splitlines() if linea.startswith("│")]
+        assert len(filas) == len(subcomandos(comando))  # una fila por opción
+        ruta = [*camino, nombre] if nombre else []
+        for opcion, sub in subcomandos(comando):  # y cada frase entera, sin «…» añadido
+            assert interactivo.frase_del_menu(ruta, opcion, sub) in texto

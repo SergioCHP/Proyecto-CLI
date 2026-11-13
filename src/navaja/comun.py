@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import codecs
 import fnmatch
 import getpass
 import json
@@ -43,6 +44,7 @@ TEMAS: dict[str, dict[str, str]] = {
         "logro": "bold green",
         "marco": "cyan",
         "borde": "dim",
+        "boton": "bold bright_cyan",
     },
     "morado": {
         "ok": "#98c379",
@@ -54,6 +56,7 @@ TEMAS: dict[str, dict[str, str]] = {
         "logro": "bold #98c379",
         "marco": "#c678dd",
         "borde": "#5c4a72",
+        "boton": "bold #e5c07b",
     },
     "terminal": {
         "ok": "bright_green",
@@ -65,6 +68,7 @@ TEMAS: dict[str, dict[str, str]] = {
         "logro": "bold bright_green",
         "marco": "green",
         "borde": "dark_green",
+        "boton": "bold bright_green",
     },
     "pastel": {
         "ok": "#b5e8b0",
@@ -76,6 +80,7 @@ TEMAS: dict[str, dict[str, str]] = {
         "logro": "bold #b5e8b0",
         "marco": "#c5b3e6",
         "borde": "#9a9aa8",
+        "boton": "bold #f6d6a8",
     },
 }
 TEMA_POR_DEFECTO = "clasico"
@@ -208,6 +213,14 @@ def nombre_para_saludar(config: dict[str, str]) -> str:
 def guardar_config(config: dict[str, str], ruta: Path | None = None) -> None:
     ruta = ruta or directorio_datos() / "config.json"
     ruta.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def es_utf8(consola: Console) -> bool:
+    """¿La consola escribe en UTF-8? Vale cualquier forma del nombre (utf-8, UTF8, utf_8)."""
+    try:
+        return codecs.lookup(consola.encoding).name == "utf-8"
+    except LookupError:
+        return False
 
 
 def aplicar_tema(nombre: str) -> None:
