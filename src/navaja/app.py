@@ -18,11 +18,9 @@ from .comandos import (
     base,
     chmod,
     clave,
-    codifica,
     comprime,
     copia,
     cuenta,
-    datos_json,
     doctor,
     duplicados,
     extrae,
@@ -45,8 +43,8 @@ app = typer.Typer(
         "Comandos: [bold]listar[/], [bold]ocupa[/], [bold]limpia[/], [bold]arbol[/], "
         "[bold]cuenta[/], [bold]comprime[/], [bold]extrae[/], [bold]ordena[/], "
         "[bold]renombra[/], [bold]duplicados[/], [bold]copia[/], [bold]notas[/], [bold]base[/], "
-        "[bold]chmod[/], [bold]subred[/], [bold]hash[/], [bold]codifica[/], [bold]genera[/], "
-        "[bold]clave[/], [bold]json[/], [bold]acciones[/], [bold]doctor[/], "
+        "[bold]chmod[/], [bold]subred[/], [bold]hash[/], [bold]genera[/], "
+        "[bold]clave[/], [bold]acciones[/], [bold]doctor[/], "
         "[bold]tema[/], [bold]config[/] y [bold]manual[/] (explica todo)."
     ),
     add_completion=False,
@@ -128,7 +126,7 @@ def version_orden() -> None:
 for modulo in (
     listar, ocupa, arbol, cuenta, comprime, extrae, ordena, renombra, duplicados, copia, notas,
     base, chmod, subred,
-    huella, codifica, genera, clave, datos_json,
+    huella, genera, clave,
     mis_acciones, doctor, ajustes, ayuda,
 ):
     modulo.registrar(app)

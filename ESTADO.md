@@ -828,6 +828,22 @@ cosas mal:
 - Arreglo tras probarlo en Windows: `doctor` buscaba winget con `shutil.which` directamente
   y no con `buscar_programa`, así que `test_programa_que_falta` fallaba en un PC con winget.
   Ahora el test se pasa como si fuera Windows y como si fuera Linux.
+
+### 2026-11-16 — Fuera `json` y `codifica`; sus mejoras, a `acciones validar`
+
+- **Quitadas** `json` y `codifica` (con sus tests y el extra `yaml`/pyyaml): no me quitan
+  trabajo. El único JSON que toco a mano es `acciones.json`, y para eso ya está
+  `acciones validar`. `hash`, `genera` y `clave` se quedan de momento. Están en git por si
+  hacen falta.
+- **`acciones validar`** se queda con lo bueno de `json comprueba`:
+  - `esquema.mejor_motivo()`: «sobra una coma antes de cerrar» cuando hay una coma justo
+    antes de `}` o `]`, y «comillas dobles, no simples» cuando el error está en una `'`.
+  - `esquema.senalar()`: la línea del error y una `^` debajo de la columna exacta (antes
+    solo la línea).
+  - `esquema.claves_repetidas()`: avisa (sin fallar) si una clave sale dos veces en el
+    mismo sitio, porque JSON se queda con la última sin decir nada.
+- Menú: Programación 16-18 (`hash`, `genera`, `clave`), `acciones` 19 y navaja 20-23.
+- 3 tests nuevos en `test_acciones.py`.
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.

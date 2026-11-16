@@ -36,10 +36,8 @@ src/navaja/
     ├── chmod.py        # chmod (permisos de Linux: 755 ↔ rwxr-xr-x)
     ├── subred.py       # sub-app: ver / dividir / vlsm / misma / practica (solo ipaddress)
     ├── huella.py       # sub-app hash: archivo / texto (MD5, SHA-1, SHA-256 y --compara)
-    ├── codifica.py     # sub-app: base64 / url / html / jwt
     ├── genera.py       # sub-app: uuid / lorem / numero
     ├── clave.py        # sub-app: nueva / frase / fuerza (con secrets)
-    ├── datos_json.py   # sub-app json: comprueba / arbol / formatea / compacta (YAML con pyyaml)
     ├── doctor.py       # doctor (Python, librerías, programas, datos, acciones.json, terminal)
     ├── mis_acciones.py # sub-app acciones: ver / ejecutar / deshacer / (versiones) / editar / validar
     ├── versiones.py    # acciones versiones: ver / recuperar / borrar
@@ -175,8 +173,8 @@ considera basura `limpia`, cómo compara `duplicados`…) va en `EXTRA` de
   `rich.text.Text`.
 - **Secretos:** nunca escribas claves en el código ni las subas; van en `.env`,
   que está en `.gitignore`.
-- **Dependencias opcionales:** lo que no hace falta para todo (`pypdf`, `pyyaml`) va en
-  `[project.optional-dependencies]` (`pdf`, `yaml`, `todo`; `dev` las lleva para los
+- **Dependencias opcionales:** lo que no hace falta para todo (hoy, `pypdf`) va en
+  `[project.optional-dependencies]` (`pdf` y `todo`; `dev` las lleva para los
   tests) y se importa dentro de la función que lo usa: si falta, `NavajaError` con cómo
   instalarlo, y `doctor` lo enseña con «!».
 - **Python 3.12 o superior** (`.python-version` fija 3.12). Usa

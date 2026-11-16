@@ -13,7 +13,7 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
 4. **Órdenes que ya tiene:** `listar`, `ocupa`, `limpia`, `arbol`, `cuenta`, `comprime`,
    `extrae`, `ordena`, `renombra`,
    `duplicados`, `copia`, `notas`, `base`, `chmod`, `subred` (`ver`, `dividir`, `vlsm`,
-   `misma`, `practica`), `hash`, `codifica`, `genera`, `clave`, `json`, `doctor`,
+   `misma`, `practica`), `hash`, `genera`, `clave`, `doctor`,
    `acciones` (`ver`, `ejecutar`, `deshacer`, `versiones`,
    `editar`, `validar`), `tema`, `config` (también `config autocompletar`, Tab en PowerShell),
    `manual` y `version`. Dentro de navaja, Tab completa y ↑ ↓ recuperan lo de antes.
@@ -60,10 +60,8 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
 | `navaja chmod PERMISOS` | Calculadora de permisos de Linux: `755` ↔ `rwxr-xr-x` (también `4755` y lo que sale en `ls -l`), con quién puede qué en un archivo y en una carpeta, y avisos si es peligroso (`777`). Solo calcula. |
 | `navaja subred` | Calculadora de subredes para clase. `ver 192.168.10.200/26` (o `ver 192.168.10.200 255.255.255.192`, o solo la IP con la máscara de su clase): red, broadcast, primer y último equipo, hosts útiles, máscara, wildcard, clase, si es privada, pública, loopback o APIPA, y la IP en binario con los bits de red y de host en colores distintos. `dividir RED N` (partes iguales, FLSM), `vlsm RED 50 20 10` (por equipos, de mayor a menor; con nombre: `ventas:50`), `misma IP1 IP2` (¿se hablan sin router?) y `practica` (ejercicios al azar que corrige y explica paso a paso). Solo calcula: no toca la red ni los archivos. |
 | `navaja hash` | Huellas MD5, SHA-1 y SHA-256 de un archivo (`hash archivo ubuntu.iso`) o de un texto (`hash texto hola`). Con `--compara` dice si coincide con la que da la web (sale con 1 si no). Lee por trozos: vale para ISO de varios GB. |
-| `navaja codifica` | `base64`, `url` y `html` de ida y vuelta (con `-d`, al revés) y `jwt` para ver lo que lleva un token (sin comprobar la firma). Sin internet. |
 | `navaja genera` | `uuid`, `lorem` (texto de relleno) y `numero MIN MAX` (al azar; con `--sin-repetir`, un sorteo). |
 | `navaja clave` | `nueva` (contraseña segura al azar), `frase` (palabras al azar, fácil de recordar) y `fuerza` (cómo de fuerte es la tuya: la escribes sin que se vea y no se guarda). |
-| `navaja json` | `comprueba` (si está bien escrito; si no, la línea, la columna y qué pasa, en castellano), `arbol`, `formatea` (`--ordena`, `--sangria`) y `compacta`. Con `--guardar`, a un archivo nuevo al lado. También YAML (con `pyyaml`). |
 | `navaja acciones` | Tus tareas de siempre guardadas con un nombre en `acciones.json` (ordenar Descargas, copiar apuntes, quitar instaladores viejos…) para hacerlas con una orden. Con simulación, confirmación y deshacer; lo que sustituye una copia se guarda en `acciones versiones`. |
 | `navaja doctor` | Revisa que todo esté listo: Python, librerías (y las opcionales), programas de fuera (git, LibreOffice, Pandoc, FFmpeg, 7-Zip, Word, winget), la carpeta de datos, `acciones.json` y la terminal. Dice cómo arreglar lo que falta. |
 | `navaja tema` | `ver` los temas y `elegir` uno (clasico, morado, terminal, pastel). |
@@ -95,8 +93,8 @@ la que entras, que se ve siempre en el prompt.
 
 El menú (y `navaja --help`) va en cinco grupos. Los de **Archivos** (1-12) se usan al
 momento: les dices qué hacer y lo hacen. **Redes e informática** (13-15) son calculadoras
-para clase: `base`, `chmod` y `subred`. **Programación** (16-20) es la caja de herramientas
-para tus proyectos: `hash`, `codifica`, `genera`, `clave` y `json`. **Lo que repites** (21) son tus acciones: recetas
+para clase: `base`, `chmod` y `subred`. **Programación** (16-18) es la caja de herramientas
+para tus proyectos: `hash`, `genera` y `clave`. **Lo que repites** (19) son tus acciones: recetas
 guardadas en `acciones.json` que se hacen con una palabra (`acciones ejecutar
 usb-a-pc`). Y **navaja**: colores, tu nombre y el manual.
 
@@ -114,13 +112,13 @@ Archivos — Se usan al momento: les dices qué hacer y lo hacen.
 Redes e informática — Calculadoras para clase, con los pasos explicados.
 13  base        Binario, octal, decimal y hexadecimal.
  …
-Programación — Para tus proyectos: huellas, codificar, datos de prueba y contraseñas.
+Programación — Para tus proyectos: huellas, datos de prueba y contraseñas.
 16  hash        Comprueba que una descarga está bien.
  …
 Lo que repites — Recetas guardadas en acciones.json: se hacen con una palabra.
-21  acciones    Tus recetas guardadas: verlas y hacerlas.
+19  acciones    Tus recetas guardadas: verlas y hacerlas.
 navaja — Colores, tu nombre y el manual.
-22  doctor      Revisa que todo esté listo y cómo arreglarlo.
+20  doctor      Revisa que todo esté listo y cómo arreglarlo.
  …
  0  salir
 
@@ -299,6 +297,17 @@ navaja acciones deshacer
 Siempre primero con `--simular`, y en tus carpetas de verdad solo cuando la simulación
 diga exactamente lo que esperas.
 
+Si `acciones.json` está mal escrito, `acciones validar` dice la línea y la columna, enseña
+la línea con una `^` debajo de lo que falla y explica qué pasa en castellano (una coma de
+más antes de cerrar, comillas simples, una barra invertida suelta…). También avisa si una
+clave sale dos veces en el mismo sitio (solo cuenta la última).
+
+```text
+✘ acciones.json no es JSON válido: línea 4, columna 3: sobra una coma antes de cerrar (JSON no deja una coma tras el último).
+    4 │ ]
+        ^
+```
+
 Para ver los errores de `acciones validar` (siempre con código de salida 3 y sin traza),
 en `pruebas/` hay cuatro archivos rotos a propósito: `roto-coma.json`, `roto-tipo.json`,
 `roto-repetido.json` y `roto-regex.json`:
@@ -319,11 +328,10 @@ navaja --help
 
 Si dice «orden no encontrada», ejecuta `uv tool update-shell` y abre otra terminal.
 
-Algunas órdenes leen más formatos con librerías opcionales: `pypdf` (`cuenta` con PDF) y
-`pyyaml` (`json` con YAML). Para instalarlas a la vez que navaja:
+`cuenta` lee PDF con una librería opcional, `pypdf`. Para instalarla a la vez que navaja:
 
 ```bash
-uv tool install --editable ".[todo]"   # o solo una: ".[pdf]" o ".[yaml]"
+uv tool install --editable ".[todo]"   # las opcionales (hoy, solo pypdf)
 ```
 
 `navaja doctor` dice cuáles tienes y qué programas de fuera faltan.
@@ -445,17 +453,12 @@ navaja subred practica --nivel facil             # ejercicios corregidos y expli
 
 # Programación
 navaja hash archivo ubuntu.iso --compara 3f2a…   # ¿la descarga está bien?
-navaja codifica base64 "año 2026"                # y con -d, al revés
-navaja codifica url "año 2026 & más"
-navaja codifica jwt eyJhbGciOi…                  # lo que lleva dentro un token
 navaja genera uuid -n 3
 navaja genera lorem --palabras 80 --parrafos 2
 navaja genera numero 1 30 -n 5 --sin-repetir     # un sorteo
 navaja clave nueva --largo 20
 navaja clave frase                               # nube-cobre-faro-pinza-tigre-47
 navaja clave fuerza                              # la escribes sin que se vea
-navaja json comprueba acciones.json              # ¿está bien escrito? Si no, en qué línea
-navaja json formatea datos.json --ordena --guardar
 
 # Personalizar
 navaja tema ver                 # muestra cada tema con sus colores

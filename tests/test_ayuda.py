@@ -96,7 +96,7 @@ def test_cada_comando_tiene_su_seccion_y_no_se_reordena():
     # Juntas, en el mismo orden que subcomandos: los números del menú no cambian
     assert [n for _, cs in secciones for n, _ in cs] == [n for n, _ in subcomandos(RAIZ)]
     assert [n for n, _ in secciones[1][1]] == ["base", "chmod", "subred"]
-    assert [n for n, _ in secciones[2][1]] == ["hash", "codifica", "genera", "clave", "json"]
+    assert [n for n, _ in secciones[2][1]] == ["hash", "genera", "clave"]
     assert [n for n, _ in secciones[3][1]] == ["acciones"]
     assert [n for n, _ in secciones[0][1]][:7] == [
         "listar", "ocupa", "limpia", "arbol", "cuenta", "comprime", "extrae"

@@ -214,6 +214,41 @@ def test_json_roto_explica_donde_y_que(tmp_path, texto, esperado):
     assert "Expecting" not in str(error.value)
 
 
+def test_json_roto_coma_de_mas_y_comillas_simples(tmp_path):
+    ruta = tmp_path / "roto.json"
+    ruta.write_text('{"version": 1,\n "acciones": [\n    {"nombre": "a"},\n  ]\n}', encoding="utf-8")
+    with pytest.raises(ConfigError, match="sobra una coma antes de cerrar"):
+        esquema.cargar(ruta)
+    ruta.write_text("{\"version\": 1, 'acciones': []}", encoding="utf-8")
+    with pytest.raises(ConfigError, match="comillas dobles"):
+        esquema.cargar(ruta)
+
+
+def test_json_roto_senala_con_una_marca_debajo():
+    texto = '{\n    "nombre": "a" "tipo": "mover"\n}'
+    error = None
+    try:
+        json.loads(texto)
+    except json.JSONDecodeError as exc:
+        error = exc
+    lineas = esquema.senalar(texto, error.lineno, error.colno).splitlines()
+    assert lineas[1] == '    2 │ "nombre": "a" "tipo": "mover"'
+    assert lineas[2].index("^") == lineas[1].index('"tipo"')  # justo debajo de lo que falla
+    assert esquema.senalar(texto, 99, 1) == ""
+
+
+def test_validar_avisa_de_claves_repetidas(tmp_path):
+    ruta = tmp_path / "acciones.json"
+    ruta.write_text(
+        '{"version": 1, "acciones": [{"nombre": "a", "descripcion": "d", "tipo": "mover", "carpeta": "x", '
+        '"carpeta": "y", "destino": "z"}]}',
+        encoding="utf-8",
+    )
+    assert esquema.claves_repetidas(ruta) == ["carpeta"]
+    salida = runner.invoke(app, ["acciones", "validar", "--config", str(ruta)])
+    assert "«carpeta» sale dos veces" in salida.output
+
+
 def test_json_con_bom_del_bloc_de_notas(tmp_path):
     ruta = tmp_path / "acciones.json"
     ruta.write_text(json.dumps({"version": 1, "acciones": [BUENA]}), encoding="utf-8-sig")

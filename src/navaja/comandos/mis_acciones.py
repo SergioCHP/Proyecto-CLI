@@ -143,6 +143,12 @@ def comprobar_y_contar(ruta: Path) -> None:
     )
     for aviso in esquema.avisos(acciones):
         console.print(f"[aviso]Ojo: {escape(aviso)}[/]", soft_wrap=True)
+    for clave in esquema.claves_repetidas(ruta):
+        console.print(
+            f"[aviso]Ojo: «{escape(clave)}» sale dos veces en el mismo sitio: solo cuenta la "
+            "última. Seguramente sobra una al copiar y pegar.[/]",
+            soft_wrap=True,
+        )
 
 
 def validar(ctx: typer.Context, config: Path | None = OPCION_CONFIG) -> None:

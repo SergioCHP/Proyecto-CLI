@@ -148,14 +148,58 @@ def leer(ruta: Path) -> Any:
     try:
         return json.loads(texto)
     except json.JSONDecodeError as exc:
-        motivo = next((es for en, es in ERRORES_JSON if exc.msg.startswith(en)), exc.msg)
-        lineas = texto.splitlines()
-        linea = lineas[exc.lineno - 1].strip() if 0 < exc.lineno <= len(lineas) else ""
-        detalle = f"\n    {exc.lineno} │ {linea}" if linea else ""
+        motivo = mejor_motivo(texto, exc)
         raise ConfigError(
             f"{ruta.name} no es JSON válido: línea {exc.lineno}, columna {exc.colno}: "
-            f"{motivo}.{detalle}"
+            f"{motivo}.{senalar(texto, exc.lineno, exc.colno)}"
         ) from None
+
+
+def mejor_motivo(texto: str, error: json.JSONDecodeError) -> str:
+    """Qué pasa, en castellano. Mira alrededor del error para los dos fallos de siempre:
+    la coma de más antes de cerrar y las comillas simples."""
+    antes = texto[: error.pos].rstrip()
+    despues = texto[error.pos :].lstrip()[:1]
+    if antes.endswith(",") and despues in ("}", "]"):
+        return "sobra una coma antes de cerrar (JSON no deja una coma tras el último)"
+    if despues == "'":
+        return "en JSON los textos van entre comillas dobles (\"), no simples (')"
+    return next((es for en, es in ERRORES_JSON if error.msg.startswith(en)), error.msg)
+
+
+def senalar(texto: str, numero: int, columna: int) -> str:
+    """La línea del error y una ^ debajo de donde está: «    12 │ "carpeta": … » y «^»."""
+    lineas = texto.splitlines()
+    if not 0 < numero <= len(lineas) or not lineas[numero - 1].strip():
+        return ""
+    linea = lineas[numero - 1]
+    sangria = len(linea) - len(linea.lstrip())
+    delante = f"    {numero} │ "
+    hueco = max(columna - 1 - sangria, 0)
+    return f"\n{delante}{linea.strip()}\n{' ' * (len(delante) + hueco)}^"
+
+
+def claves_repetidas(ruta: Path) -> list[str]:
+    """Las claves que salen dos veces en el mismo sitio («carpeta» dos veces en una acción).
+
+    JSON lo deja, pero solo cuenta la última: casi siempre es un error al copiar y pegar.
+    El archivo ya tiene que haberse leído bien con ``leer``.
+    """
+    repetidas: list[str] = []
+
+    def mirar(pares: list[tuple[str, Any]]) -> dict[str, Any]:
+        vistas: dict[str, Any] = {}
+        for clave, valor in pares:
+            if clave in vistas and clave not in repetidas:
+                repetidas.append(clave)
+            vistas[clave] = valor
+        return vistas
+
+    try:
+        json.loads(ruta.read_text(encoding="utf-8-sig"), object_pairs_hook=mirar)
+    except (OSError, ValueError):
+        return []
+    return repetidas
 
 
 def cargar(ruta: Path) -> list[dict[str, Any]]:

@@ -102,7 +102,7 @@ NAVAJA = "navaja"
 SECCIONES = {
     ARCHIVOS: "Se usan al momento: les dices qué hacer y lo hacen.",
     REDES: "Calculadoras para clase, con los pasos explicados.",
-    PROGRAMACION: "Para tus proyectos: huellas, codificar, datos de prueba y contraseñas.",
+    PROGRAMACION: "Para tus proyectos: huellas, datos de prueba y contraseñas.",
     REPITES: "Recetas guardadas en acciones.json: se hacen con una palabra.",
     NAVAJA: "Colores, tu nombre y el manual.",
 }

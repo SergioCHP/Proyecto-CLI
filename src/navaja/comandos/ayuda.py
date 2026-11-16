@@ -250,11 +250,6 @@ EXTRA: dict[str, str] = {
         "de un .tar) y nunca pisa nada. Si cancelas, quita lo que llevaba sacado. RAR y 7z aún "
         "no (hace falta 7-Zip)."
     ),
-    "json": (
-        "Si está mal escrito, dice la línea, la columna y qué pasa (una coma de más, comillas "
-        "simples…), y sale con el código 1. Con --guardar crea un archivo nuevo al lado "
-        "(nombre-formateado.json); el original no se toca. YAML necesita pyyaml."
-    ),
     "doctor": (
         "Solo mira: no instala nada. ✔ está bien, ! falta algo opcional (solo lo usan algunas "
         "órdenes) y ✘ falta algo que hace falta: entonces sale con el código 1."
@@ -273,10 +268,6 @@ EXTRA: dict[str, str] = {
     "hash": (
         "Compara con --compara la huella que da la web: sabe cuál es por el largo (32 cifras "
         "MD5, 40 SHA-1, 64 SHA-256) y, si no coincide, sale con el código 1."
-    ),
-    "codifica": (
-        "Sin -d codifica y con -d descodifica. Solo escribe el resultado, para copiarlo o "
-        "pasarlo a otra orden. Todo sin internet."
     ),
     "clave": (
         "Con secrets, el azar de Python para criptografía. «fuerza» pregunta la contraseña sin "

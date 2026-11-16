@@ -38,7 +38,6 @@ class Revision:
 OBLIGATORIAS = [("typer", "los comandos"), ("rich", "los colores y las tablas"), ("prompt_toolkit", "el menú")]
 OPCIONALES = [
     ("pypdf", "pypdf", "cuenta: leer PDF", 'uv tool install --editable ".[pdf]"'),
-    ("pyyaml", "yaml", "json: leer YAML", 'uv tool install --editable ".[yaml]"'),
 ]
 
 PROGRAMAS = [
