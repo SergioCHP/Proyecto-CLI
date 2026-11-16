@@ -254,6 +254,48 @@ EXTRA: dict[str, str] = {
         "Solo mira: no instala nada. ✔ está bien, ! falta algo opcional (solo lo usan algunas "
         "órdenes) y ✘ falta algo que hace falta: entonces sale con el código 1."
     ),
+    "busca": (
+        "Mira la carpeta y sus subcarpetas, sin .git, .venv, node_modules ni lo del .gitignore "
+        "(--todo también). Sin mirar mayúsculas ni tildes: «funcion» encuentra «Función» "
+        "(--exacto sí las mira). Lee .docx y .odt sin instalar nada y .pdf con pypdf (en un "
+        "PDF el número es la página). Se salta lo que no es texto. Si no encuentra nada, sale "
+        "con el código 1."
+    ),
+    "convierte": (
+        "Imágenes entre sí (también HEIC del iPhone) y a PDF (varias, en un solo PDF con el "
+        "nombre de la carpeta; --separados, uno por imagen); PDF a docx (pdf2docx), png o jpg "
+        "(una por página, --dpi); Word, Excel y PowerPoint a PDF (LibreOffice o, en Windows, "
+        "Word); md o html a docx o pdf (Pandoc); csv ↔ json y csv ↔ xlsx; vídeo a mp3, gif, "
+        "mp4 o webm y audio entre formatos (FFmpeg; --comprime, vídeo en 720p). Si falta algo, "
+        "lo dice antes de empezar con cómo instalarlo; si un archivo falla, los demás siguen."
+    ),
+    "pdf": (
+        "Las páginas se escriben como 1-3,7 o 10- (de la 10 al final) o «ultima». Cada orden "
+        "crea un PDF nuevo al lado (apuntes-p1-3.pdf, apuntes-girado.pdf…) y el original no se "
+        "toca. La contraseña se escribe sin que se vea y se guarda con AES-256. Con pypdf."
+    ),
+    "imagen": (
+        "Las fotos salen derechas (las del móvil vienen giradas por dentro) y sin los datos "
+        "ocultos (fecha, cámara y ubicación GPS). Las HEIC salen en JPG. Cada una, nueva al "
+        "lado de la original. Con Pillow; las HEIC, con pillow-heif."
+    ),
+    "qr": (
+        "Se dibuja con medios bloques en blanco y negro para que lo lea la cámara. Con --wifi, "
+        "el texto es el nombre de la red y la contraseña se pregunta sin que se vea: al leerlo, "
+        "el móvil se conecta solo. Con qrcode."
+    ),
+    "baja": (
+        "Enseña título, duración y tamaño y pregunta antes de bajar. Un .txt con un enlace por "
+        "línea vale por todos ellos. Con FFmpeg junta vídeo y audio en buena calidad y saca "
+        "el MP3; sin él, baja la versión que ya viene junta. Lo ya bajado no se repite. Si "
+        "las webs cambian y deja de funcionar, actualiza yt-dlp. Solo vídeos tuyos, con "
+        "permiso o para uso personal."
+    ),
+    "fondo": (
+        "Con rembg y el modelo isnet-general-use (unos 170 MB, se descarga la primera vez); "
+        "después, sin internet. PNG transparente al lado; con --color, un JPG con el fondo "
+        "liso; con --mascara, solo la silueta."
+    ),
     "base": (
         "El número vale en decimal (200), con prefijo (0b11001000, 0o310, 0xC8) o con h detrás "
         "(C8h); si lleva letras, se lee como hexadecimal. Con --de 2, unos y ceros sin prefijo "

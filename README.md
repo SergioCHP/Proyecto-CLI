@@ -10,16 +10,15 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
 2. **Para quién:** para mí, y quizás para mi mujer, para que ordene los archivos de su PC.
 3. **Uso:** `navaja ORDEN [CARPETA] [opciones]`. Sin orden (`navaja`), abre un menú
    interactivo. Alias corto: `nav`.
-4. **Órdenes que ya tiene:** `listar`, `ocupa`, `limpia`, `arbol`, `cuenta`, `comprime`,
-   `extrae`, `ordena`, `renombra`,
-   `duplicados`, `copia`, `notas`, `base`, `chmod`, `subred` (`ver`, `dividir`, `vlsm`,
+4. **Órdenes que ya tiene:** `listar`, `ocupa`, `limpia`, `arbol`, `busca`, `comprime`,
+   `extrae`, `ordena`, `renombra`, `duplicados`, `copia`, `notas`, `convierte`, `cuenta`,
+   `fondo`, `baja`, `qr`, `pdf`, `imagen`, `base`, `chmod`, `subred` (`ver`, `dividir`, `vlsm`,
    `misma`, `practica`), `hash`, `genera`, `clave`, `doctor`,
    `acciones` (`ver`, `ejecutar`, `deshacer`, `versiones`,
    `editar`, `validar`), `tema`, `config` (también `config autocompletar`, Tab en PowerShell),
    `manual` y `version`. Dentro de navaja, Tab completa y ↑ ↓ recuperan lo de antes.
-5. **Órdenes previstas:**
-   - `navaja busca`: un buscador de texto dentro de archivos.
-   - Cambiar formatos de imagen o documentos.
+5. **Órdenes previstas:** las de estudio y proyectos (`nuevo`, `hoy`, `falsos`…), en el
+   documento de ideas.
 6. **Acciones:** `ordenar-descargas`, `imagenes-ia`, `instaladores-viejos`,
    `fotos-con-fecha` y la rutina `limpieza-semanal`. La que más uso es
    `ordenar-descargas`, porque me gusta tenerlo todo en orden.
@@ -48,7 +47,14 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
 | `navaja ocupa [ruta]` | Muestra qué archivos y carpetas ocupan más espacio. |
 | `navaja limpia [ruta]` | Busca y borra cachés y temporales (`node_modules`, `__pycache__`…). `dist`, `build`, `target` y `coverage` solo dentro de un proyecto de programación. |
 | `navaja arbol [carpeta]` | Dibuja el árbol de carpetas de un proyecto, sin `.git`, `.venv`, `__pycache__` ni lo del `.gitignore` (`--todo` lo enseña todo). `--profundidad`, `--solo-carpetas` y `--guardar arbol.md` para pegarlo en el README. |
+| `navaja busca TEXTO [carpeta]` | Busca un texto dentro de los archivos de una carpeta y sus subcarpetas, también en Word, LibreOffice y PDF, sin mirar mayúsculas ni tildes, y resalta la línea. `--regex`, `--exacto`, `--solo pdf,md`. Se salta `.git`, `.venv` y lo del `.gitignore`. |
+| `navaja convierte ARCHIVOS a FORMATO` | Una sola orden para cambiar de formato: imágenes entre sí (HEIC del iPhone a JPG…) y a un PDF, PDF a Word o a imágenes, Word/Excel/PowerPoint a PDF, Markdown a Word, CSV ↔ JSON ↔ Excel, vídeo a MP3, GIF o MP4 (`--comprime` para WhatsApp). Vale `*.heic a jpg`. |
 | `navaja cuenta ARCHIVOS` | Palabras, caracteres, párrafos, páginas y minutos de lectura (y en voz alta) de un `.docx`, `.odt`, `.md`, `.txt`, `.html` o `.pdf` (este con `pypdf`). `--minimo 1500` dice si llegas. |
+| `navaja pdf` | `une`, `separa`, `saca` y `quita` páginas (`1-3,7`), `gira`, `comprime`, `protege` y `desprotege` (contraseña AES-256) e `info`. Siempre un PDF nuevo al lado. |
+| `navaja imagen` | `reduce`, `comprime`, `recorta` (`1:1`, `16:9`…), `grises`, `limpia` (quita la ubicación GPS y los datos ocultos), `icono` (favicon.ico) e `info`. Las fotos salen derechas y sin datos ocultos. |
+| `navaja fondo FOTOS` | Quita el fondo de las fotos con IA y sin internet (rembg): PNG transparente, `--color blanco` para fotos de carné o `--mascara`. |
+| `navaja baja ENLACES` | Descarga vídeos o el audio (`--audio`, MP3) de YouTube, Instagram, TikTok, X… con yt-dlp. Enseña título, duración y tamaño antes de bajar. `--calidad 720`, `--subtitulos es`, un `.txt` con enlaces. |
+| `navaja qr TEXTO` | Un QR en la terminal para pasar un enlace o un texto al móvil; `--wifi` para que el móvil se conecte a tu wifi; `--guardar` en PNG. |
 | `navaja comprime [carpeta]` | Crea un `.zip` (o `.tar.gz`) al lado de la carpeta, sin `.git`, `.venv`, `node_modules`, `__pycache__` ni lo del `.gitignore`: lo que se entrega de una práctica. `--sin *.log`, `--todo`, `--destino`, `--simular` y `[s/n]`. Nunca pisa uno que ya exista. |
 | `navaja extrae ARCHIVO` | Descomprime un `.zip`, `.tar` o `.tar.gz` enseñando antes lo que lleva y preguntando `[s/n]`. Va a una carpeta nueva al lado (sin repetir la que trae dentro), se salta lo que se saldría de la carpeta y nunca pisa nada. |
 | `navaja ordena` | Ordena una carpeta: por tipo, por fecha (mes, año o día), los archivos de unas fechas a una carpeta, por un texto del nombre o por letra. Con deshacer. |
@@ -91,10 +97,12 @@ Los iconos salen en Windows Terminal, en la terminal de VS Code y en las de Linu
 en la consola antigua de Windows o con una salida que no es UTF-8 se quitan solos. Trabaja en la carpeta desde
 la que entras, que se ve siempre en el prompt.
 
-El menú (y `navaja --help`) va en cinco grupos. Los de **Archivos** (1-12) se usan al
-momento: les dices qué hacer y lo hacen. **Redes e informática** (13-15) son calculadoras
-para clase: `base`, `chmod` y `subred`. **Programación** (16-18) es la caja de herramientas
-para tus proyectos: `hash`, `genera` y `clave`. **Lo que repites** (19) son tus acciones: recetas
+El menú (y `navaja --help`) va en seis grupos. Los de **Archivos** (1-12) se usan al
+momento: les dices qué hacer y lo hacen. **Documentos e imágenes** (13-19) convierten,
+trabajan con PDF y fotos, bajan vídeos y hacen QR, sin tocar nunca el original. **Redes e
+informática** (20-22) son calculadoras para clase: `base`, `chmod` y `subred`.
+**Programación** (23-25) es la caja de herramientas para tus proyectos: `hash`, `genera` y
+`clave`. **Lo que repites** (26) son tus acciones: recetas
 guardadas en `acciones.json` que se hacen con una palabra (`acciones ejecutar
 usb-a-pc`). Y **navaja**: colores, tu nombre y el manual.
 
@@ -109,16 +117,19 @@ Archivos — Se usan al momento: les dices qué hacer y lo hacen.
  1  listar      Muestra qué hay en una carpeta.
  2  ocupa       Muestra qué ocupa espacio en disco.
  …
+Documentos e imágenes — Convertir, PDF, fotos, vídeos y QR. El original nunca se toca.
+13  convierte   Imágenes, PDF ↔ Word, a PDF, CSV, vídeo…
+ …
 Redes e informática — Calculadoras para clase, con los pasos explicados.
-13  base        Binario, octal, decimal y hexadecimal.
+20  base        Binario, octal, decimal y hexadecimal.
  …
 Programación — Para tus proyectos: huellas, datos de prueba y contraseñas.
-16  hash        Comprueba que una descarga está bien.
+23  hash        Comprueba que una descarga está bien.
  …
 Lo que repites — Recetas guardadas en acciones.json: se hacen con una palabra.
-19  acciones    Tus recetas guardadas: verlas y hacerlas.
+26  acciones    Tus recetas guardadas: verlas y hacerlas.
 navaja — Colores, tu nombre y el manual.
-20  doctor      Revisa que todo esté listo y cómo arreglarlo.
+27  doctor      Revisa que todo esté listo y cómo arreglarlo.
  …
  0  salir
 
@@ -328,13 +339,32 @@ navaja --help
 
 Si dice «orden no encontrada», ejecuta `uv tool update-shell` y abre otra terminal.
 
-`cuenta` lee PDF con una librería opcional, `pypdf`. Para instalarla a la vez que navaja:
+Las órdenes de documentos e imágenes usan librerías opcionales, para no instalar lo que no
+uses. Cada grupo con su nombre, o todas a la vez:
 
 ```bash
-uv tool install --editable ".[todo]"   # las opcionales (hoy, solo pypdf)
+uv tool install --editable ".[todo]"         # pdf, imagen, qr, documentos y baja
+uv tool install --editable ".[todo,fondo]"   # y además quitar fondos (unos 300 MB más)
 ```
 
-`navaja doctor` dice cuáles tienes y qué programas de fuera faltan.
+Siempre todos juntos en el mismo comando: `uv tool install` deja solo los extras que le
+dices, así que instalar después `".[fondo]"` quitaría los de `todo`. Si cambias algo de
+`pyproject.toml`, vuelve a ejecutar el mismo comando.
+
+| Extra | Librerías | Para |
+| --- | --- | --- |
+| `pdf` | pypdf (con cryptography) | `pdf`, y leer PDF en `cuenta` y `busca` |
+| `imagen` | Pillow, pillow-heif | `imagen` y `convierte` con imágenes (también HEIC) |
+| `qr` | qrcode, Pillow | `qr` |
+| `documentos` | pdf2docx (PyMuPDF), openpyxl, docx2pdf (Windows) | `convierte`: PDF a Word o a imágenes, Excel, Word a PDF |
+| `baja` | yt-dlp | `baja` |
+| `fondo` | rembg (con onnxruntime) | `fondo` (la primera vez descarga el modelo, unos 170 MB) |
+
+Algunas conversiones usan programas de fuera: **FFmpeg** (vídeo y audio; también lo usa `baja`
+para juntar vídeo y audio y sacar el MP3), **LibreOffice** (Word, Excel y PowerPoint a PDF; en
+Windows también vale Word) y **Pandoc** (Markdown a Word). En Windows se instalan con `winget
+install Gyan.FFmpeg`, `winget install TheDocumentFoundation.LibreOffice` y `winget install
+JohnMacFarlane.Pandoc`. `navaja doctor` dice qué tienes y qué falta.
 
 Para tener Tab también en PowerShell (`navaja ord` y Tab → `navaja ordena`, y lo mismo con
 `nav`; también los nombres de tus acciones: `navaja acciones ejecutar us` y Tab →
@@ -430,8 +460,26 @@ navaja arbol -p 2 --guardar arbol.md             # dos niveles, en Markdown para
 navaja comprime                                  # Proyecto-CLI.zip al lado, sin lo que sobra
 navaja comprime --sin "*.log" -f tar.gz --simular
 navaja extrae practica.zip                       # enseña lo que lleva y pregunta
-navaja cuenta memoria.docx --minimo 1500         # ¿llego a las palabras que piden?
+navaja busca "función recursiva" ~/Documents/DAM  # ¿en qué apuntes salía esto?
 navaja doctor                                    # ¿está todo listo?
+
+# Documentos e imágenes
+navaja convierte trabajo.pdf a docx              # PDF a Word
+navaja convierte memoria.docx a pdf              # Word a PDF (LibreOffice o Word)
+navaja convierte "*.heic" a jpg                  # las fotos del iPhone
+navaja convierte "pizarra/*.jpg" a pdf           # todas las fotos en un PDF (pizarra.pdf)
+navaja convierte clase.mp4 a mp3                 # solo el audio
+navaja convierte video.mov a mp4 --comprime      # para mandarlo por WhatsApp
+navaja cuenta memoria.docx --minimo 1500         # ¿llego a las palabras que piden?
+navaja pdf une tema1.pdf tema2.pdf -n apuntes    # apuntes.pdf
+navaja pdf saca libro.pdf 12-30                  # solo esas páginas
+navaja pdf protege notas.pdf                     # con contraseña (no se ve al escribirla)
+navaja imagen reduce "*.jpg" --lado 1600         # para mandarlas
+navaja imagen limpia foto.jpg                    # sin la ubicación GPS
+navaja fondo foto.jpg --color blanco             # foto de carné
+navaja baja https://youtu.be/… --audio           # el audio en MP3
+navaja qr https://github.com/SergioCHP           # al móvil con la cámara
+navaja qr MiCasa --wifi                          # que el móvil se conecte a la wifi
 
 # Calculadoras de clase
 navaja base 200                                  # binario, octal y hex, con las divisiones

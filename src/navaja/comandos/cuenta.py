@@ -20,7 +20,7 @@ import typer
 from rich.markup import escape
 from rich.text import Text
 
-from ..comun import AJUSTE, ARCHIVOS, console, error_console, recuadro, resumen, tabla_ligera
+from ..comun import AJUSTE, DOCUMENTOS, console, error_console, recuadro, resumen, tabla_ligera
 from ..errores import NavajaError
 
 PALABRA = re.compile(r"[^\W_]+(?:['’\-][^\W_]+)*")
@@ -36,7 +36,7 @@ EN_VOZ_ALTA = 130
 TEXTO_PLANO = {".txt", ".md", ".markdown", ".csv", ".tex", ".rst", ".py", ".java", ".js"}
 W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 TEXTO_ODT = "{urn:oasis:names:tc:opendocument:xmlns:text:1.0}"
-INSTALAR_PDF = 'uv tool install --editable ".[pdf]"  (o: pip install pypdf)'
+INSTALAR_PDF = 'uv tool install --editable ".[todo]"  (desde la carpeta de navaja)'
 
 
 @dataclass
@@ -241,5 +241,5 @@ def con_puntos(numero: int) -> str:
 
 def registrar(app: typer.Typer) -> None:
     app.command(
-        "cuenta", help="Palabras, páginas y minutos de lectura de un trabajo.", rich_help_panel=ARCHIVOS
+        "cuenta", help="Palabras, páginas y minutos de lectura de un trabajo.", rich_help_panel=DOCUMENTOS
     )(cuenta)

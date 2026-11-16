@@ -35,6 +35,7 @@ from .comandos.ayuda import subcomandos as opciones_de
 from .comun import (
     AJUSTE,
     ARCHIVOS,
+    DOCUMENTOS,
     NAVAJA,
     PALABRAS_VOLVER,
     PROGRAMACION,
@@ -162,6 +163,7 @@ ICONOS = {
     "ocupa": "📊",
     "limpia": "🧹",
     "arbol": "🌳",
+    "busca": "🔍",
     "cuenta": "📏",
     "comprime": "🧳",
     "extrae": "📤",
@@ -170,6 +172,12 @@ ICONOS = {
     "duplicados": "👯",
     "copia": "📋",
     "notas": "📝",
+    "convierte": "🔄",
+    "fondo": "✨",
+    "baja": "📥",
+    "qr": "📱",
+    "pdf": "📕",
+    "imagen": "📷",
     "base": "🔢",
     "chmod": "🔐",
     "subred": "🧮",
@@ -182,6 +190,7 @@ ICONOS = {
     "config": "👤",
     "manual": "📖",
     ARCHIVOS: "📁",
+    DOCUMENTOS: "📚",
     REDES: "🌐",
     PROGRAMACION: "💻",
     REPITES: "🔁",
@@ -238,6 +247,14 @@ CORTO = {
     "comprime": "Un .zip sin .git, .venv ni lo que sobra.",
     "extrae": "Descomprime, enseñando antes lo que lleva.",
     "doctor": "Revisa que todo esté listo y cómo arreglarlo.",
+    "busca": "Un texto dentro de los archivos (Word y PDF).",
+    "convierte": "Imágenes, PDF ↔ Word, a PDF, CSV, vídeo…",
+    "fondo": "Quita el fondo de una foto (IA, sin internet).",
+    "baja": "Vídeos o audio de YouTube, Instagram, TikTok…",
+    "qr": "Un QR para pasar un enlace o la wifi al móvil.",
+    "pdf": "Unir, separar, páginas, girar, contraseña…",
+    "imagen": "Reducir, comprimir, recortar, quitar el GPS…",
+    "imagen limpia": "Les quita la ubicación GPS y datos ocultos.",
     "notas abrir": "Abre un enlace o enseña (o cambia) una nota.",
     "acciones ejecutar": "Hace una acción: enseña el plan y pregunta.",
     "acciones editar": "Abre acciones.json en tu editor.",
@@ -513,7 +530,8 @@ def _preguntar_argumento(param: Any, leer: Lector, delante: list[str]) -> list[s
             if not valor:
                 console.print("  [aviso]Hace falta un valor.[/]")
                 continue
-            if not es_ruta and parece_carpeta(valor):
+            # en una lista (fotos, PDF, archivos a convertir…) las rutas son justo lo que va
+            if not es_ruta and not es_lista and parece_carpeta(valor):
                 console.print(
                     "  [aviso]Eso parece una carpeta.[/] [pista]Aquí va un texto del nombre; la "
                     "carpeta se elige en «¿En qué carpeta?» (escribe volver para ir a ella) "

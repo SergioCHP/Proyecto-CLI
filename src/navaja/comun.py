@@ -95,12 +95,14 @@ AJUSTE = "Ajustes"
 pregunta al elegir el comando por número, con Intro para dejar su valor."""
 
 ARCHIVOS = "Archivos"
+DOCUMENTOS = "Documentos e imágenes"
 REDES = "Redes e informática"
 PROGRAMACION = "Programación"
 REPITES = "Lo que repites"
 NAVAJA = "navaja"
 SECCIONES = {
     ARCHIVOS: "Se usan al momento: les dices qué hacer y lo hacen.",
+    DOCUMENTOS: "Convertir, PDF, fotos, vídeos y QR. El original nunca se toca.",
     REDES: "Calculadoras para clase, con los pasos explicados.",
     PROGRAMACION: "Para tus proyectos: huellas, datos de prueba y contraseñas.",
     REPITES: "Recetas guardadas en acciones.json: se hacen con una palabra.",

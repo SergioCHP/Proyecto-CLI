@@ -844,6 +844,60 @@ cosas mal:
     mismo sitio, porque JSON se queda con la última sin decir nada.
 - Menú: Programación 16-18 (`hash`, `genera`, `clave`), `acciones` 19 y navaja 20-23.
 - 3 tests nuevos en `test_acciones.py`.
+
+### 2026-11-16 — Fase 2: busca, convierte, pdf, imagen, qr, baja y fondo
+
+- **Sección nueva «Documentos e imágenes»** (📚) entre Archivos y Redes: `convierte`,
+  `cuenta` (que viene de Archivos), `fondo`, `baja`, `qr`, `pdf` e `imagen`. Numeración:
+  Archivos 1-12 (`busca` es el 5), Documentos 13-19, Redes 20-22, Programación 23-25,
+  `acciones` 26 y navaja 27-30.
+- **`lotes.py`** (nuevo), lo común de las órdenes que crean archivos a partir de otros:
+  comodines (`*.heic`, que en Windows no expande la terminal), el nombre nuevo al lado sin
+  pisar ni repetirse (`al_lado`), el plan «de → a», `--simular`, `[s/n]`, el trabajo en
+  paralelo con barra (si uno falla, se quita lo que dejó a medias y siguen los demás), y
+  `FaltaAlgo` con el comando exacto para instalar la librería o el programa que falta.
+  También `pedir_secreto` (contraseña sin eco; por tubería, la primera línea).
+- **`busca TEXTO [CARPETA]`**: en subcarpetas, sin lo de `ignorados.py`; sin mayúsculas ni
+  tildes manteniendo las posiciones para resaltar (`sin_tildes_igual_largo`); `--regex`,
+  `--exacto`, `--solo`, `--todo`. Lee .docx, .odt y .pdf (por página); se salta binarios y
+  textos de más de 20 MB; recorta líneas largas alrededor de lo encontrado. Sale con 1 si no
+  encuentra nada. Era la orden de la spec que faltaba.
+- **`convierte ARCHIVOS a FORMATO`**: imágenes entre sí y a PDF (varias en uno con el nombre
+  de la carpeta; `--separados`), PDF a docx (pdf2docx, sin sus mensajes en inglés) y a
+  png/jpg (PyMuPDF, `--dpi`), ofimática a PDF (LibreOffice con un perfil propio para que
+  funcione aunque esté abierto; en Windows sin LibreOffice, Word con docx2pdf), md/html con
+  Pandoc, csv ↔ json (detecta `;` o `,`) y csv ↔ xlsx, vídeo y audio con FFmpeg (`--comprime`:
+  720p para WhatsApp; un vídeo al mismo formato se recomprime). Lo que no sabe, lo dice con
+  la lista de lo que sí.
+- **`pdf`**: `info`, `une` (`-n`), `separa` (por tramos o una por página), `saca`, `quita`,
+  `gira` (90/180/270, `--paginas`), `comprime` (se adapta a los nombres nuevos de pypdf 7),
+  `protege` (AES-256, la pide dos veces) y `desprotege`. Páginas como `1-3,7`, `10-`, `ultima`.
+- **`imagen`**: `info` (dice si lleva GPS), `reduce`, `comprime`, `limpia`, `recorta`,
+  `grises` e `icono`. Todas salen derechas (`exif_transpose`) y sin EXIF; HEIC → JPG; lo
+  transparente a JPG, con fondo blanco.
+- **`qr`**: medios bloques blanco sobre negro (la única excepción a «colores del tema», para
+  que lo lea la cámara), borde de 3 módulos, `--wifi` (texto WIFI: con los caracteres
+  especiales protegidos) y `--guardar` PNG.
+- **`baja`**: yt-dlp como librería. Mira antes (título, duración, tamaño, web) y un enlace
+  malo no para los demás. Sin FFmpeg baja la versión ya junta; con él, vídeo+audio y MP3.
+  `--calidad`, `--subtitulos`, `--cookies chrome`, un .txt con enlaces; destino
+  Descargas/Videos; `nooverwrites`. Mensajes en castellano para privado, sesión y web no
+  soportada, y cómo actualizar yt-dlp.
+- **`fondo`**: rembg con `isnet-general-use` (171 MB) y no el de por defecto, que ahora pesa
+  1 GB; la sesión se carga una vez para todas las fotos. `--color` y `--mascara`. Probado
+  con el modelo de verdad.
+- **Menú**: en una pregunta de lista (fotos, archivos a convertir, PDF a unir) ya no se
+  rechaza lo que parece una ruta, porque es justo lo que va ahí.
+- **Extras** en `pyproject.toml`: `pdf` (pypdf[crypto]), `imagen`, `qr`, `documentos`, `baja`,
+  `fondo` y `todo` (todas menos `fondo`). `dev` lleva las ligeras; rembg no (en los tests se
+  sustituye por uno falso). `doctor` las revisa todas.
+- 66 tests nuevos (`test_lotes`, `test_busca`, `test_convierte`, `test_pdf`, `test_imagen`,
+  `test_qr`, `test_baja` con un yt-dlp falso, `test_fondo` con un rembg falso) y
+  `tests/ayudantes.py` con un PDF con texto hecho a mano: 672 pasando.
+- Probado en Windows: 672 pasando y 2 saltados (los que necesitan FFmpeg). Arreglo: los
+  mensajes de «falta X» y `doctor` decían `".[qr]"`, `".[pdf]"`… pero `uv tool install`
+  deja solo los extras que se le dicen, así que instalar uno quitaba los demás. Ahora
+  siempre `".[todo]"` (o `".[todo,fondo]"`), con `lotes.como_instalar()`.
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.
@@ -927,15 +981,14 @@ cosas mal:
 - [ ] `excluir` compara el nombre tal cual: en macOS un nombre con tildes en NFD no coincide
   con el del JSON (en NFC).
 - [x] Traza `UnicodeEncodeError` con `✔` o `→` en Git Bash o con la salida redirigida.
-- [ ] Fase 2 (documento de ideas): `pdf`, `convierte`, `imagen`, `busca`, `portada`, `qr`,
-  `baja` y `fondo`.
+- [ ] Fase 3 (documento de ideas): primero `nuevo`, `hoy` y `falsos`; `portada` descartada.
+- [ ] `baja`: no se puede probar de verdad aquí (sin internet a YouTube); probarlo en casa.
+- [ ] `convierte`: EPUB, SRT, RAR y SVG (ideas de Filee); `pdf`: varias páginas por hoja.
 - [ ] `extrae`: zip con contraseña, RAR y 7z (con 7-Zip). `arbol` y `comprime`: los
   `.gitignore` de las subcarpetas.
 - [ ] `clave fuerza`: la lista de contraseñas comunes es corta (unas 40) y la de palabras
   solo tiene 343; es una estimación, no lo que haría un atacante de verdad.
 - [ ] `subred`: escribir `navaja subred 192.168.1.5/24` sin `ver` (hoy hace falta `ver`).
-- [ ] `navaja busca` (texto dentro de archivos) y cambiar formatos de imagen o documentos
-  (órdenes previstas en la spec).
 - [ ] Mejoras de la revisión del `--config` del grupo: que «Uso:» de `navaja acciones`
   enseñe `[--config RUTA]`, y permitir también `acciones --config * validar` en los
   permisos del agente.

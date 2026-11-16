@@ -4,7 +4,7 @@ from typer.testing import CliRunner
 
 from navaja import interactivo
 from navaja.app import app
-from navaja.comun import ARCHIVOS, NAVAJA, PALABRAS_VOLVER, PROGRAMACION, REDES, REPITES, SECCIONES
+from navaja.comun import ARCHIVOS, DOCUMENTOS, NAVAJA, PALABRAS_VOLVER, PROGRAMACION, REDES, REPITES, SECCIONES
 from navaja.comandos.ayuda import (
     argumentos,
     es_grupo,
@@ -91,17 +91,18 @@ def test_manual_va_el_ultimo_del_menu():
 
 def test_cada_comando_tiene_su_seccion_y_no_se_reordena():
     secciones = por_secciones(RAIZ)
-    assert [s for s, _ in secciones] == [ARCHIVOS, REDES, PROGRAMACION, REPITES, NAVAJA]
+    assert [s for s, _ in secciones] == [ARCHIVOS, DOCUMENTOS, REDES, PROGRAMACION, REPITES, NAVAJA]
     assert all(s in SECCIONES for s, _ in secciones)
     # Juntas, en el mismo orden que subcomandos: los números del menú no cambian
     assert [n for _, cs in secciones for n, _ in cs] == [n for n, _ in subcomandos(RAIZ)]
-    assert [n for n, _ in secciones[1][1]] == ["base", "chmod", "subred"]
-    assert [n for n, _ in secciones[2][1]] == ["hash", "genera", "clave"]
-    assert [n for n, _ in secciones[3][1]] == ["acciones"]
     assert [n for n, _ in secciones[0][1]][:7] == [
-        "listar", "ocupa", "limpia", "arbol", "cuenta", "comprime", "extrae"
+        "listar", "ocupa", "limpia", "arbol", "busca", "comprime", "extrae"
     ]
-    assert [n for n, _ in secciones[4][1]] == ["doctor", "tema", "config", "manual"]
+    assert [n for n, _ in secciones[1][1]] == ["convierte", "cuenta", "fondo", "baja", "qr", "pdf", "imagen"]
+    assert [n for n, _ in secciones[2][1]] == ["base", "chmod", "subred"]
+    assert [n for n, _ in secciones[3][1]] == ["hash", "genera", "clave"]
+    assert [n for n, _ in secciones[4][1]] == ["acciones"]
+    assert [n for n, _ in secciones[5][1]] == ["doctor", "tema", "config", "manual"]
 
 
 def test_un_submenu_no_tiene_secciones():

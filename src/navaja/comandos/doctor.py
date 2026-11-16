@@ -22,6 +22,7 @@ from rich.text import Text
 from .. import __version__, esquema
 from ..comun import NAVAJA, console, directorio_datos, es_utf8, recuadro, tabla_ligera
 from ..errores import NavajaError
+from ..lotes import como_instalar
 
 WINDOWS = sys.platform == "win32"
 
@@ -37,17 +38,27 @@ class Revision:
 
 OBLIGATORIAS = [("typer", "los comandos"), ("rich", "los colores y las tablas"), ("prompt_toolkit", "el menú")]
 OPCIONALES = [
-    ("pypdf", "pypdf", "cuenta: leer PDF", 'uv tool install --editable ".[pdf]"'),
+    # (paquete, para qué, extra)
+    ("pypdf", "cuenta, busca y pdf: leer PDF", "pdf"),
+    ("cryptography", "pdf protege: contraseñas AES", "pdf"),
+    ("Pillow", "imagen, convierte y fondo: fotos", "imagen"),
+    ("pillow-heif", "fotos HEIC del iPhone", "imagen"),
+    ("qrcode", "qr", "qr"),
+    ("PyMuPDF", "convierte: PDF a imágenes", "documentos"),
+    ("pdf2docx", "convierte: PDF a Word", "documentos"),
+    ("openpyxl", "convierte: Excel ↔ CSV", "documentos"),
+    ("yt-dlp", "baja: descargar vídeos", "baja"),
+    ("rembg", "fondo: quitar el fondo (pesa)", "fondo"),
 ]
 
 PROGRAMAS = [
     # (nombre, ejecutables, para qué, winget, apt)
     ("git", ("git",), "control de versiones", "winget install Git.Git", "sudo apt install git"),
-    ("LibreOffice", ("soffice", "libreoffice"), "convertir documentos (más adelante)",
+    ("LibreOffice", ("soffice", "libreoffice"), "convierte: Word, Excel… a PDF",
      "winget install TheDocumentFoundation.LibreOffice", "sudo apt install libreoffice"),
-    ("Pandoc", ("pandoc",), "Markdown a Word o PDF (más adelante)", "winget install JohnMacFarlane.Pandoc",
+    ("Pandoc", ("pandoc",), "convierte: Markdown a Word", "winget install JohnMacFarlane.Pandoc",
      "sudo apt install pandoc"),
-    ("FFmpeg", ("ffmpeg",), "vídeo y audio (más adelante)", "winget install Gyan.FFmpeg", "sudo apt install ffmpeg"),
+    ("FFmpeg", ("ffmpeg",), "convierte y baja: vídeo y audio", "winget install Gyan.FFmpeg", "sudo apt install ffmpeg"),
     ("7-Zip", ("7z", "7za"), "abrir .rar y .7z (más adelante)", "winget install 7zip.7zip", "sudo apt install p7zip-full"),
 ]
 
@@ -96,12 +107,13 @@ def revisar_librerias() -> list[Revision]:
             lista.append(Revision("Librerías", paquete, "ok", f"{version} · {para}"))
         else:
             lista.append(Revision("Librerías", paquete, "error", f"falta ({para})", "uv tool install --editable ."))
-    for paquete, _modulo, para, como in OPCIONALES:
+    for paquete, para, extra in OPCIONALES:
         version = version_de(paquete)
         if version:
             lista.append(Revision("Librerías", paquete, "ok", f"{version} · {para}"))
         else:
-            lista.append(Revision("Librerías", paquete, "aviso", f"opcional, para {para}", como))
+            lista.append(Revision("Librerías", paquete, "aviso", f"opcional, para {para}",
+                                  como_instalar(extra)))
     return lista
 
 

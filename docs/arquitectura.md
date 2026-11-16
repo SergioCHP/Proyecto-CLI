@@ -18,11 +18,20 @@ src/navaja/
 ├── acciones.py         # clases Accion (registro + fábrica desde_config) y una por tipo
 ├── motor.py            # Motor: elige carpeta y archivos, pide el plan a la acción
 ├── versiones.py        # las versiones viejas que sustituye copiar (carpeta + índice)
-├── ignorados.py        # qué se salta arbol y comprime: lo de siempre y el .gitignore
+├── ignorados.py        # qué se salta arbol, comprime y busca: lo de siempre y el .gitignore
+├── lotes.py            # convierte, imagen, pdf, fondo: comodines, nombre nuevo al lado, plan, [s/n],
+│                       #   en paralelo, librerías opcionales (FaltaAlgo) y programas de fuera
 └── comandos/
     ├── listar.py       # listar (contenido de una carpeta en tabla)
     ├── arbol.py        # arbol (árbol de carpetas; --guardar en Markdown)
+    ├── busca.py        # busca (texto en archivos, Word y PDF; sin mayúsculas ni tildes)
     ├── cuenta.py       # cuenta (palabras de .docx/.odt con zipfile + XML; .pdf con pypdf)
+    ├── convierte.py    # convierte (Pillow, PyMuPDF, pdf2docx, LibreOffice/Word, Pandoc, openpyxl, FFmpeg)
+    ├── pdf.py          # sub-app: info / une / separa / saca / quita / gira / comprime / protege / desprotege
+    ├── imagen.py       # sub-app: info / reduce / comprime / limpia / recorta / grises / icono
+    ├── qr.py           # qr (medios bloques en la terminal; --wifi; --guardar PNG)
+    ├── baja.py         # baja (yt-dlp; FFmpeg para juntar y el MP3)
+    ├── fondo.py        # fondo (rembg con isnet-general-use, cargado una vez)
     ├── comprime.py     # comprime (.zip o .tar.gz a un temporal y luego su nombre)
     ├── extrae.py       # extrae (rutas seguras, sin enlaces, sin pisar; quita lo sacado si cancelas)
     ├── ayuda.py        # «ayuda» (lo de aquí), «ayuda ocupa» y la orden manual
@@ -173,8 +182,14 @@ considera basura `limpia`, cómo compara `duplicados`…) va en `EXTRA` de
   `rich.text.Text`.
 - **Secretos:** nunca escribas claves en el código ni las subas; van en `.env`,
   que está en `.gitignore`.
-- **Dependencias opcionales:** lo que no hace falta para todo (hoy, `pypdf`) va en
-  `[project.optional-dependencies]` (`pdf` y `todo`; `dev` las lleva para los
+- **Archivos nuevos a partir de otros** (convierte, imagen, pdf, fondo): con `lotes.py`.
+  El original nunca se toca: `al_lado()` da el nombre nuevo junto a él («foto-reducida.jpg»)
+  sin pisar nada ni repetirse en el mismo plan; `ejecutar()` enseña «de → a», respeta
+  `--simular` y `--si`, lo hace en paralelo y, si uno falla, borra lo que dejó a medias y
+  sigue con los demás. Lo que falte (librería o programa) se comprueba antes de preguntar.
+- **Dependencias opcionales:** lo que no hace falta para todo va en
+  `[project.optional-dependencies]` (`pdf`, `imagen`, `qr`, `documentos`, `baja`, `fondo` y
+  `todo`, que son todas menos `fondo`; `dev` lleva las ligeras para los
   tests) y se importa dentro de la función que lo usa: si falta, `NavajaError` con cómo
   instalarlo, y `doctor` lo enseña con «!».
 - **Python 3.12 o superior** (`.python-version` fija 3.12). Usa

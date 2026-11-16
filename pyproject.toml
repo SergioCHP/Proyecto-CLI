@@ -16,9 +16,20 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-pdf = ["pypdf>=4.0"]
-todo = ["pypdf>=4.0"]
-dev = ["pytest>=8.0", "pypdf>=4.0"]
+pdf = ["pypdf[crypto]>=4.0"]
+imagen = ["Pillow>=10.0", "pillow-heif>=0.16"]
+qr = ["qrcode>=7.4", "Pillow>=10.0"]
+documentos = ["pdf2docx>=0.5", "openpyxl>=3.1", "docx2pdf>=0.1.8; sys_platform == 'win32'"]
+baja = ["yt-dlp>=2024.1"]
+fondo = ["rembg[cpu]>=2.0", "Pillow>=10.0"]
+todo = [
+    "pypdf[crypto]>=4.0", "Pillow>=10.0", "pillow-heif>=0.16", "qrcode>=7.4",
+    "pdf2docx>=0.5", "openpyxl>=3.1", "docx2pdf>=0.1.8; sys_platform == 'win32'", "yt-dlp>=2024.1",
+]
+dev = [
+    "pytest>=8.0", "pypdf[crypto]>=4.0", "Pillow>=10.0", "pillow-heif>=0.16", "qrcode>=7.4",
+    "pdf2docx>=0.5", "openpyxl>=3.1", "yt-dlp>=2024.1",
+]
 
 [project.scripts]
 navaja = "navaja.app:main"

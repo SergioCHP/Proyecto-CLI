@@ -15,22 +15,29 @@ from .comandos import (
     ajustes,
     arbol,
     ayuda,
+    baja,
     base,
+    busca,
     chmod,
     clave,
     comprime,
+    convierte,
     copia,
     cuenta,
     doctor,
     duplicados,
     extrae,
+    fondo,
     genera,
     huella,
+    imagen,
     listar,
     mis_acciones,
     notas,
     ocupa,
     ordena,
+    pdf,
+    qr,
     renombra,
     subred,
 )
@@ -41,8 +48,10 @@ app = typer.Typer(
     help=(
         "Caja de herramientas de terminal con utilidades cotidianas.\n\n"
         "Comandos: [bold]listar[/], [bold]ocupa[/], [bold]limpia[/], [bold]arbol[/], "
-        "[bold]cuenta[/], [bold]comprime[/], [bold]extrae[/], [bold]ordena[/], "
-        "[bold]renombra[/], [bold]duplicados[/], [bold]copia[/], [bold]notas[/], [bold]base[/], "
+        "[bold]busca[/], [bold]comprime[/], [bold]extrae[/], [bold]ordena[/], "
+        "[bold]renombra[/], [bold]duplicados[/], [bold]copia[/], [bold]notas[/], "
+        "[bold]convierte[/], [bold]cuenta[/], [bold]fondo[/], [bold]baja[/], [bold]qr[/], "
+        "[bold]pdf[/], [bold]imagen[/], [bold]base[/], "
         "[bold]chmod[/], [bold]subred[/], [bold]hash[/], [bold]genera[/], "
         "[bold]clave[/], [bold]acciones[/], [bold]doctor[/], "
         "[bold]tema[/], [bold]config[/] y [bold]manual[/] (explica todo)."
@@ -124,7 +133,8 @@ def version_orden() -> None:
 
 
 for modulo in (
-    listar, ocupa, arbol, cuenta, comprime, extrae, ordena, renombra, duplicados, copia, notas,
+    listar, ocupa, arbol, busca, comprime, extrae, ordena, renombra, duplicados, copia, notas,
+    convierte, cuenta, fondo, baja, qr, pdf, imagen,
     base, chmod, subred,
     huella, genera, clave,
     mis_acciones, doctor, ajustes, ayuda,
