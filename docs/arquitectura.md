@@ -18,8 +18,13 @@ src/navaja/
 ├── acciones.py         # clases Accion (registro + fábrica desde_config) y una por tipo
 ├── motor.py            # Motor: elige carpeta y archivos, pide el plan a la acción
 ├── versiones.py        # las versiones viejas que sustituye copiar (carpeta + índice)
+├── ignorados.py        # qué se salta arbol y comprime: lo de siempre y el .gitignore
 └── comandos/
     ├── listar.py       # listar (contenido de una carpeta en tabla)
+    ├── arbol.py        # arbol (árbol de carpetas; --guardar en Markdown)
+    ├── cuenta.py       # cuenta (palabras de .docx/.odt con zipfile + XML; .pdf con pypdf)
+    ├── comprime.py     # comprime (.zip o .tar.gz a un temporal y luego su nombre)
+    ├── extrae.py       # extrae (rutas seguras, sin enlaces, sin pisar; quita lo sacado si cancelas)
     ├── ayuda.py        # «ayuda» (lo de aquí), «ayuda ocupa» y la orden manual
     ├── ocupa.py        # ocupa (analizar) y limpia (borrar basura)
     ├── ordena.py       # sub-app: tipo / fecha / tramo / nombre / letra / tipos / deshacer
@@ -27,6 +32,15 @@ src/navaja/
     ├── duplicados.py   # sub-app: buscar / borrar (a papelera) / restaurar / vaciar
     ├── copia.py        # sub-app: a / deshacer (una acción copiar hecha al momento)
     ├── notas.py        # sub-app SQLite: agregar / listar / buscar / abrir / borrar / etiquetas
+    ├── base.py         # base (binario, octal, decimal y hexadecimal, con los pasos)
+    ├── chmod.py        # chmod (permisos de Linux: 755 ↔ rwxr-xr-x)
+    ├── subred.py       # sub-app: ver / dividir / vlsm / misma / practica (solo ipaddress)
+    ├── huella.py       # sub-app hash: archivo / texto (MD5, SHA-1, SHA-256 y --compara)
+    ├── codifica.py     # sub-app: base64 / url / html / jwt
+    ├── genera.py       # sub-app: uuid / lorem / numero
+    ├── clave.py        # sub-app: nueva / frase / fuerza (con secrets)
+    ├── datos_json.py   # sub-app json: comprueba / arbol / formatea / compacta (YAML con pyyaml)
+    ├── doctor.py       # doctor (Python, librerías, programas, datos, acciones.json, terminal)
     ├── mis_acciones.py # sub-app acciones: ver / ejecutar / deshacer / (versiones) / editar / validar
     ├── versiones.py    # acciones versiones: ver / recuperar / borrar
     └── ajustes.py      # sub-apps tema (ver / elegir) y config (ver / nombre)
@@ -116,7 +130,12 @@ considera basura `limpia`, cómo compara `duplicados`…) va en `EXTRA` de
 
 1. Crea `src/navaja/comandos/<nombre>.py` con funciones puras para la lógica
    (planificar, calcular) y comandos Typer finos encima.
-2. Añade `registrar(app)` al final del módulo.
+2. Añade `registrar(app)` al final del módulo, con su sección en `rich_help_panel`
+   (`ARCHIVOS`, `REDES`, `PROGRAMACION`, `REPITES` o `NAVAJA`, de `comun.py`). El menú
+   y `--help` salen en el orden de `SECCIONES` (`ayuda.subcomandos()` los ordena así);
+   dentro de cada sección, Typer pone primero los comandos sueltos y luego los grupos.
+   Una sección nueva va en `SECCIONES` y en `ICONOS` (`interactivo.py`), igual que el
+   icono de la orden; si su ayuda no cabe en una fila del menú, una frase en `CORTO`.
 3. Importa el módulo y añádelo al bucle de `app.py`.
 4. Añade tests en `tests/test_<nombre>.py`. Pon `help` a cada argumento y
    opción: así salen en el menú, en las preguntas guiadas, en `ayuda` y en `navaja manual`.
@@ -156,6 +175,10 @@ considera basura `limpia`, cómo compara `duplicados`…) va en `EXTRA` de
   `rich.text.Text`.
 - **Secretos:** nunca escribas claves en el código ni las subas; van en `.env`,
   que está en `.gitignore`.
+- **Dependencias opcionales:** lo que no hace falta para todo (`pypdf`, `pyyaml`) va en
+  `[project.optional-dependencies]` (`pdf`, `yaml`, `todo`; `dev` las lleva para los
+  tests) y se importa dentro de la función que lo usa: si falta, `NavajaError` con cómo
+  instalarlo, y `doctor` lo enseña con «!».
 - **Python 3.12 o superior** (`.python-version` fija 3.12). Usa
   `from __future__ import annotations`.
 - **Tests:** sin mocks de Rich/Typer; prueba la lógica pura con `tmp_path`.

@@ -13,15 +13,28 @@ from typer.completion import completion_init
 from . import __version__, interactivo, logo
 from .comandos import (
     ajustes,
+    arbol,
     ayuda,
+    base,
+    chmod,
+    clave,
+    codifica,
+    comprime,
     copia,
+    cuenta,
+    datos_json,
+    doctor,
     duplicados,
+    extrae,
+    genera,
+    huella,
     listar,
     mis_acciones,
     notas,
     ocupa,
     ordena,
     renombra,
+    subred,
 )
 from .comun import aplicar_tema, cargar_config, console, nombre_para_saludar, preparar_salida
 
@@ -29,8 +42,11 @@ app = typer.Typer(
     name="navaja",
     help=(
         "Caja de herramientas de terminal con utilidades cotidianas.\n\n"
-        "Comandos: [bold]listar[/], [bold]ocupa[/], [bold]limpia[/], [bold]ordena[/], "
-        "[bold]renombra[/], [bold]duplicados[/], [bold]copia[/], [bold]notas[/], [bold]acciones[/], "
+        "Comandos: [bold]listar[/], [bold]ocupa[/], [bold]limpia[/], [bold]arbol[/], "
+        "[bold]cuenta[/], [bold]comprime[/], [bold]extrae[/], [bold]ordena[/], "
+        "[bold]renombra[/], [bold]duplicados[/], [bold]copia[/], [bold]notas[/], [bold]base[/], "
+        "[bold]chmod[/], [bold]subred[/], [bold]hash[/], [bold]codifica[/], [bold]genera[/], "
+        "[bold]clave[/], [bold]json[/], [bold]acciones[/], [bold]doctor[/], "
         "[bold]tema[/], [bold]config[/] y [bold]manual[/] (explica todo)."
     ),
     add_completion=False,
@@ -110,7 +126,10 @@ def version_orden() -> None:
 
 
 for modulo in (
-    listar, ocupa, ordena, renombra, duplicados, copia, notas, mis_acciones, ajustes, ayuda
+    listar, ocupa, arbol, cuenta, comprime, extrae, ordena, renombra, duplicados, copia, notas,
+    base, chmod, subred,
+    huella, codifica, genera, clave, datos_json,
+    mis_acciones, doctor, ajustes, ayuda,
 ):
     modulo.registrar(app)
 

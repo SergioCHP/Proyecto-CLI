@@ -16,7 +16,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0"]
+pdf = ["pypdf>=4.0"]
+yaml = ["pyyaml>=6.0"]
+todo = ["pypdf>=4.0", "pyyaml>=6.0"]
+dev = ["pytest>=8.0", "pypdf>=4.0", "pyyaml>=6.0"]
 
 [project.scripts]
 navaja = "navaja.app:main"

@@ -13,7 +13,7 @@ from rich.markup import escape
 from rich.text import Text
 
 from ..comun import (
-    HERRAMIENTAS,
+    ARCHIVOS,
     HUECO,
     MARCO,
     confirmar,
@@ -375,8 +375,8 @@ def limpia(
 
 def registrar(app: typer.Typer) -> None:
     app.command(
-        "ocupa", help="Muestra qué ocupa espacio en disco.", rich_help_panel=HERRAMIENTAS
+        "ocupa", help="Muestra qué ocupa espacio en disco.", rich_help_panel=ARCHIVOS
     )(ocupa)
     app.command(
-        "limpia", help="Borra cachés y archivos temporales.", rich_help_panel=HERRAMIENTAS
+        "limpia", help="Borra cachés y archivos temporales.", rich_help_panel=ARCHIVOS
     )(limpia)

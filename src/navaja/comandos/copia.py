@@ -17,7 +17,7 @@ import typer
 from rich.markup import escape
 
 from ..acciones import Accion, AccionDeArchivos, Resultado
-from ..comun import AJUSTE, HERRAMIENTAS, como_se_escribe, confirmar, console, error_console
+from ..comun import AJUSTE, ARCHIVOS, como_se_escribe, confirmar, console, error_console
 from ..errores import NavajaError
 from ..filtros import (
     OPCION_CARPETA,
@@ -247,4 +247,4 @@ def registrar(app: typer.Typer) -> None:
     )
     sub.command("a", help="Copia los archivos de una carpeta a otra (navaja copia a E:/DAM).")(a)
     sub.command("deshacer", help="Quita las copias que hiciste la última vez.")(deshacer)
-    app.add_typer(sub, name="copia", rich_help_panel=HERRAMIENTAS)
+    app.add_typer(sub, name="copia", rich_help_panel=ARCHIVOS)

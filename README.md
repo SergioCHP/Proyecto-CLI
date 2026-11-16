@@ -10,14 +10,15 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
 2. **Para quién:** para mí, y quizás para mi mujer, para que ordene los archivos de su PC.
 3. **Uso:** `navaja ORDEN [CARPETA] [opciones]`. Sin orden (`navaja`), abre un menú
    interactivo. Alias corto: `nav`.
-4. **Órdenes que ya tiene:** `listar`, `ocupa`, `limpia`, `ordena`, `renombra`,
-   `duplicados`, `copia`, `notas`, `acciones` (`ver`, `ejecutar`, `deshacer`, `versiones`,
+4. **Órdenes que ya tiene:** `listar`, `ocupa`, `limpia`, `arbol`, `cuenta`, `comprime`,
+   `extrae`, `ordena`, `renombra`,
+   `duplicados`, `copia`, `notas`, `base`, `chmod`, `subred` (`ver`, `dividir`, `vlsm`,
+   `misma`, `practica`), `hash`, `codifica`, `genera`, `clave`, `json`, `doctor`,
+   `acciones` (`ver`, `ejecutar`, `deshacer`, `versiones`,
    `editar`, `validar`), `tema`, `config` (también `config autocompletar`, Tab en PowerShell),
    `manual` y `version`. Dentro de navaja, Tab completa y ↑ ↓ recuperan lo de antes.
 5. **Órdenes previstas:**
    - `navaja busca`: un buscador de texto dentro de archivos.
-   - `navaja extrae` / `navaja comprime`: para unificar la compresión y descompresión
-     de archivos.
    - Cambiar formatos de imagen o documentos.
 6. **Acciones:** `ordenar-descargas`, `imagenes-ia`, `instaladores-viejos`,
    `fotos-con-fecha` y la rutina `limpieza-semanal`. La que más uso es
@@ -46,12 +47,25 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
 | `navaja listar [ruta]` | Muestra qué hay en una carpeta: nombre, tipo, tamaño y fecha. |
 | `navaja ocupa [ruta]` | Muestra qué archivos y carpetas ocupan más espacio. |
 | `navaja limpia [ruta]` | Busca y borra cachés y temporales (`node_modules`, `__pycache__`…). `dist`, `build`, `target` y `coverage` solo dentro de un proyecto de programación. |
+| `navaja arbol [carpeta]` | Dibuja el árbol de carpetas de un proyecto, sin `.git`, `.venv`, `__pycache__` ni lo del `.gitignore` (`--todo` lo enseña todo). `--profundidad`, `--solo-carpetas` y `--guardar arbol.md` para pegarlo en el README. |
+| `navaja cuenta ARCHIVOS` | Palabras, caracteres, párrafos, páginas y minutos de lectura (y en voz alta) de un `.docx`, `.odt`, `.md`, `.txt`, `.html` o `.pdf` (este con `pypdf`). `--minimo 1500` dice si llegas. |
+| `navaja comprime [carpeta]` | Crea un `.zip` (o `.tar.gz`) al lado de la carpeta, sin `.git`, `.venv`, `node_modules`, `__pycache__` ni lo del `.gitignore`: lo que se entrega de una práctica. `--sin *.log`, `--todo`, `--destino`, `--simular` y `[s/n]`. Nunca pisa uno que ya exista. |
+| `navaja extrae ARCHIVO` | Descomprime un `.zip`, `.tar` o `.tar.gz` enseñando antes lo que lleva y preguntando `[s/n]`. Va a una carpeta nueva al lado (sin repetir la que trae dentro), se salta lo que se saldría de la carpeta y nunca pisa nada. |
 | `navaja ordena` | Ordena una carpeta: por tipo, por fecha (mes, año o día), los archivos de unas fechas a una carpeta, por un texto del nombre o por letra. Con deshacer. |
 | `navaja renombra` | Renombrado masivo sin saber regex: cambiar texto, añadir delante o detrás, numerar, poner la fecha, arreglar nombres o una plantilla. Con deshacer. |
 | `navaja duplicados` | Encuentra archivos repetidos por contenido y los manda a una papelera recuperable. |
 | `navaja copia a DESTINO [ARCHIVOS]` | Copia los archivos de una carpeta (o solo los que digas: `horario.pdf`, `*.pdf`) a otra al momento, sin escribir una acción; los originales se quedan. Con filtros, simulación y `copia deshacer`. |
 | `navaja notas` | Notas y enlaces con etiquetas, guardados en SQLite. Lo que empieza por `https://` o `www.` es un enlace. |
+| `navaja base NUMERO` | Pasa un número entre binario, octal, decimal y hexadecimal (`200`, `0b11001000`, `0o310`, `0xC8` o `C8h`; con `--de 2`, unos y ceros sin prefijo), con los pasos: las divisiones sucesivas, la suma de potencias o el atajo de agrupar bits (`--a 16`). Con una IP, cada octeto en binario. |
+| `navaja chmod PERMISOS` | Calculadora de permisos de Linux: `755` ↔ `rwxr-xr-x` (también `4755` y lo que sale en `ls -l`), con quién puede qué en un archivo y en una carpeta, y avisos si es peligroso (`777`). Solo calcula. |
+| `navaja subred` | Calculadora de subredes para clase. `ver 192.168.10.200/26` (o `ver 192.168.10.200 255.255.255.192`, o solo la IP con la máscara de su clase): red, broadcast, primer y último equipo, hosts útiles, máscara, wildcard, clase, si es privada, pública, loopback o APIPA, y la IP en binario con los bits de red y de host en colores distintos. `dividir RED N` (partes iguales, FLSM), `vlsm RED 50 20 10` (por equipos, de mayor a menor; con nombre: `ventas:50`), `misma IP1 IP2` (¿se hablan sin router?) y `practica` (ejercicios al azar que corrige y explica paso a paso). Solo calcula: no toca la red ni los archivos. |
+| `navaja hash` | Huellas MD5, SHA-1 y SHA-256 de un archivo (`hash archivo ubuntu.iso`) o de un texto (`hash texto hola`). Con `--compara` dice si coincide con la que da la web (sale con 1 si no). Lee por trozos: vale para ISO de varios GB. |
+| `navaja codifica` | `base64`, `url` y `html` de ida y vuelta (con `-d`, al revés) y `jwt` para ver lo que lleva un token (sin comprobar la firma). Sin internet. |
+| `navaja genera` | `uuid`, `lorem` (texto de relleno) y `numero MIN MAX` (al azar; con `--sin-repetir`, un sorteo). |
+| `navaja clave` | `nueva` (contraseña segura al azar), `frase` (palabras al azar, fácil de recordar) y `fuerza` (cómo de fuerte es la tuya: la escribes sin que se vea y no se guarda). |
+| `navaja json` | `comprueba` (si está bien escrito; si no, la línea, la columna y qué pasa, en castellano), `arbol`, `formatea` (`--ordena`, `--sangria`) y `compacta`. Con `--guardar`, a un archivo nuevo al lado. También YAML (con `pyyaml`). |
 | `navaja acciones` | Tus tareas de siempre guardadas con un nombre en `acciones.json` (ordenar Descargas, copiar apuntes, quitar instaladores viejos…) para hacerlas con una orden. Con simulación, confirmación y deshacer; lo que sustituye una copia se guarda en `acciones versiones`. |
+| `navaja doctor` | Revisa que todo esté listo: Python, librerías (y las opcionales), programas de fuera (git, LibreOffice, Pandoc, FFmpeg, 7-Zip, Word, winget), la carpeta de datos, `acciones.json` y la terminal. Dice cómo arreglar lo que falta. |
 | `navaja tema` | `ver` los temas y `elegir` uno (clasico, morado, terminal, pastel). |
 | `navaja config` | Tu nombre para el saludo y dónde guarda navaja tus datos. La primera vez que abres navaja te pregunta cómo llamarte (Intro = tu usuario de Windows); con `config nombre` lo cambias para siempre; con `config autocompletar $PROFILE`, Tab en PowerShell. |
 | `navaja manual [comando]` | El manual completo: cómo se usa, todos los comandos con sus opciones, atajos, seguridad y datos. Con un comando, solo su parte. |
@@ -72,15 +86,17 @@ menú numerado y se queda esperando órdenes hasta que escribas `salir`. Si la v
 muy estrecha (menos de 51 columnas) o la salida no es UTF-8, el saludo sale en un
 recuadro sencillo.
 
-El menú va en recuadros, uno por grupo (Herramientas, Lo que repites y navaja), con los
+El menú va en recuadros, uno por grupo (Archivos, Redes e informática, Programación, Lo que repites y navaja), con los
 números resaltados, un icono delante de cada comando (📂 listar, 📋 copia…) y una frase
 corta que cabe en una fila (la explicación entera está en `ayuda` y en el manual).
 Los iconos salen en Windows Terminal, en la terminal de VS Code y en las de Linux y macOS;
 en la consola antigua de Windows o con una salida que no es UTF-8 se quitan solos. Trabaja en la carpeta desde
 la que entras, que se ve siempre en el prompt.
 
-El menú (y `navaja --help`) va en tres grupos. Las **herramientas** (1-8) se usan al
-momento: les dices qué hacer y lo hacen. **Lo que repites** son tus acciones: recetas
+El menú (y `navaja --help`) va en cinco grupos. Los de **Archivos** (1-12) se usan al
+momento: les dices qué hacer y lo hacen. **Redes e informática** (13-15) son calculadoras
+para clase: `base`, `chmod` y `subred`. **Programación** (16-20) es la caja de herramientas
+para tus proyectos: `hash`, `codifica`, `genera`, `clave` y `json`. **Lo que repites** (21) son tus acciones: recetas
 guardadas en `acciones.json` que se hacen con una palabra (`acciones ejecutar
 usb-a-pc`). Y **navaja**: colores, tu nombre y el manual.
 
@@ -91,14 +107,21 @@ PS C:\Users\sergi\Descargas> navaja
 ╭────────── navaja ───────────╮
 │ Buenos días, Sergio         │
 ╰─────────────────────────────╯
-Herramientas — Se usan al momento: les dices qué hacer y lo hacen.
+Archivos — Se usan al momento: les dices qué hacer y lo hacen.
  1  listar      Muestra qué hay en una carpeta.
  2  ocupa       Muestra qué ocupa espacio en disco.
  …
+Redes e informática — Calculadoras para clase, con los pasos explicados.
+13  base        Binario, octal, decimal y hexadecimal.
+ …
+Programación — Para tus proyectos: huellas, codificar, datos de prueba y contraseñas.
+16  hash        Comprueba que una descarga está bien.
+ …
 Lo que repites — Recetas guardadas en acciones.json: se hacen con una palabra.
- 8  acciones    Tus acciones guardadas en acciones.json: verlas, comprobarlas y…
+21  acciones    Tus recetas guardadas: verlas y hacerlas.
 navaja — Colores, tu nombre y el manual.
- 9  tema        …
+22  doctor      Revisa que todo esté listo y cómo arreglarlo.
+ …
  0  salir
 
 Descargas> 2                       ← un número: lo ejecuta aquí mismo
@@ -296,6 +319,15 @@ navaja --help
 
 Si dice «orden no encontrada», ejecuta `uv tool update-shell` y abre otra terminal.
 
+Algunas órdenes leen más formatos con librerías opcionales: `pypdf` (`cuenta` con PDF) y
+`pyyaml` (`json` con YAML). Para instalarlas a la vez que navaja:
+
+```bash
+uv tool install --editable ".[todo]"   # o solo una: ".[pdf]" o ".[yaml]"
+```
+
+`navaja doctor` dice cuáles tienes y qué programas de fuera faltan.
+
 Para tener Tab también en PowerShell (`navaja ord` y Tab → `navaja ordena`, y lo mismo con
 `nav`; también los nombres de tus acciones: `navaja acciones ejecutar us` y Tab →
 `usb-a-pc`, con el `--config` que hayas escrito), una sola vez:
@@ -383,6 +415,47 @@ navaja notas listar -e python
 navaja notas buscar generadores     # sin mirar mayúsculas ni tildes
 navaja notas abrir 1                # el 1 es la columna ID de «notas listar»
 navaja notas etiquetas
+
+# Proyectos y entregas
+navaja arbol                                     # el árbol de la carpeta, sin .git ni .venv
+navaja arbol -p 2 --guardar arbol.md             # dos niveles, en Markdown para el README
+navaja comprime                                  # Proyecto-CLI.zip al lado, sin lo que sobra
+navaja comprime --sin "*.log" -f tar.gz --simular
+navaja extrae practica.zip                       # enseña lo que lleva y pregunta
+navaja cuenta memoria.docx --minimo 1500         # ¿llego a las palabras que piden?
+navaja doctor                                    # ¿está todo listo?
+
+# Calculadoras de clase
+navaja base 200                                  # binario, octal y hex, con las divisiones
+navaja base 0xC8                                 # de hexadecimal a decimal, con las potencias
+navaja base 11001000 --de 2 --a 16               # el atajo: cada 4 bits, una cifra hex
+navaja base 192.168.1.10                         # una IP, octeto a octeto en binario
+navaja chmod 755                                 # rwxr-xr-x y quién puede qué
+navaja chmod -- -rw-r--r--                       # lo que sale en ls -l (con -- delante)
+
+# Subredes (para clase)
+navaja subred ver 192.168.10.200/26              # red, broadcast, hosts… y en binario
+navaja subred ver 192.168.10.200 255.255.255.192 # la máscara también vale aparte
+navaja subred ver 10.0.0.5                       # sin máscara: la de su clase (A → /8)
+navaja subred dividir 192.168.1.0/24 4           # 4 subredes iguales (/26)
+navaja subred vlsm 192.168.1.0/24 50 20 10 2     # por equipos, de mayor a menor
+navaja subred vlsm 10.0.0.0/24 ventas:100 aula:30
+navaja subred misma 192.168.1.10/24 192.168.2.5  # ¿están en la misma red?
+navaja subred practica --nivel facil             # ejercicios corregidos y explicados
+
+# Programación
+navaja hash archivo ubuntu.iso --compara 3f2a…   # ¿la descarga está bien?
+navaja codifica base64 "año 2026"                # y con -d, al revés
+navaja codifica url "año 2026 & más"
+navaja codifica jwt eyJhbGciOi…                  # lo que lleva dentro un token
+navaja genera uuid -n 3
+navaja genera lorem --palabras 80 --parrafos 2
+navaja genera numero 1 30 -n 5 --sin-repetir     # un sorteo
+navaja clave nueva --largo 20
+navaja clave frase                               # nube-cobre-faro-pinza-tigre-47
+navaja clave fuerza                              # la escribes sin que se vea
+navaja json comprueba acciones.json              # ¿está bien escrito? Si no, en qué línea
+navaja json formatea datos.json --ordena --guardar
 
 # Personalizar
 navaja tema ver                 # muestra cada tema con sus colores

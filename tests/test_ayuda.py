@@ -4,7 +4,7 @@ from typer.testing import CliRunner
 
 from navaja import interactivo
 from navaja.app import app
-from navaja.comun import HERRAMIENTAS, NAVAJA, PALABRAS_VOLVER, REPITES, SECCIONES
+from navaja.comun import ARCHIVOS, NAVAJA, PALABRAS_VOLVER, PROGRAMACION, REDES, REPITES, SECCIONES
 from navaja.comandos.ayuda import (
     argumentos,
     es_grupo,
@@ -91,11 +91,17 @@ def test_manual_va_el_ultimo_del_menu():
 
 def test_cada_comando_tiene_su_seccion_y_no_se_reordena():
     secciones = por_secciones(RAIZ)
-    assert [s for s, _ in secciones] == [HERRAMIENTAS, REPITES, NAVAJA]
+    assert [s for s, _ in secciones] == [ARCHIVOS, REDES, PROGRAMACION, REPITES, NAVAJA]
     assert all(s in SECCIONES for s, _ in secciones)
     # Juntas, en el mismo orden que subcomandos: los números del menú no cambian
     assert [n for _, cs in secciones for n, _ in cs] == [n for n, _ in subcomandos(RAIZ)]
-    assert [n for n, _ in secciones[1][1]] == ["acciones"]
+    assert [n for n, _ in secciones[1][1]] == ["base", "chmod", "subred"]
+    assert [n for n, _ in secciones[2][1]] == ["hash", "codifica", "genera", "clave", "json"]
+    assert [n for n, _ in secciones[3][1]] == ["acciones"]
+    assert [n for n, _ in secciones[0][1]][:7] == [
+        "listar", "ocupa", "limpia", "arbol", "cuenta", "comprime", "extrae"
+    ]
+    assert [n for n, _ in secciones[4][1]] == ["doctor", "tema", "config", "manual"]
 
 
 def test_un_submenu_no_tiene_secciones():
@@ -176,7 +182,7 @@ def test_menu_con_iconos_y_sin_ellos(capsys, monkeypatch):
     monkeypatch.setattr(interactivo.console, "_width", 80)
     interactivo.mostrar_menu(RAIZ, [])
     con = plano(capsys.readouterr().out)
-    assert "📂 listar" in con and "🧰 Herramientas" in con
+    assert "📂 listar" in con and "📁 Archivos" in con and "🌐 Redes e informática" in con
     assert set(interactivo.ICONOS) >= {n for n, _ in subcomandos(RAIZ)}  # ninguno sin icono
 
     monkeypatch.setattr(interactivo, "con_iconos", lambda: False)

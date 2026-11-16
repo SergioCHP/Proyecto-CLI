@@ -724,6 +724,110 @@ cosas mal:
     igual.
   - Con la salida a un archivo sin UTF-8, la barra sale con `#` y `-`.
 - 409 tests pasando.
+
+### 2026-11-16 — `subred` y la sección «Redes e informática»
+
+- **Nuevo:** `navaja subred`, la primera orden de la fase 1 del documento de ideas. Todo
+  con `ipaddress` (viene con Python): no añade dependencias.
+  - `ver`: red, máscara, wildcard, broadcast, primer y último equipo, hosts útiles, tipo
+    (privada, pública, loopback, APIPA, CGNAT, multicast…), clase y versión; en IPv4,
+    la IP, la máscara, la red y el broadcast en binario, con los bits de red y los de host
+    en colores distintos. La IP vale con `/26`, con la máscara aparte
+    (`192.168.10.200 255.255.255.192`) o sola (máscara de su clase; en IPv6, /64).
+    Avisa si la IP es la de la red o el broadcast; /31 y /32 se calculan bien.
+  - `dividir RED N`: subredes iguales (FLSM). Si N no es potencia de 2, salen las de la
+    siguiente y lo explica.
+  - `vlsm RED 50 20 10`: reparte de mayor a menor, con nombre opcional (`ventas:50`),
+    dice cuántas direcciones sobran en cada una y qué queda libre; si no cabe, cuánto falta.
+  - `misma IP1 IP2`: si están en la misma red (la segunda sin máscara usa la de la primera)
+    y el caso «a medias» de las máscaras distintas.
+  - `practica [--nivel facil|medio|dificil] [-n 5]`: ejercicios con IP privadas al azar;
+    pregunta máscara, red, broadcast y hosts, corrige y explica los fallos con el «número
+    mágico» (256 − el octeto de la máscara). `salir` termina y da el resultado.
+- **Menú:** sección nueva «Redes e informática» (🌐) para esta y las siguientes de red
+  (`base`, `chmod`, `red`, `puertos`…). «Herramientas» pasa a llamarse «Archivos» (📁)
+  y la constante `HERRAMIENTAS` es `ARCHIVOS`. `subred` es el 9 del menú; `acciones` pasa
+  del 9 al 10, y `tema`, `config` y `manual`, uno más.
+- `subred` es un grupo y no un comando suelto: Typer pone los sueltos antes que los
+  grupos y saldría en mitad de «Archivos» (apuntado en `docs/arquitectura.md`).
+- 72 tests nuevos en `tests/test_subred.py`.
+- 480 tests pasando. `test_copia.py::test_por_menu_documentos_escrito_y_carpeta_nueva`
+  falla en Linux porque escribe la ruta con barra de Windows (`documentos\ESTUDIO`); ya
+  fallaba antes de este cambio y en Windows pasa.
+
+### 2026-11-16 — Calculadoras rápidas y la sección «Programación»
+
+- **Nuevas**, sin dependencias (todo viene con Python):
+  - `base NUMERO [--de B] [--a B]`: binario, octal, decimal y hexadecimal. Lee `200`,
+    `0b…`, `0o…`, `0x…`, `C8h` o con letras (hexadecimal). Pasos: divisiones sucesivas
+    (de decimal), suma de potencias (a decimal) o el atajo de agrupar bits (binario ↔
+    hexadecimal u octal). Con una IP, cada octeto en binario.
+  - `chmod PERMISOS`: `755` ↔ `rwxr-xr-x`, también `4755` (setuid, setgid, sticky) y lo
+    de `ls -l`. Tabla de quién puede qué en un archivo y en una carpeta, y avisos (777,
+    los demás pueden más que el dueño…).
+  - `hash archivo RUTA` / `hash texto TEXTO` con `--compara`: MD5, SHA-1 y SHA-256 en una
+    sola lectura por trozos de 1 MB (barra si pasa de 50 MB). Reconoce el algoritmo por el
+    largo de la huella; si no coincide, sale con 1. Es un grupo y no `hash RUTA --texto`
+    porque el menú pregunta una ruta (con Tab) y un texto de forma distinta.
+  - `codifica base64|url|html [-d]` y `codifica jwt`: solo escribe el resultado (para
+    copiarlo o pasarlo a otra orden). Base64 acepta la variante de URL y sin `=`. El JWT
+    enseña cabecera, datos y fechas (caduca, creado) y avisa de que la firma no se comprueba.
+  - `genera uuid|lorem|numero`: UUID v4, lorem ipsum por palabras y párrafos, y números al
+    azar (`--sin-repetir` para sorteos).
+  - `clave nueva|frase|fuerza`: con `secrets`. `nueva` lleva siempre de cada tipo; `frase`
+    usa 343 palabras sin tildes y un número (unos 49 bits con 5). `fuerza` lee sin eco
+    (o la primera línea de una tubería), no la guarda ni la enseña, y calcula los bits de
+    verdad: las de las más usadas valen 10 bits, y las repeticiones, series (123, abc,
+    qwerty) y palabras de la lista casi no suman. Da el nivel, el tiempo para adivinarla a
+    10.000 millones por segundo y consejos.
+- **Menú:** sección «Programación» (💻) con `hash`, `codifica`, `genera` y `clave`; `base` y
+  `chmod` van en «Redes e informática», antes que `subred`. Numeración: Archivos 1-8, Redes
+  9-11, Programación 12-15, `acciones` 16, `tema` 17, `config` 18 y `manual` 19.
+- `ayuda.subcomandos()` ordena por el orden de `SECCIONES`: así una orden suelta (`base`,
+  `chmod`) ya no se sale de su sección aunque Typer ponga los sueltos antes que los grupos.
+- 88 tests nuevos (`test_base`, `test_chmod`, `test_huella`, `test_codifica`, `test_genera`,
+  `test_clave`): 568 pasando (y el de `copia` con la ruta de Windows, que en Linux falla).
+
+### 2026-11-16 — Fin de la fase 1: arbol, cuenta, json, comprime, extrae y doctor
+
+- **`ignorados.py`** (nuevo): lo que se saltan `arbol` y `comprime`. Siempre .git, .venv,
+  venv, node_modules, __pycache__, .pytest_cache, .mypy_cache, .ruff_cache, *.egg-info,
+  *.pyc y los del sistema; y el `.gitignore` de la carpeta (nombres, `carpeta/`, rutas
+  desde la raíz, `**/` y `!`). No lee los `.gitignore` de las subcarpetas.
+- **`arbol [CARPETA]`**: ramas ├── └── │, carpetas primero; `--profundidad`,
+  `--solo-carpetas`, `--todo` y `--guardar` (Markdown nuevo, sin pisar). Se corta a las
+  1000 líneas.
+- **`cuenta ARCHIVOS… [--minimo N]`**: palabras, caracteres (con y sin espacios),
+  párrafos, páginas (a 300 palabras), lectura (230/min) y en voz alta (130/min). `.docx` y
+  `.odt` sin librerías (son un zip con XML); `.md` sin símbolos ni código; `.html` sin
+  etiquetas; `.pdf` con pypdf. Varios archivos: tabla y total.
+- **`json comprueba|arbol|formatea|compacta`**: los errores con línea, columna, la línea y
+  un ^ debajo, en castellano (los de `esquema.ERRORES_JSON` y además «sobra una coma» y
+  «comillas simples»). Avisa de claves repetidas. Lee el BOM del Bloc de notas. YAML con
+  pyyaml. `--guardar` crea `nombre-formateado.json` (o `-compacto`) al lado.
+- **`comprime [CARPETA]`**: .zip o .tar.gz al lado (o `--destino`, carpeta o nombre),
+  todo dentro de una carpeta con su nombre, sin lo de `ignorados.py` ni lo de `--sin`.
+  Enseña qué mete y qué deja fuera, `--simular` y `[s/n]`. Escribe a un temporal oculto y
+  solo al final le pone el nombre (con «(1)» si ya existe); si falla o se cancela, lo borra.
+- **`extrae ARCHIVO`**: .zip, .tar, .tar.gz/.bz2/.xz. Enseña los primeros 15 y pregunta.
+  Rutas seguras (fuera ../, absolutas y C:\), sin enlaces ni dispositivos de un .tar,
+  comprueba el espacio libre, conserva las fechas y nunca pisa. Sin `--destino`, carpeta
+  nueva al lado; si el zip ya trae su carpeta, no se repite. Si se cancela o falla, quita
+  la carpeta que había creado. Zip con contraseña, RAR y 7z: aún no (lo dice).
+- **`doctor`**: Python, librerías obligatorias y opcionales, git, LibreOffice, Pandoc,
+  FFmpeg, 7-Zip (y Word y winget en Windows), carpeta de datos (que se pueda escribir),
+  acciones.json y la terminal. ✔ / ! (opcional) / ✘ (sale con 1), con el comando para
+  arreglarlo (winget en Windows, apt en Linux).
+- **Dependencias opcionales** en `pyproject.toml`: `pdf` (pypdf), `yaml` (pyyaml) y `todo`;
+  `dev` las lleva para los tests. `uv.lock` actualizado.
+- **Menú**: Archivos 1-12 (`listar`, `ocupa`, `limpia`, `arbol`, `cuenta`, `comprime`,
+  `extrae`, y luego `ordena`…`notas`), Redes 13-15, Programación 16-20 (con `json`),
+  `acciones` 21 y navaja 22-25 (`doctor`, `tema`, `config`, `manual`).
+- 55 tests nuevos: 623 pasando (y el de `copia` con la ruta de Windows, que en Windows sí
+  pasa).
+- Arreglo tras probarlo en Windows: `doctor` buscaba winget con `shutil.which` directamente
+  y no con `buscar_programa`, así que `test_programa_que_falta` fallaba en un PC con winget.
+  Ahora el test se pasa como si fuera Windows y como si fuera Linux.
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.
@@ -807,8 +911,15 @@ cosas mal:
 - [ ] `excluir` compara el nombre tal cual: en macOS un nombre con tildes en NFD no coincide
   con el del JSON (en NFC).
 - [x] Traza `UnicodeEncodeError` con `✔` o `→` en Git Bash o con la salida redirigida.
-- [ ] `navaja busca` (texto dentro de archivos), `navaja extrae` / `navaja comprime` y cambiar
-  formatos de imagen o documentos (órdenes previstas en la spec).
+- [ ] Fase 2 (documento de ideas): `pdf`, `convierte`, `imagen`, `busca`, `portada`, `qr`,
+  `baja` y `fondo`.
+- [ ] `extrae`: zip con contraseña, RAR y 7z (con 7-Zip). `arbol` y `comprime`: los
+  `.gitignore` de las subcarpetas.
+- [ ] `clave fuerza`: la lista de contraseñas comunes es corta (unas 40) y la de palabras
+  solo tiene 343; es una estimación, no lo que haría un atacante de verdad.
+- [ ] `subred`: escribir `navaja subred 192.168.1.5/24` sin `ver` (hoy hace falta `ver`).
+- [ ] `navaja busca` (texto dentro de archivos) y cambiar formatos de imagen o documentos
+  (órdenes previstas en la spec).
 - [ ] Mejoras de la revisión del `--config` del grupo: que «Uso:» de `navaja acciones`
   enseñe `[--config RUTA]`, y permitir también `acciones --config * validar` en los
   permisos del agente.

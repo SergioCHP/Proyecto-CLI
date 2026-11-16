@@ -37,15 +37,23 @@ def es_grupo(comando: Any) -> bool:
 
 
 def subcomandos(grupo: Any) -> list[tuple[str, Any]]:
-    """Subcomandos visibles en el orden en que se registraron, con «manual» al final.
+    """Subcomandos visibles por secciones (en el orden de ``SECCIONES``), con «manual»
+    al final.
 
-    Typer pone primero los comandos sueltos y después los grupos; sin mover «manual»
-    al final, quedaría en mitad del menú y cambiaría los números de los grupos.
+    Typer pone primero los comandos sueltos y después los grupos: sin ordenar por
+    sección, un comando suelto de «Redes e informática» saldría en mitad de «Archivos».
+    Dentro de cada sección se deja el orden de Typer (los sueltos, luego los grupos).
     """
+    orden = {seccion_: posicion for posicion, seccion_ in enumerate(SECCIONES)}
     nombres = [
         n for n in grupo.list_commands(None) if not getattr(grupo.commands[n], "hidden", False)
     ]
-    nombres.sort(key=lambda n: n == "manual")
+    nombres.sort(
+        key=lambda n: (
+            n == "manual",
+            orden.get(getattr(grupo.commands[n], "rich_help_panel", None) or "", -1),
+        )
+    )
     return [(n, grupo.commands[n]) for n in nombres]
 
 
@@ -220,6 +228,73 @@ EXTRA: dict[str, str] = {
         + ", ".join(sorted(BASURA_PATRONES))
         + ". No toca .git ni los entornos virtuales (venv). Lo borrado no va a la papelera."
     ),
+    "arbol": (
+        "Se salta lo de siempre (.git, .venv, venv, node_modules, __pycache__, .pytest_cache, "
+        "*.egg-info, *.pyc…) y lo del .gitignore de la carpeta; --todo lo enseña todo. Con "
+        "--guardar lo deja en Markdown, dentro de un bloque de código, listo para el README."
+    ),
+    "cuenta": (
+        "Lee .docx, .odt, .md, .txt y .html sin instalar nada; .pdf necesita pypdf "
+        "(navaja doctor dice si está). Del .docx cuenta el cuerpo, sin encabezados ni notas "
+        "al pie. Las páginas son una estimación a 300 palabras; la lectura, a 230 por minuto y "
+        "en voz alta, a 130."
+    ),
+    "comprime": (
+        "Deja fuera lo mismo que arbol (.git, .venv, __pycache__… y lo del .gitignore) y lo de "
+        "--sin. El archivo va al lado de la carpeta con su nombre y, dentro, todo en una carpeta "
+        "con ese nombre. Nunca pisa uno que ya exista: sale «nombre (1).zip»."
+    ),
+    "extrae": (
+        "Sin --destino, en una carpeta nueva al lado del archivo; si el zip ya trae su carpeta "
+        "dentro, no se repite. Se salta lo que no es seguro (rutas con .. o absolutas, enlaces "
+        "de un .tar) y nunca pisa nada. Si cancelas, quita lo que llevaba sacado. RAR y 7z aún "
+        "no (hace falta 7-Zip)."
+    ),
+    "json": (
+        "Si está mal escrito, dice la línea, la columna y qué pasa (una coma de más, comillas "
+        "simples…), y sale con el código 1. Con --guardar crea un archivo nuevo al lado "
+        "(nombre-formateado.json); el original no se toca. YAML necesita pyyaml."
+    ),
+    "doctor": (
+        "Solo mira: no instala nada. ✔ está bien, ! falta algo opcional (solo lo usan algunas "
+        "órdenes) y ✘ falta algo que hace falta: entonces sale con el código 1."
+    ),
+    "base": (
+        "El número vale en decimal (200), con prefijo (0b11001000, 0o310, 0xC8) o con h detrás "
+        "(C8h); si lleva letras, se lee como hexadecimal. Con --de 2, unos y ceros sin prefijo "
+        "son binario. De decimal enseña las divisiones sucesivas; de otra base, la suma de "
+        "potencias; entre binario y hexadecimal (u octal), el atajo de agrupar bits. Con una "
+        "IP, cada octeto en binario."
+    ),
+    "chmod": (
+        "Solo calcula: no cambia los permisos de nada. Vale el número (755, o 4755 con los "
+        "especiales setuid, setgid y sticky) o las letras de ls -l (rwxr-xr-x o -rwxr-xr-x)."
+    ),
+    "hash": (
+        "Compara con --compara la huella que da la web: sabe cuál es por el largo (32 cifras "
+        "MD5, 40 SHA-1, 64 SHA-256) y, si no coincide, sale con el código 1."
+    ),
+    "codifica": (
+        "Sin -d codifica y con -d descodifica. Solo escribe el resultado, para copiarlo o "
+        "pasarlo a otra orden. Todo sin internet."
+    ),
+    "clave": (
+        "Con secrets, el azar de Python para criptografía. «fuerza» pregunta la contraseña sin "
+        "que se vea y no la guarda; mira el largo, qué tipos de caracteres lleva, si es de las "
+        "más usadas y si lleva palabras o patrones (aaa, 123, qwerty), y calcula lo que se "
+        "tardaría en adivinarla probando 10.000 millones por segundo."
+    ),
+    "subred": (
+        "La IP se escribe como 192.168.10.200/26, con la máscara aparte (192.168.10.200 "
+        "255.255.255.192) o sola: entonces lleva la máscara de su clase (A /8, B /16, C /24; "
+        "en IPv6, /64). Los hosts útiles no cuentan la red ni el broadcast. Solo calcula: "
+        "no toca tu red ni tus archivos."
+    ),
+    "subred vlsm": (
+        "Cada subred puede llevar nombre: ventas:50 aula:20. Sin nombre se llaman A, B, C… "
+        "en el orden en que las escribes."
+    ),
+    "subred misma": "Si la segunda IP no lleva máscara, se usa la de la primera.",
     "ordena": (
         "Todas las opciones trabajan en la carpeta actual (o la de --carpeta), enseñan "
         "«archivo → carpeta» y preguntan [s/n] antes de mover nada; con --simular solo "

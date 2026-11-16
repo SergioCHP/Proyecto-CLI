@@ -94,16 +94,21 @@ AJUSTE = "Ajustes"
 """Panel de --help (``rich_help_panel``) de las opciones que el modo interactivo
 pregunta al elegir el comando por número, con Intro para dejar su valor."""
 
-HERRAMIENTAS = "Herramientas"
+ARCHIVOS = "Archivos"
+REDES = "Redes e informática"
+PROGRAMACION = "Programación"
 REPITES = "Lo que repites"
 NAVAJA = "navaja"
 SECCIONES = {
-    HERRAMIENTAS: "Se usan al momento: les dices qué hacer y lo hacen.",
+    ARCHIVOS: "Se usan al momento: les dices qué hacer y lo hacen.",
+    REDES: "Calculadoras para clase, con los pasos explicados.",
+    PROGRAMACION: "Para tus proyectos: huellas, codificar, datos de prueba y contraseñas.",
     REPITES: "Recetas guardadas en acciones.json: se hacen con una palabra.",
     NAVAJA: "Colores, tu nombre y el manual.",
 }
 """Grupos de comandos del menú principal y de ``navaja --help``, con lo que los
-distingue. Cada comando dice el suyo con ``rich_help_panel`` al registrarse."""
+distingue, en el orden en que salen. Cada comando dice el suyo con ``rich_help_panel``
+al registrarse."""
 
 def preparar_salida(flujo: object, entorno: dict[str, str] | None = None) -> None:
     """Que escribir ✔, → o … nunca rompa navaja con una traza.

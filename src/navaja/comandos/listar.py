@@ -11,7 +11,7 @@ from rich.markup import escape
 from rich.text import Text
 
 from ..comun import (
-    HERRAMIENTAS,
+    ARCHIVOS,
     HUECO,
     MARCO,
     console,
@@ -178,5 +178,5 @@ def columnas_que_caben(
 
 def registrar(app: typer.Typer) -> None:
     app.command(
-        "listar", help="Muestra qué hay en una carpeta.", rich_help_panel=HERRAMIENTAS
+        "listar", help="Muestra qué hay en una carpeta.", rich_help_panel=ARCHIVOS
     )(listar)
