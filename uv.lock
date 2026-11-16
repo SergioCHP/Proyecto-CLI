@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.12"
 
 [[package]]
@@ -677,6 +677,7 @@ dev = [
     { name = "pdf2docx" },
     { name = "pillow" },
     { name = "pillow-heif" },
+    { name = "pymupdf" },
     { name = "pypdf", extra = ["crypto"] },
     { name = "pytest" },
     { name = "qrcode" },
@@ -686,6 +687,7 @@ documentos = [
     { name = "docx2pdf", marker = "sys_platform == 'win32'" },
     { name = "openpyxl" },
     { name = "pdf2docx" },
+    { name = "pymupdf" },
 ]
 fondo = [
     { name = "pillow" },
@@ -708,6 +710,7 @@ todo = [
     { name = "pdf2docx" },
     { name = "pillow" },
     { name = "pillow-heif" },
+    { name = "pymupdf" },
     { name = "pypdf", extra = ["crypto"] },
     { name = "qrcode" },
     { name = "yt-dlp" },
@@ -732,6 +735,9 @@ requires-dist = [
     { name = "pillow-heif", marker = "extra == 'imagen'", specifier = ">=0.16" },
     { name = "pillow-heif", marker = "extra == 'todo'", specifier = ">=0.16" },
     { name = "prompt-toolkit", specifier = ">=3.0" },
+    { name = "pymupdf", marker = "extra == 'dev'", specifier = ">=1.24" },
+    { name = "pymupdf", marker = "extra == 'documentos'", specifier = ">=1.24" },
+    { name = "pymupdf", marker = "extra == 'todo'", specifier = ">=1.24" },
     { name = "pypdf", extras = ["crypto"], marker = "extra == 'dev'", specifier = ">=4.0" },
     { name = "pypdf", extras = ["crypto"], marker = "extra == 'pdf'", specifier = ">=4.0" },
     { name = "pypdf", extras = ["crypto"], marker = "extra == 'todo'", specifier = ">=4.0" },

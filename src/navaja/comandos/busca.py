@@ -68,8 +68,23 @@ class Resultado:
     mas: int = 0  # coincidencias que no se enseñan (más de MAXIMO_POR_ARCHIVO)
 
 
+class NoSeLee(Exception):
+    """Un archivo que sí habría que mirar pero no se puede leer; el texto dice por qué."""
+
+
+@dataclass
+class NoLeido:
+    archivo: Path
+    motivo: str  # «con contraseña», «dañado»…
+
+
 def texto_y_paginas(ruta: Path) -> tuple[list[str], bool] | None:
-    """Las líneas del archivo (o una por página en un PDF), o None si no es de texto."""
+    """Las líneas del archivo (o una por página en un PDF), o None si no es de texto.
+
+    ``NoSeLee`` si es un PDF con contraseña para abrirlo (o falta pypdf para leerlo). Uno
+    protegido solo contra copia o impresión (lo normal en apuntes descargados) se abre con
+    la contraseña vacía y se lee.
+    """
     tipo = ruta.suffix.lower()
     if tipo == ".docx":
         return leer_docx(ruta).splitlines(), False
@@ -78,26 +93,43 @@ def texto_y_paginas(ruta: Path) -> tuple[list[str], bool] | None:
     if tipo == ".pdf":
         try:
             from pypdf import PdfReader
+            from pypdf.errors import DependencyError
         except ImportError:
-            return None
+            raise NoSeLee("para leer PDF hace falta pypdf") from None
         lector = PdfReader(str(ruta))
+        try:
+            abierto = not lector.is_encrypted or lector.decrypt("")
+        except DependencyError:
+            raise NoSeLee("cifrado: para abrirlo hace falta cryptography") from None
+        except NotImplementedError:
+            raise NoSeLee("cifrado de una forma que no se sabe abrir") from None
+        if not abierto:
+            raise NoSeLee("con contraseña")
         return [" ".join((pagina.extract_text() or "").split()) for pagina in lector.pages], True
-    try:
-        if ruta.stat().st_size > MAXIMO_TAMANO:
-            return None
-        with ruta.open("rb") as archivo:
-            if b"\0" in archivo.read(8192):
-                return None  # binario: una imagen, un .exe…
-    except OSError:
+    # stat, open y leer: un OSError (sin permiso, abierto en Office, de OneDrive sin bajar…)
+    # lo convierte buscar_en en «no se puede abrir», para avisar
+    if ruta.stat().st_size > MAXIMO_TAMANO:
         return None
+    with ruta.open("rb") as archivo:
+        if b"\0" in archivo.read(8192):
+            return None  # binario: una imagen, un .exe…
     return leer_texto_plano(ruta).splitlines(), False
 
 
 def buscar_en(ruta: Path, expresion: re.Pattern[str], exacto: bool, regex: bool) -> Resultado | None:
+    """Lo encontrado en el archivo, o None si no aparece o no es de texto.
+
+    ``NoSeLee`` si no se puede leer (con contraseña, dañado…), para avisar al final.
+    """
     try:
         leido = texto_y_paginas(ruta)
-    except Exception:  # un PDF con contraseña o dañado, un .docx roto…: se salta y se sigue
-        return None
+    except NoSeLee:
+        raise
+    except OSError as error:  # sin permiso, en uso, borrado mientras se buscaba…
+        raise NoSeLee("no se puede abrir") from error
+    except Exception as error:  # un PDF o un .docx roto: pypdf y zipfile lanzan de todo
+        # (el precio: un fallo de navaja al leer también saldría como «dañado», sin traza)
+        raise NoSeLee("dañado") from error
     if leido is None:
         return None
     lineas, por_pagina = leido
@@ -116,23 +148,31 @@ def buscar_en(ruta: Path, expresion: re.Pattern[str], exacto: bool, regex: bool)
 
 def buscar(
     carpeta: Path, texto: str, regex: bool = False, exacto: bool = False, solo: str = "", todo: bool = False
-) -> tuple[list[Resultado], int]:
-    """Los archivos con coincidencias y cuántos archivos se han mirado."""
+) -> tuple[list[Resultado], int, list[NoLeido]]:
+    """Los archivos con coincidencias, cuántos se han mirado y los que no se han podido leer
+    (que no cuentan como mirados: no se sabe si lo llevan)."""
     expresion = patron(texto, regex, exacto)
     tipos = extensiones(solo) if solo else set()
     archivos = recorrer(carpeta, Ignorados.de_carpeta(carpeta, todo)).archivos
     if tipos:
         archivos = [a for a in archivos if a.suffix.lower() in tipos]
     resultados = []
+    no_leidos: list[NoLeido] = []
+    mirados = 0
     total = 0
     for archivo in archivos:
-        encontrado = buscar_en(archivo, expresion, exacto, regex)
+        try:
+            encontrado = buscar_en(archivo, expresion, exacto, regex)
+        except NoSeLee as error:
+            no_leidos.append(NoLeido(archivo, str(error)))
+            continue
+        mirados += 1
         if encontrado:
             resultados.append(encontrado)
             total += len(encontrado.lineas)
             if total >= MAXIMO_TOTAL:
                 break
-    return resultados, len(archivos)
+    return resultados, mirados, no_leidos
 
 
 def recortar(linea: Linea, ancho: int = ANCHO_LINEA) -> tuple[str, list[tuple[int, int]]]:
@@ -150,6 +190,28 @@ def recortar(linea: Linea, ancho: int = ANCHO_LINEA) -> tuple[str, list[tuple[in
     prefijo = "…" if inicio else ""
     sufijo = "…" if fin < len(texto) else ""
     return prefijo + corte + sufijo, [(a + len(prefijo), b + len(prefijo)) for a, b in trozos]
+
+
+def relativo(archivo: Path, carpeta: Path) -> str:
+    try:
+        return archivo.relative_to(carpeta).as_posix()
+    except ValueError:
+        return str(archivo)
+
+
+def avisar_no_leidos(no_leidos: list[NoLeido], carpeta: Path, maximo: int = 5) -> None:
+    """Los que no se han podido leer: puede que lo buscado esté justo ahí."""
+    if not no_leidos:
+        return
+    console.print(
+        f"[aviso]No se {'ha' if len(no_leidos) == 1 else 'han'} podido leer "
+        f"{cuantos(len(no_leidos), 'archivo')} (puede estar ahí):[/]"
+    )
+    for no_leido in no_leidos[:maximo]:
+        console.print(f"  [pista]·[/] {escape(relativo(no_leido.archivo, carpeta))} [pista]({escape(no_leido.motivo)})[/]",
+                      soft_wrap=True, highlight=False)
+    if len(no_leidos) > maximo:
+        console.print(f"  [pista]… y {len(no_leidos) - maximo} más[/]")
 
 
 def fallar(error: NavajaError) -> NoReturn:
@@ -173,7 +235,7 @@ def busca(
         fallar(NavajaError(f"No existe la carpeta {carpeta}."))
     try:
         with console.status("[pista]Buscando…[/]", spinner="dots"):
-            resultados, mirados = buscar(carpeta, texto, regex, exacto, solo, todo)
+            resultados, mirados, no_leidos = buscar(carpeta, texto, regex, exacto, solo, todo)
     except NavajaError as error:
         fallar(error)
     if not resultados:
@@ -182,14 +244,11 @@ def busca(
             f"{escape(bonita(carpeta.resolve()))}.[/]",
             soft_wrap=True,
         )
+        avisar_no_leidos(no_leidos, carpeta)
         raise typer.Exit(1)
     total = 0
     for resultado in resultados:
-        try:
-            nombre = resultado.archivo.relative_to(carpeta).as_posix()
-        except ValueError:
-            nombre = str(resultado.archivo)
-        console.print(Text(nombre, style="titulo"))
+        console.print(Text(relativo(resultado.archivo, carpeta), style="titulo"))
         etiqueta = "pág." if resultado.por_pagina else ""
         ancho = max(len(str(l.numero)) for l in resultado.lineas)
         for linea in resultado.lineas:
@@ -207,10 +266,11 @@ def busca(
         console.print()
     console.print(
         f"[ok]✔ {cuantos(total, 'línea')} en {cuantos(len(resultados), 'archivo')}[/] "
-        f"[pista](de {mirados} mirados)[/]"
+        f"[pista](de {cuantos(mirados, 'mirado')})[/]"
     )
     if total >= MAXIMO_TOTAL:
         console.print(f"[aviso]Hay demasiadas: solo salen las {MAXIMO_TOTAL} primeras. Afina la búsqueda.[/]")
+    avisar_no_leidos(no_leidos, carpeta)
 
 
 def registrar(app: typer.Typer) -> None:

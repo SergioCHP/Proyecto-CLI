@@ -49,3 +49,71 @@ def test_falta_libreria_o_programa(monkeypatch):
     monkeypatch.setattr(lotes, "WINDOWS", True)
     with pytest.raises(FaltaAlgo, match="winget install Gyan.FFmpeg"):
         programa("ffmpeg", "convertir vídeo")
+
+
+def test_ctrl_c_no_empieza_mas_y_no_deja_nada_a_medias(tmp_path, monkeypatch):
+    """Sin depender del reloj: la tarea 2 se queda en marcha hasta que, tras el Ctrl+C, se
+    cancela la cola y sale el aviso de «Cortando»; la 3 está en cola y no debe empezar."""
+    import concurrent.futures
+    import signal
+    import threading
+
+    import typer
+
+    empezadas = []
+    segunda_en_marcha, soltar_la_segunda = threading.Event(), threading.Event()
+    avisos = []
+
+    def tarea(numero, falla=False):
+        destino = tmp_path / f"{numero}.txt"
+
+        def hacer():
+            empezadas.append(numero)
+            destino.write_text("a medias")
+            if falla:
+                segunda_en_marcha.set()
+                assert soltar_la_segunda.wait(5)
+                raise OSError("cortado a medias")
+            destino.write_text("hecho")
+
+        return destino, hacer
+
+    d1, h1 = tarea(1)
+    d2, h2 = tarea(2, falla=True)
+    d3, h3 = tarea(3)
+    (tmp_path / "2b.txt").write_text("otra página a medias")
+    (tmp_path / "2c.txt").mkdir()  # no se puede borrar como archivo: tiene que avisarse
+    tareas = [
+        Tarea(tmp_path / "o1", d1, h1),
+        Tarea(tmp_path / "o2", d2, h2, mas_destinos=[tmp_path / "2b.txt", tmp_path / "2c.txt"]),
+        Tarea(tmp_path / "o3", d3, h3),
+    ]
+    llamadas = []
+    esperar_de_verdad = concurrent.futures.wait
+
+    def wait_con_ctrl_c(pendientes, timeout, return_when):
+        llamadas.append(1)
+        if len(llamadas) == 1:  # con un hilo, la primera en acabar es la 1
+            return esperar_de_verdad(pendientes, timeout=5, return_when=return_when)
+        assert segunda_en_marcha.wait(5)
+        raise KeyboardInterrupt
+
+    class Consola:  # apunta los avisos y, con el de «Cortando» (la cola ya cancelada), suelta la 2
+        def print(self, texto, **_):
+            avisos.append(texto)
+            soltar_la_segunda.set()
+
+    monkeypatch.setattr(lotes, "wait", wait_con_ctrl_c)
+    monkeypatch.setattr(lotes, "error_console", Consola())
+    antes = signal.getsignal(signal.SIGINT)
+    with pytest.raises(typer.Exit) as salida:
+        hacer_todo(tareas, hilos=1)
+    assert salida.value.exit_code == 130
+    assert signal.getsignal(signal.SIGINT) is antes  # Ctrl+C vuelve a funcionar como antes
+    assert d1.read_text() == "hecho"  # acabó bien: se queda
+    assert not d2.exists() and not (tmp_path / "2b.txt").exists()  # falló: fuera lo que se pudo
+    assert 3 not in empezadas and not d3.exists()  # en cola: ni se empieza
+    todo = "\n".join(avisos)
+    assert "o2:" in todo and "cortado a medias" in todo  # el fallo se dice
+    assert "bórralo tú: 2c.txt" in todo and "No queda nada a medias" not in todo
+    assert "Cortado: 1 archivo nuevo de 3" in todo

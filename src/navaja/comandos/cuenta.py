@@ -148,15 +148,22 @@ def leer_odt(ruta: Path) -> str:
 def leer_pdf(ruta: Path) -> str:
     try:
         from pypdf import PdfReader
-        from pypdf.errors import PdfReadError
+        from pypdf.errors import DependencyError
     except ImportError:
         raise NavajaError(f"Para contar un PDF hace falta pypdf. Instálalo con: {INSTALAR_PDF}") from None
     try:
         lector = PdfReader(str(ruta))
-        if lector.is_encrypted:
+        # protegido solo contra copia o impresión (sin contraseña para abrirlo): se lee igual
+        if lector.is_encrypted and not lector.decrypt(""):
             raise NavajaError(f"{ruta.name} tiene contraseña: no se puede leer.")
         return "\n".join(pagina.extract_text() or "" for pagina in lector.pages)
-    except PdfReadError:
+    except NavajaError:
+        raise
+    except DependencyError:
+        raise NavajaError(f"{ruta.name} está cifrado y para abrirlo hace falta cryptography: {INSTALAR_PDF}") from None
+    except NotImplementedError:
+        raise NavajaError(f"{ruta.name} está cifrado de una forma que no se sabe abrir.") from None
+    except Exception:  # pypdf lanza de todo con un PDF roto (PdfReadError, KeyError, ValueError…)
         raise NavajaError(f"{ruta.name} está dañado o no es un PDF de verdad.") from None
 
 

@@ -108,7 +108,7 @@ def con_libreoffice(origen: Path, destino: Path) -> None:
     with tempfile.TemporaryDirectory(prefix="navaja-") as temporal:
         perfil = Path(temporal, "perfil").as_uri()  # un perfil propio: funciona aunque tengas LibreOffice abierto
         orden = [soffice, f"-env:UserInstallation={perfil}", "--headless", "--convert-to", formato, "--outdir", temporal, str(origen)]
-        resultado = subprocess.run(orden, capture_output=True, text=True, timeout=300)
+        resultado = subprocess.run(orden, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300)
         hecho = Path(temporal, f"{origen.stem}.{formato}")
         if resultado.returncode != 0 or not hecho.is_file():
             raise NavajaError(f"LibreOffice no ha podido convertirlo. {resultado.stderr.strip()[:200]}")
@@ -139,7 +139,7 @@ def con_pandoc(origen: Path, destino: Path) -> None:
         if motor is None:
             raise FaltaAlgo("Para que Pandoc haga PDF hace falta un motor (MiKTeX o wkhtmltopdf). Mejor: conviértelo a docx y luego a pdf.")
         orden.append(f"--pdf-engine={motor}")
-    resultado = subprocess.run(orden, capture_output=True, text=True, timeout=300)
+    resultado = subprocess.run(orden, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300)
     if resultado.returncode != 0:
         raise NavajaError(f"Pandoc no ha podido: {resultado.stderr.strip()[:200]}")
 
@@ -248,7 +248,7 @@ def con_ffmpeg(origen: Path, destino: Path, comprimir: bool) -> None:
     elif salida == ".webm":
         orden += ["-c:v", "libvpx-vp9", "-crf", "34", "-b:v", "0", "-c:a", "libopus"]
     orden.append(str(destino))
-    resultado = subprocess.run(orden, capture_output=True, text=True, timeout=None)
+    resultado = subprocess.run(orden, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=None)
     if resultado.returncode != 0:
         raise NavajaError(f"FFmpeg no ha podido: {(resultado.stderr.strip().splitlines() or ['?'])[-1][:200]}")
 
@@ -324,7 +324,8 @@ def planificar(rutas: list[Path], salida: str, opciones: dict[str, Any]) -> list
             total = paginas_de(ruta)
             destinos = [al_lado(ruta, f"-p{n}", salida, reservados) for n in range(1, total + 1)]
             etiqueta = destinos[0].name if total == 1 else f"{destinos[0].name} … {destinos[-1].name}"
-            tareas.append(Tarea(ruta, destinos[0], lambda r=ruta, d=destinos: pdf_a_imagenes(r, d, opciones["dpi"]), etiqueta))
+            tareas.append(Tarea(ruta, destinos[0], lambda r=ruta, d=destinos: pdf_a_imagenes(r, d, opciones["dpi"]), etiqueta,
+                                mas_destinos=destinos[1:]))  # si falla a mitad, no quedan páginas sueltas
             continue
         sufijo = ("-comprimido" if opciones["comprime"] else "-convertido") if ruta.suffix.lower() == salida else ""
         destino = al_lado(ruta, sufijo, salida, reservados)

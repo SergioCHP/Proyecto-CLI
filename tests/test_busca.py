@@ -31,7 +31,7 @@ def test_sin_tildes_igual_largo():
 
 
 def test_busca_sin_mayusculas_ni_tildes_y_dentro_de_word(tmp_path):
-    resultados, mirados = buscar(apuntes(tmp_path), "FUNCIÓN")
+    resultados, mirados, _ = buscar(apuntes(tmp_path), "FUNCIÓN")
     assert sorted(r.archivo.name for r in resultados) == ["tema1.docx", "tema2.md"]
     assert mirados == 3  # .venv no se mira
     md = next(r for r in resultados if r.archivo.name == "tema2.md")
@@ -52,7 +52,7 @@ def test_exacto_regex_y_solo(tmp_path):
 def test_dentro_de_pdf_por_pagina(tmp_path):
     pytest.importorskip("pypdf")
     (tmp_path / "apuntes.pdf").write_bytes(pdf_con_texto(["Nada aqui", "La subred y la mascara"]))
-    resultados, _ = buscar(tmp_path, "mascara")
+    resultados, _, _ = buscar(tmp_path, "mascara")
     assert resultados[0].por_pagina and resultados[0].lineas[0].numero == 2
 
 
@@ -72,14 +72,59 @@ def test_orden(tmp_path):
     assert salida.exit_code == 1 and "No aparece" in salida.output
 
 
-def test_pdf_con_contrasena_o_roto_se_salta(tmp_path):
+def cifrar(origen_bytes, destino, usuario, propietario="dueño"):
+    """Un PDF con contraseña: ``usuario`` para abrirlo («» = se abre, solo protegido contra copia)."""
     pypdf = pytest.importorskip("pypdf")
     pytest.importorskip("cryptography")  # para cifrar con AES-256
-    escritor = pypdf.PdfWriter()
-    escritor.add_blank_page(100, 100)
-    escritor.encrypt("x", algorithm="AES-256")
-    escritor.write(tmp_path / "cifrado.pdf")
+    destino.write_bytes(origen_bytes)
+    escritor = pypdf.PdfWriter(clone_from=str(destino))
+    escritor.encrypt(usuario, propietario, algorithm="AES-256")
+    escritor.write(destino)
+
+
+def test_pdf_con_contrasena_o_roto_se_salta_y_se_avisa(tmp_path):
+    cifrar(pdf_con_texto(["hola escondido"]), tmp_path / "cifrado.pdf", "x")
     (tmp_path / "roto.pdf").write_bytes(b"%PDF-1.4 basura")
     (tmp_path / "notas.txt").write_text("hola", encoding="utf-8")
+    resultados, mirados, no_leidos = buscar(tmp_path, "hola")
+    assert [r.archivo.name for r in resultados] == ["notas.txt"] and mirados == 1
+    assert sorted((n.archivo.name, n.motivo) for n in no_leidos) == [("cifrado.pdf", "con contraseña"), ("roto.pdf", "dañado")]
     salida = runner.invoke(app, ["busca", "hola", str(tmp_path)])
     assert salida.exit_code == 0 and "notas.txt" in salida.output
+    assert "No se han podido leer 2 archivos" in salida.output and "cifrado.pdf (con contraseña)" in salida.output
+
+
+def test_si_no_se_lee_ninguno_no_dice_solo_que_no_aparece(tmp_path):
+    cifrar(pdf_con_texto(["hola"]), tmp_path / "cifrado.pdf", "x")
+    salida = runner.invoke(app, ["busca", "hola", str(tmp_path)])
+    assert salida.exit_code == 1 and "en 0 archivos" in salida.output
+    assert "No se ha podido leer 1 archivo" in salida.output
+
+
+def test_pdf_protegido_solo_contra_copia_se_lee(tmp_path):
+    cifrar(pdf_con_texto(["La subred y la mascara"]), tmp_path / "apuntes.pdf", "")
+    resultados, _, no_leidos = buscar(tmp_path, "mascara")
+    assert [r.archivo.name for r in resultados] == ["apuntes.pdf"] and no_leidos == []
+
+
+def test_aviso_con_corchetes_mas_de_cinco_docx_roto_y_sin_permiso(tmp_path, monkeypatch):
+    from navaja.comandos import busca as modulo
+
+    for numero in range(5):
+        (tmp_path / f"[tema {numero}].pdf").write_bytes(b"%PDF-1.4 basura")
+    (tmp_path / "roto.docx").write_bytes(b"no es un zip")
+    (tmp_path / "bloqueado.txt").write_text("hola", encoding="utf-8")
+    original = modulo.leer_texto_plano
+
+    def sin_permiso(ruta):
+        if ruta.name == "bloqueado.txt":
+            raise PermissionError(13, "Permission denied")  # abierto en otro programa
+        return original(ruta)
+
+    monkeypatch.setattr(modulo, "leer_texto_plano", sin_permiso)
+    _, mirados, no_leidos = buscar(tmp_path, "hola")
+    motivos = {n.archivo.name: n.motivo for n in no_leidos}
+    assert mirados == 0 and motivos["roto.docx"] == "dañado" and motivos["bloqueado.txt"] == "no se puede abrir"
+    salida = runner.invoke(app, ["busca", "hola", str(tmp_path)])
+    assert "No se han podido leer 7 archivos" in salida.output
+    assert "[tema 0].pdf (dañado)" in salida.output and "… y 2 más" in salida.output

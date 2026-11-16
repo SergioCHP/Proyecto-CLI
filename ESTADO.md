@@ -916,6 +916,42 @@ cosas mal:
 - Pasado el revisor: lo que encontró en la primera versión de estos arreglos está corregido
   arriba. Tests de regresión en busca, pdf, qr y convierte: 698 pasando y 1 saltado.
 
+### 2026-11-16 — `busca` avisa de lo que no ha podido leer
+
+- Antes, un PDF con contraseña o dañado se saltaba sin decir nada: con todos así, salía
+  «no aparece» sin haber mirado ninguno. Ahora `buscar` devuelve también los no leídos
+  (`NoLeido`, con el motivo: «con contraseña», «dañado», «no se puede abrir»), no cuentan
+  como mirados, y al final sale «No se han podido leer N archivos (puede estar ahí)» con
+  los cinco primeros. Los binarios se siguen saltando sin avisar (no son texto).
+- Un PDF protegido solo contra copia o impresión (contraseña de propietario, sin la de
+  abrir: lo normal en apuntes descargados) se abre con la contraseña vacía y se lee. Lo
+  mismo en `cuenta`, que antes rechazaba cualquier PDF cifrado.
+- Tras el revisor: también avisa de un archivo de texto bloqueado (abierto en Office, de
+  OneDrive sin bajar: «no se puede abrir»), de los PDF si falta pypdf y de los cifrados
+  que necesitan cryptography; «de 1 mirado» en singular. `cuenta` ya no da traza con un
+  PDF que rompe pypdf de otra forma (KeyError, cifrado raro, falta cryptography).
+
+### 2026-11-16 — Ctrl+C en `convierte`, `imagen`, `pdf` y `fondo`
+
+- Antes, Ctrl+C no paraba: el `ThreadPoolExecutor` hacía toda la cola, salía «Aborted!»
+  en inglés y el archivo a medias se quedaba. Ahora (`lotes.cortar`) no se empieza nada
+  más, se espera a lo que ya estaba en marcha (un hilo no se puede matar; FFmpeg y
+  LibreOffice reciben el Ctrl+C y paran), se borra lo que falló o quedó a medias, se queda
+  lo que acabó bien, dice «Cortado: N archivos nuevos de M» y sale con 130.
+- Tras el revisor:
+  - `wait` con esperas de 0,2 s en vez de `as_completed`: en Windows (hasta Python 3.14)
+    una espera sin límite no deja pasar el Ctrl+C hasta que acaba alguna tarea.
+  - Mientras se recoge, otro Ctrl+C se ignora (`sin_ctrl_c`): ni traza ni archivos a medias.
+  - Se dicen también los fallos de antes del corte, y si algo a medias no se ha podido
+    borrar (abierto por el antivirus, OneDrive…) se dice cuál, en vez de «no queda nada».
+  - La salida de FFmpeg, Pandoc y LibreOffice se lee en UTF-8: con «Árbol.mp4» el motivo
+    del fallo era un `UnicodeDecodeError`.
+  - El test ya no depende del reloj (eventos en vez de esperas).
+- `Tarea.mas_destinos`: un PDF a imágenes que falla a mitad ya no deja páginas sueltas.
+- PyMuPDF (PDF a imágenes) entra en los extras `documentos`, `todo` y `dev`; antes llegaba
+  de rebote con pdf2docx.
+- Tests nuevos: 704 pasando y 1 saltado.
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.
@@ -1002,16 +1038,19 @@ cosas mal:
 - [ ] De la revisión de la fase 2, sin arreglar:
   - Word a PDF con Word (`docx2pdf`, sin LibreOffice) va por COM dentro de un hilo de
     `hacer_todo`: sin `pythoncom.CoInitialize()` probablemente falla. Probarlo a mano.
-  - Ctrl+C en `convierte`/`imagen`/`fondo`: el `ThreadPoolExecutor` espera a toda la cola
-    (no se para), sale «Aborted!» en inglés y el archivo a medias se queda.
-  - PyMuPDF (PDF a imágenes) no está en el extra `documentos`: llega de rebote con pdf2docx.
-  - `convierte` elige los hilos mirando solo el primer archivo; PDF a imágenes que falla a
-    mitad deja las páginas ya hechas.
+  - `convierte` elige los hilos mirando solo el primer archivo.
+  - Ctrl+C con trabajo en Python (Pillow, PyMuPDF, pdf2docx): la tarea en marcha no se
+    puede parar, hay que esperar a que acabe (con un PDF de 200 páginas, un rato). Con
+    LibreOffice en Windows puede quedar un `soffice.bin` vivo y su carpeta en %TEMP%.
+    Mientras se recoge, Ctrl+C se ignora: si una tarea se cuelga (FFmpeg va sin `timeout`)
+    solo queda cerrar la terminal. Hay un instante, justo tras el primer Ctrl+C, en que un
+    segundo aún daría traza.
+  - `busca`: un fallo de navaja al leer un archivo saldría como «dañado», sin traza (es el
+    precio de que un archivo raro no pare la búsqueda); imágenes y binarios cuentan como
+    mirados; si se para en 500 líneas, la lista de no leídos queda a medias sin decirlo.
   - `baja` con una lista: cuenta como «1 vídeo» y resuelve todos antes de enseñar nada.
   - `busca` sin tildes: «año» encuentra «ano»; con `--regex` sí mira las tildes.
-  - `busca` se salta sin avisar lo que no puede leer (PDF con contraseña): con todos así,
-    dice «no aparece» cuando no ha mirado nada. Contarlos y decirlo. El tope de 20 MB no
-    se aplica a PDF ni a docx.
+  - `busca`: el tope de 20 MB no se aplica a PDF ni a docx (uno de 500 MB se lee entero).
   - `qr --guardar foto.jpg` lo cambia a `foto.png` sin avisar; los mensajes con
     `error.strerror` salen en inglés en Windows («Permission denied»).
 - [ ] Fase 3 (documento de ideas): primero `nuevo`, `hoy` y `falsos`; `portada` descartada.

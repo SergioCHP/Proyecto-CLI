@@ -95,3 +95,30 @@ def test_orden_con_minimo_y_varios(tmp_path):
     salida = runner.invoke(app, ["cuenta", str(tmp_path / "a.txt"), str(tmp_path / "b.txt"), "-m", "5"])
     assert "2 archivos" in salida.output and "Llegas" in salida.output
     assert runner.invoke(app, ["cuenta", str(tmp_path / "no.txt")]).exit_code == 1
+
+
+def test_pdf_protegido_solo_contra_copia_se_cuenta_y_con_contrasena_no(tmp_path):
+    pypdf = pytest.importorskip("pypdf")
+    pytest.importorskip("cryptography")
+    from ayudantes import pdf_con_texto
+
+    for nombre, usuario in (("copia.pdf", ""), ("clave.pdf", "x")):
+        (tmp_path / nombre).write_bytes(pdf_con_texto(["Hola mundo desde un PDF"]))
+        escritor = pypdf.PdfWriter(clone_from=str(tmp_path / nombre))
+        escritor.encrypt(usuario, "dueño", algorithm="AES-256")
+        escritor.write(tmp_path / nombre)
+    assert contar(texto_de(tmp_path / "copia.pdf")).palabras == 5
+    with pytest.raises(NavajaError, match="contraseña"):
+        texto_de(tmp_path / "clave.pdf")
+
+
+def test_pdf_que_rompe_pypdf_de_otra_forma_no_da_traza(tmp_path, monkeypatch):
+    pypdf = pytest.importorskip("pypdf")
+
+    def roto(*_):
+        raise KeyError("/Root")
+
+    monkeypatch.setattr(pypdf, "PdfReader", roto)
+    (tmp_path / "raro.pdf").write_bytes(b"%PDF-1.4")
+    with pytest.raises(NavajaError, match="dañado"):
+        texto_de(tmp_path / "raro.pdf")
