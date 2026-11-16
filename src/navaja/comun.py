@@ -276,6 +276,27 @@ def confirmar(mensaje: str, saltar: bool = False, por_defecto: bool = False) -> 
     return Confirmar.ask(mensaje, default=por_defecto, console=console)
 
 
+NOMBRES_RESERVADOS = {"con", "prn", "aux", "nul"} | {
+    f"{puerto}{numero}" for puerto in ("com", "lpt") for numero in range(1, 10)
+}
+"""Nombres que Windows no deja usar para un archivo ni una carpeta (con o sin extensión)."""
+
+
+def problema_del_nombre(nombre: str) -> str:
+    """Por qué no vale como nombre de archivo o carpeta, o "" si vale (en Windows, que es lo
+    más estricto: así también se puede llevar a un USB)."""
+    if nombre in ("", ".", ".."):
+        return "Ese nombre no vale: está vacío o es «aquí» o «arriba»."
+    malos = sorted({c for c in nombre if c in '<>:"/\\|?*' or ord(c) < 32})
+    if malos:
+        return f"No puede llevar {' '.join(malos)}."
+    if nombre[-1] in ". ":
+        return "No puede acabar en punto ni en espacio."
+    if nombre.split(".")[0].strip().lower() in NOMBRES_RESERVADOS:
+        return f"«{nombre}» es un nombre reservado de Windows."
+    return ""
+
+
 def ruta_libre(destino: Path) -> Path:
     """Devuelve una ruta que no exista, añadiendo un sufijo numérico."""
     if not destino.exists():

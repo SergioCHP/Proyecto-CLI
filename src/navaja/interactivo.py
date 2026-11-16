@@ -46,6 +46,7 @@ from .comun import (
     error_console,
     es_oculto,
     es_utf8,
+    problema_del_nombre,
     tamano_legible,
 )
 from .entrada import crear_lector, palabras_del_argumento
@@ -1031,27 +1032,6 @@ def navegar(carpeta: Path, leer: Lector, limite: int = 50) -> str | None:
         valor = confirmar_destino(str(ruta), leer)
         if valor:
             return valor
-
-
-NOMBRES_RESERVADOS = {"con", "prn", "aux", "nul"} | {
-    f"{puerto}{numero}" for puerto in ("com", "lpt") for numero in range(1, 10)
-}
-"""Nombres que Windows no deja usar para un archivo ni una carpeta (con o sin extensión)."""
-
-
-def problema_del_nombre(nombre: str) -> str:
-    """Por qué no vale como nombre de carpeta nueva, o "" si vale (en Windows, que es lo
-    más estricto: así la carpeta también se puede llevar a un USB)."""
-    if nombre in (".", ".."):
-        return "Ese nombre no vale: es «aquí» o «arriba»."
-    malos = sorted({c for c in nombre if c in '<>:"/\\|?*' or ord(c) < 32})
-    if malos:
-        return f"No puede llevar {' '.join(malos)}."
-    if nombre[-1] in ". ":
-        return "No puede acabar en punto ni en espacio."
-    if nombre.split(".")[0].lower() in NOMBRES_RESERVADOS:
-        return f"«{nombre}» es un nombre reservado de Windows."
-    return ""
 
 
 def pedir_carpeta_nueva(carpeta: Path, leer: Lector) -> Path | None:

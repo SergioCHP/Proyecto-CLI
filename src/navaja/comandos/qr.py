@@ -65,8 +65,23 @@ def guardar_png(texto: str, destino: Path) -> Path:
     libreria("PIL.Image", "Pillow", "qr", "guardar el QR como imagen")
     imagen: Any = qrcode.make(texto, box_size=10, border=4)
     final = ruta_libre(destino)
-    imagen.save(final)
+    try:
+        imagen.save(final)
+    except OSError as error:  # la carpeta no existe, no hay permiso…
+        raise NavajaError(f"No se puede guardar en {final}: {error.strerror or error}.") from None
     return final
+
+
+def destino_png(guardar: Path) -> Path:
+    """El PNG que se pide con --guardar, comprobado antes de hacer nada: «.», «~» o «C:\\» son
+    carpetas (no un nombre de archivo) y la carpeta donde va tiene que existir."""
+    ruta = guardar.expanduser()
+    if ruta.is_dir() or not ruta.name:
+        fallar(NavajaError(f"{guardar} es una carpeta: di también el nombre ({Path(guardar, 'qr.png')})."))
+    ruta = ruta.with_suffix(".png")
+    if not ruta.parent.is_dir():
+        fallar(NavajaError(f"No existe la carpeta {ruta.parent}."))
+    return ruta
 
 
 def qr(
@@ -77,6 +92,7 @@ def qr(
     """Un código QR en la terminal para pasar un enlace, un texto o la wifi al móvil."""
     if not texto.strip():
         fallar(NavajaError("Di qué lleva el QR: navaja qr https://… (o con --wifi, el nombre de la red)."))
+    png = destino_png(guardar) if guardar is not None else None  # antes de dibujar: si falla, ya
     contenido = texto
     if wifi:
         clave = pedir_secreto("Contraseña de la wifi (Intro si no tiene)")
@@ -93,9 +109,9 @@ def qr(
         console.print("[aviso]La ventana es estrecha y el QR se descoloca: hazla más ancha o usa --guardar.[/]")
     descripcion = f"la wifi «{texto}»" if wifi else texto
     console.print(f"[pista]Apunta la cámara del móvil: {escape(descripcion)}[/]", soft_wrap=True)
-    if guardar is not None:
+    if png is not None:
         try:
-            final = guardar_png(contenido, guardar.expanduser().with_suffix(".png"))
+            final = guardar_png(contenido, png)
         except NavajaError as error:
             fallar(error)
         console.print(f"[ok]✔ Guardado en {escape(bonita(final))}[/]", soft_wrap=True)

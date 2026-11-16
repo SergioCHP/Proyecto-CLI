@@ -70,3 +70,16 @@ def test_orden(tmp_path):
     assert salida.exit_code == 0 and "tema1.docx" in salida.output and "2 líneas en 2 archivos" in salida.output
     salida = runner.invoke(app, ["busca", "nada de nada", str(tmp_path)])
     assert salida.exit_code == 1 and "No aparece" in salida.output
+
+
+def test_pdf_con_contrasena_o_roto_se_salta(tmp_path):
+    pypdf = pytest.importorskip("pypdf")
+    pytest.importorskip("cryptography")  # para cifrar con AES-256
+    escritor = pypdf.PdfWriter()
+    escritor.add_blank_page(100, 100)
+    escritor.encrypt("x", algorithm="AES-256")
+    escritor.write(tmp_path / "cifrado.pdf")
+    (tmp_path / "roto.pdf").write_bytes(b"%PDF-1.4 basura")
+    (tmp_path / "notas.txt").write_text("hola", encoding="utf-8")
+    salida = runner.invoke(app, ["busca", "hola", str(tmp_path)])
+    assert salida.exit_code == 0 and "notas.txt" in salida.output

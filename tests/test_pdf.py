@@ -82,3 +82,13 @@ def test_contrasena_poner_y_quitar(tmp_path):
 def test_no_es_un_pdf(tmp_path):
     (tmp_path / "x.txt").write_text("hola")
     assert runner.invoke(app, ["pdf", "info", str(tmp_path / "x.txt")]).exit_code == 1
+
+
+def test_une_con_nombre_malo_o_con_extension(tmp_path):
+    a, b = crear(tmp_path / "a.pdf", 1), crear(tmp_path / "b.pdf", 1)
+    for malo in ("sub/x", "sub\\x", "ab:c", "x?y", "CON", "nul.txt", ".", "..", ".pdf", "fin."):
+        salida = runner.invoke(app, ["pdf", "une", str(a), str(b), "-n", malo, "--si"])
+        assert salida.exit_code == 1 and "no vale como nombre" in salida.output, malo
+    assert sorted(p.name for p in tmp_path.glob("*.pdf")) == ["a.pdf", "b.pdf"]  # no se ha creado nada
+    assert runner.invoke(app, ["pdf", "une", str(a), str(b), "-n", "juntos.pdf", "--si"]).exit_code == 0
+    assert (tmp_path / "juntos.pdf").exists() and not (tmp_path / "juntos.pdf.pdf").exists()

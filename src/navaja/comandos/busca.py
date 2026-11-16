@@ -96,7 +96,7 @@ def texto_y_paginas(ruta: Path) -> tuple[list[str], bool] | None:
 def buscar_en(ruta: Path, expresion: re.Pattern[str], exacto: bool, regex: bool) -> Resultado | None:
     try:
         leido = texto_y_paginas(ruta)
-    except (NavajaError, OSError, ValueError):
+    except Exception:  # un PDF con contraseña o dañado, un .docx roto…: se salta y se sigue
         return None
     if leido is None:
         return None

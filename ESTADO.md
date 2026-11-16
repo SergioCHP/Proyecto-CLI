@@ -898,6 +898,24 @@ cosas mal:
   mensajes de «falta X» y `doctor` decían `".[qr]"`, `".[pdf]"`… pero `uv tool install`
   deja solo los extras que se le dicen, así que instalar uno quitaba los demás. Ahora
   siempre `".[todo]"` (o `".[todo,fondo]"`), con `lotes.como_instalar()`.
+
+### 2026-11-16 — Arreglos de la revisión de la fase 2
+
+- **`busca`** ya no se cae con un PDF con contraseña o dañado en la carpeta (pypdf lanza sus
+  propios errores, que no se capturaban): cualquier archivo que no se puede leer se salta.
+- **`pdf une -n sub/x`** daba una traza (`with_name` no admite carpetas): ahora un mensaje.
+  Usa `problema_del_nombre`, que pasa de `interactivo.py` a `comun.py`: rechaza también
+  `ab:c` (en NTFS sería un flujo escondido), `x?y`, `CON`/`NUL`… y lo vacío, igual en todos
+  los sistemas. Y `-n juntos.pdf` da `juntos.pdf`, no `juntos.pdf.pdf`.
+- **`qr --guardar`** en una carpeta que no existe, o con `.`, `~` o `C:\` (carpetas, no un
+  nombre), daba una traza: ahora un mensaje, y antes de dibujar el QR.
+- **`convierte` csv → xlsx** ya no estropea datos; se quedan como texto: «08001» (códigos
+  postales, teléfonos), más de 15 cifras (Excel las redondea), «1.500» o «2,250» (¿mil
+  quinientos o uno y medio? no se adivina), «inf», «nan», «1_000», «+5» y cifras no ASCII.
+  Una fila con más columnas que la cabecera ya no falla con un error en inglés.
+- Pasado el revisor: lo que encontró en la primera versión de estos arreglos está corregido
+  arriba. Tests de regresión en busca, pdf, qr y convierte: 698 pasando y 1 saltado.
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.
@@ -981,6 +999,21 @@ cosas mal:
 - [ ] `excluir` compara el nombre tal cual: en macOS un nombre con tildes en NFD no coincide
   con el del JSON (en NFC).
 - [x] Traza `UnicodeEncodeError` con `✔` o `→` en Git Bash o con la salida redirigida.
+- [ ] De la revisión de la fase 2, sin arreglar:
+  - Word a PDF con Word (`docx2pdf`, sin LibreOffice) va por COM dentro de un hilo de
+    `hacer_todo`: sin `pythoncom.CoInitialize()` probablemente falla. Probarlo a mano.
+  - Ctrl+C en `convierte`/`imagen`/`fondo`: el `ThreadPoolExecutor` espera a toda la cola
+    (no se para), sale «Aborted!» en inglés y el archivo a medias se queda.
+  - PyMuPDF (PDF a imágenes) no está en el extra `documentos`: llega de rebote con pdf2docx.
+  - `convierte` elige los hilos mirando solo el primer archivo; PDF a imágenes que falla a
+    mitad deja las páginas ya hechas.
+  - `baja` con una lista: cuenta como «1 vídeo» y resuelve todos antes de enseñar nada.
+  - `busca` sin tildes: «año» encuentra «ano»; con `--regex` sí mira las tildes.
+  - `busca` se salta sin avisar lo que no puede leer (PDF con contraseña): con todos así,
+    dice «no aparece» cuando no ha mirado nada. Contarlos y decirlo. El tope de 20 MB no
+    se aplica a PDF ni a docx.
+  - `qr --guardar foto.jpg` lo cambia a `foto.png` sin avisar; los mensajes con
+    `error.strerror` salen en inglés en Windows («Permission denied»).
 - [ ] Fase 3 (documento de ideas): primero `nuevo`, `hoy` y `falsos`; `portada` descartada.
 - [ ] `baja`: no se puede probar de verdad aquí (sin internet a YouTube); probarlo en casa.
 - [ ] `convierte`: EPUB, SRT, RAR y SVG (ideas de Filee); `pdf`: varias páginas por hoja.

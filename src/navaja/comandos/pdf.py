@@ -15,7 +15,7 @@ from typing import Any
 import typer
 from rich.markup import escape
 
-from ..comun import AJUSTE, DOCUMENTOS, console, cuantos, recuadro, resumen, tamano_legible
+from ..comun import AJUSTE, DOCUMENTOS, console, cuantos, problema_del_nombre, recuadro, resumen, tamano_legible
 from ..errores import NavajaError
 from ..filtros import OPCION_SI, OPCION_SIMULAR
 from ..lotes import Tarea, al_lado, ejecutar, expandir, fallar, libreria, pedir_secreto
@@ -152,6 +152,14 @@ def une(
     if len(rutas) < 2:
         fallar(NavajaError("Para unir hacen falta al menos dos PDF."))
     primero = rutas[0]
+    if nombre:
+        escrito = nombre
+        nombre = nombre.strip()
+        if nombre.lower().endswith(".pdf"):
+            nombre = nombre[:-4]  # «-n juntos.pdf» no debe dar «juntos.pdf.pdf»
+        problema = problema_del_nombre(nombre)
+        if problema:  # sin carpetas, «:», «?», CON…: igual en Windows, Linux y macOS
+            fallar(NavajaError(f"«{escrito}» no vale como nombre del PDF. {problema}"))
     destino = al_lado(primero.with_name(f"{nombre}.pdf"), "") if nombre else al_lado(primero, "-unido", ".pdf")
 
     def hacer() -> None:

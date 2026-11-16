@@ -112,3 +112,23 @@ def test_lo_que_no_se_sabe(tmp_path):
     (tmp_path / "foto.jpg").write_bytes(b"x")
     salida = runner.invoke(app, ["convierte", str(tmp_path / "foto.jpg"), "a", "mp3"])
     assert salida.exit_code == 1 and "No sé pasar .jpg a .mp3" in salida.output
+
+
+@pytest.mark.parametrize(
+    "valor, esperado",
+    [("12", 12), ("-3", -3), ("7,5", 7.5), ("7.5", 7.5), ("0", 0), ("0,5", 0.5), ("08001", "08001"),
+     ("1234567890123456", "1234567890123456"), ("inf", "inf"), ("nan", "nan"), ("1_000", "1_000"),
+     ("1.234,56", "1.234,56"), ("1.500", "1.500"), ("2,250", "2,250"), ("0,125", 0.125), ("-0", 0),
+     ("+5", "+5"), ("１２", "１２"), ("1,00000000000000001", "1,00000000000000001"), ("", ""), (None, None)],
+)
+def test_numero_o_texto(valor, esperado):
+    resultado = c.numero_o_texto(valor)
+    assert resultado == esperado and type(resultado) is type(esperado)
+
+
+def test_csv_con_columnas_de_mas(tmp_path):
+    openpyxl = pytest.importorskip("openpyxl")
+    (tmp_path / "a.csv").write_text("a,b\n1,2\n3,4,5\n", encoding="utf-8")
+    c.csv_a_xlsx(tmp_path / "a.csv", tmp_path / "a.xlsx")
+    filas = list(openpyxl.load_workbook(tmp_path / "a.xlsx").active.iter_rows(values_only=True))
+    assert filas == [("a", "b", None), (1, 2, None), (3, 4, 5)]

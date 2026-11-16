@@ -27,3 +27,12 @@ def test_orden(tmp_path):
     salida = runner.invoke(app, ["qr", "MiCasa", "--wifi"], input="secreta\n")
     assert salida.exit_code == 0 and "la wifi «MiCasa»" in salida.output
     assert runner.invoke(app, ["qr"]).exit_code == 1
+
+
+def test_guardar_en_carpeta_que_no_existe_o_en_una_carpeta(tmp_path):
+    pytest.importorskip("qrcode")
+    salida = runner.invoke(app, ["qr", "hola", "--guardar", str(tmp_path / "no-existe" / "q")])
+    assert salida.exit_code == 1 and "No existe la carpeta" in salida.output and "█" not in salida.output
+    for carpeta in (str(tmp_path), "."):
+        salida = runner.invoke(app, ["qr", "hola", "--guardar", carpeta])
+        assert salida.exit_code == 1 and "es una carpeta" in salida.output, carpeta

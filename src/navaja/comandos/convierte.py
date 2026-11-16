@@ -18,6 +18,7 @@ import csv
 import io
 import json
 import logging
+import re
 import shutil
 import subprocess
 import tempfile
@@ -181,19 +182,41 @@ def csv_a_xlsx(origen: Path, destino: Path) -> None:
     hoja = libro.active
     filas = leer_csv(origen)
     if filas:
-        hoja.append(list(filas[0].keys()))
+        hoja.append([clave for clave in filas[0] if clave is not None])
         for fila in filas:
-            hoja.append([numero_o_texto(v) for v in fila.values()])
+            valores: list[str | None] = []
+            for clave, valor in fila.items():
+                # una fila con más columnas que la cabecera: csv las junta en una lista con clave None
+                valores += valor if clave is None else [valor]
+            hoja.append([numero_o_texto(v) for v in valores])
     libro.save(destino)
 
 
+NUMERO = re.compile(r"-?(\d+)(?:[.,](\d+))?", re.ASCII)
+
+
 def numero_o_texto(valor: str | None) -> Any:
+    """«12» → 12 y «7,5» → 7.5; lo demás se queda como texto, también lo que parece un número
+    pero no se sabe seguro qué número es:
+
+    - «08001» (código postal, teléfono): se perdería el cero.
+    - Más de 15 cifras (una cuenta, un código largo): Excel las redondea.
+    - «1.500» o «2,250»: en España es mil quinientos; en inglés, uno y medio. Con tres
+      decimales justos no se adivina («0,125» sí es un número: nadie escribe miles con 0).
+    - «inf», «nan», «1_000», «+5» o cifras que no son 0-9.
+    """
     if valor is None:
         return None
-    try:
-        return int(valor) if valor.strip().lstrip("-").isdigit() else float(valor.replace(",", "."))
-    except ValueError:
+    limpio = valor.strip()
+    encaje = NUMERO.fullmatch(limpio)
+    if not encaje:
         return valor
+    entero, decimales = encaje.group(1), encaje.group(2) or ""
+    if (len(entero) > 1 and entero.startswith("0")) or len(entero + decimales) > 15:
+        return valor
+    if len(decimales) == 3 and entero != "0":
+        return valor
+    return float(limpio.replace(",", ".")) if decimales else int(limpio)
 
 
 def xlsx_a_csv(origen: Path, destino: Path) -> None:
