@@ -44,6 +44,9 @@ src/navaja/
     ├── base.py         # base (binario, octal, decimal y hexadecimal, con los pasos)
     ├── chmod.py        # chmod (permisos de Linux: 755 ↔ rwxr-xr-x)
     ├── subred.py       # sub-app: ver / dividir / vlsm / misma / practica (solo ipaddress)
+    ├── red.py          # red (psutil + puerta de enlace de /proc/net/route, route print o route get)
+    ├── puertos.py      # puertos (psutil.net_connections; --cerrar: terminate, y kill a los 3 s)
+    ├── sistema.py      # sistema (psutil + rich.live; procesos sumados por nombre)
     ├── huella.py       # sub-app hash: archivo / texto (MD5, SHA-1, SHA-256 y --compara)
     ├── genera.py       # sub-app: uuid / lorem / numero
     ├── clave.py        # sub-app: nueva / frase / fuerza (con secrets)
@@ -188,7 +191,7 @@ considera basura `limpia`, cómo compara `duplicados`…) va en `EXTRA` de
   `--simular` y `--si`, lo hace en paralelo y, si uno falla, borra lo que dejó a medias y
   sigue con los demás. Lo que falte (librería o programa) se comprueba antes de preguntar.
 - **Dependencias opcionales:** lo que no hace falta para todo va en
-  `[project.optional-dependencies]` (`pdf`, `imagen`, `qr`, `documentos`, `baja`, `fondo` y
+  `[project.optional-dependencies]` (`pdf`, `imagen`, `qr`, `documentos`, `baja`, `fondo`, `falsos`, `sistema` y
   `todo`, que son todas menos `fondo`; `dev` lleva las ligeras para los
   tests) y se importa dentro de la función que lo usa: si falta, `NavajaError` con cómo
   instalarlo, y `doctor` lo enseña con «!».

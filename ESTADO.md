@@ -1320,6 +1320,45 @@ cosas mal:
 - 37 tests nuevos (`test_falsos.py`, `test_sql.py`, uno de `falsos` + `sql` juntos). Sin
   fallos nuevos en Linux. Al añadir el extra, `uv` actualiza `uv.lock` la primera vez.
 
+### 2026-11-17 — Fase 4: `red`, `puertos` y `sistema` (Redes e informática)
+
+- **Fase 4 decidida** (Sergio): `red`, `puertos`, `sistema`, `respaldo`, `apps` y `encuentra`.
+  Fuera `sincroniza`: `usb-a-pc`, `pc-a-usb` y `copia a` ya copian en los dos sentidos solo lo
+  nuevo o cambiado. Fuera también `dns`, `cron`, `escanea` y `web` (por ahora).
+- **Menú:** las tres van en Redes e informática, entre `chmod` y `subred`: Redes 20-25, Estudio
+  26-29, Programación 30-37, acciones 38 y navaja 39-42. La sección dice ahora «Calculadoras de
+  clase y tu PC: red, puertos y sistema».
+- **psutil** como extra opcional `sistema` (también en `todo` y `dev`; `doctor` lo revisa; sin él,
+  las tres dicen cómo instalarlo).
+- **`navaja red`** (`comandos/red.py`): IP con `/prefijo`, máscara, puerta de enlace, MAC y
+  velocidad de cada tarjeta. La que sale a internet (un socket UDP «conectado» a 8.8.8.8, que no
+  envía nada) va primero con ★; luego cable y Wi-Fi, y al final las virtuales (VirtualBox,
+  vEthernet de WSL, Docker…). La puerta de enlace sale de `/proc/net/route` en Linux, de
+  `route print -4 0.0.0.0` en Windows (solo se leen números: vale en cualquier idioma) y de
+  `route -n get default` en macOS. Avisa de APIPA. `--todas`, `--ipv6`. Termina con la orden
+  `subred ver` de tu IP.
+- **`navaja puertos [PUERTO]`** (`comandos/puertos.py`): TCP en LISTEN (`--udp`, también UDP),
+  juntando IPv4 e IPv6 del mismo programa; programa, PID, «desde» (toda la red / solo este PC) y
+  para qué se suele usar el puerto (unos 50 conocidos). Con un puerto libre lo dice (código 0).
+  `--cerrar` enseña el programa, pregunta `[s/n]` (`--si`, `--simular`), hace `terminate` y, si
+  a los 3 segundos sigue, `kill`. Nunca cierra navaja misma, el PID 4 ni programas del sistema
+  (`svchost.exe`, `lsass.exe`, `systemd`…); sin permiso, dice que abras la terminal como
+  administrador.
+- **`navaja sistema`** (`comandos/sistema.py`): `rich.live` hasta Ctrl+C (`--cada`, 2 s); con
+  `--una-vez`, o si la salida no es una terminal, una sola vez. CPU (núcleos, físicos y GHz),
+  memoria (usada = total − disponible, como el Administrador de tareas), intercambio, discos
+  (sin CD, snap, tmpfs…), batería (barra al revés: poca carga en rojo) y tiempo encendido. Los
+  procesos se suman por nombre y su CPU se divide entre los núcleos (100 % = el PC entero); el
+  objeto de cada proceso se guarda entre vueltas para que psutil compare con la medida anterior.
+  `--orden cpu|memoria` (el menú lo pregunta) y `-n`.
+- 55 tests nuevos (`test_red.py`, `test_puertos.py`, `test_sistema.py`): la lógica con datos
+  falsos de psutil (tarjetas, rutas de Linux, Windows y macOS, conexiones) y, si psutil está,
+  las órdenes de verdad: `puertos` encuentra y cierra un `http.server` lanzado por el test. Sin
+  fallos nuevos en Linux (siguen los 2 de rutas de Windows, `test_copia` y `test_lotes`).
+- Pendiente de probar en Windows: la puerta de enlace con `route print`, los nombres de las
+  tarjetas («Wi-Fi», «Ethernet 2», «vEthernet (WSL)»), `puertos` sin ser administrador y la
+  batería del portátil.
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.

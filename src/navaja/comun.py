@@ -111,7 +111,7 @@ NAVAJA = "navaja"
 SECCIONES = {
     ARCHIVOS: "Se usan al momento: les dices qué hacer y lo hacen.",
     DOCUMENTOS: "Convertir, PDF, fotos, vídeos y QR. El original nunca se toca.",
-    REDES: "Calculadoras para clase, con los pasos explicados.",
+    REDES: "Calculadoras de clase y tu PC: red, puertos y sistema.",
     ESTUDIO: "Chuletas, tarjetas para memorizar, pomodoro y tus entregas.",
     PROGRAMACION: "Para tus proyectos: crearlos, tus commits, comparar, huellas y claves.",
     REPITES: "Recetas guardadas en acciones.json: se hacen con una palabra.",

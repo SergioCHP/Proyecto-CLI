@@ -690,6 +690,7 @@ dev = [
     { name = "pdf2docx" },
     { name = "pillow" },
     { name = "pillow-heif" },
+    { name = "psutil" },
     { name = "pymupdf" },
     { name = "pypdf", extra = ["crypto"] },
     { name = "pytest" },
@@ -720,6 +721,9 @@ qr = [
     { name = "pillow" },
     { name = "qrcode" },
 ]
+sistema = [
+    { name = "psutil" },
+]
 todo = [
     { name = "docx2pdf", marker = "sys_platform == 'win32'" },
     { name = "faker" },
@@ -727,6 +731,7 @@ todo = [
     { name = "pdf2docx" },
     { name = "pillow" },
     { name = "pillow-heif" },
+    { name = "psutil" },
     { name = "pymupdf" },
     { name = "pypdf", extra = ["crypto"] },
     { name = "qrcode" },
@@ -755,6 +760,9 @@ requires-dist = [
     { name = "pillow-heif", marker = "extra == 'imagen'", specifier = ">=0.16" },
     { name = "pillow-heif", marker = "extra == 'todo'", specifier = ">=0.16" },
     { name = "prompt-toolkit", specifier = ">=3.0" },
+    { name = "psutil", marker = "extra == 'dev'", specifier = ">=5.9" },
+    { name = "psutil", marker = "extra == 'sistema'", specifier = ">=5.9" },
+    { name = "psutil", marker = "extra == 'todo'", specifier = ">=5.9" },
     { name = "pymupdf", marker = "extra == 'dev'", specifier = ">=1.24" },
     { name = "pymupdf", marker = "extra == 'documentos'", specifier = ">=1.24" },
     { name = "pymupdf", marker = "extra == 'todo'", specifier = ">=1.24" },
@@ -772,7 +780,7 @@ requires-dist = [
     { name = "yt-dlp", marker = "extra == 'dev'", specifier = ">=2024.1" },
     { name = "yt-dlp", marker = "extra == 'todo'", specifier = ">=2024.1" },
 ]
-provides-extras = ["pdf", "imagen", "qr", "documentos", "baja", "fondo", "falsos", "todo", "dev"]
+provides-extras = ["pdf", "imagen", "qr", "documentos", "baja", "fondo", "falsos", "sistema", "todo", "dev"]
 
 [[package]]
 name = "networkx"

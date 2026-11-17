@@ -317,6 +317,31 @@ EXTRA: dict[str, str] = {
         "más usadas y si lleva palabras o patrones (aaa, 123, qwerty), y calcula lo que se "
         "tardaría en adivinarla probando 10.000 millones por segundo."
     ),
+    "red": (
+        "Solo mira: no cambia nada de tu red. Sin --todas enseña las tarjetas encendidas con "
+        "IPv4; la que sale a internet va primero, con ★. La máscara sale también como /prefijo "
+        "(192.168.1.34/24), lista para «subred ver». Una IP 169.254.x.x (APIPA) quiere decir que "
+        "el router no le ha dado ninguna. Necesita psutil (extra sistema; navaja doctor dice si está)."
+    ),
+    "puertos": (
+        "Sin puerto, los TCP que esperan conexiones (con --udp, también los UDP). «Desde: toda la "
+        "red» es que otros equipos pueden conectarse (si el cortafuegos les deja); «solo este PC», "
+        "que solo desde el tuyo. «Se suele usar para» es una pista: cualquier programa puede usar "
+        "cualquier puerto. Con un puerto libre lo dice y sale con 0. --cerrar enseña el programa, "
+        "pregunta [s/n] (--si para no preguntar, --simular para no tocar nada), le pide que se "
+        "cierre y, si en 3 segundos sigue, lo obliga; nunca cierra programas del sistema "
+        "(svchost.exe, System…). En Windows, algunos programas solo se ven y se cierran abriendo "
+        "la terminal como administrador. Necesita psutil (extra sistema)."
+    ),
+    "sistema": (
+        "Se actualiza solo hasta Ctrl+C (--cada segundos); con --una-vez, o si la salida no es una "
+        "terminal, lo enseña una vez. La memoria usada es la que no queda disponible, como en el "
+        "Administrador de tareas. Los procesos que se llaman igual (chrome, Code…) se suman en una "
+        "fila, y su CPU es del PC entero (100 % = todos los núcleos a tope). Las barras van en "
+        "verde, en amarillo desde el 70 % y en rojo desde el 90 % (en la batería, al revés). Solo "
+        "mira: no cierra nada (para eso, puertos --cerrar o el Administrador de tareas). Necesita "
+        "psutil (extra sistema)."
+    ),
     "subred": (
         "La IP se escribe como 192.168.10.200/26, con la máscara aparte (192.168.10.200 "
         "255.255.255.192) o sola: entonces lleva la máscara de su clase (A /8, B /16, C /24; "

@@ -45,8 +45,11 @@ from .comandos import (
     ocupa,
     ordena,
     pdf,
+    puertos,
     qr,
+    red,
     renombra,
+    sistema,
     sql,
     subred,
 )
@@ -61,7 +64,7 @@ app = typer.Typer(
         "[bold]renombra[/], [bold]duplicados[/], [bold]copia[/], [bold]notas[/], "
         "[bold]convierte[/], [bold]cuenta[/], [bold]fondo[/], [bold]baja[/], [bold]qr[/], "
         "[bold]pdf[/], [bold]imagen[/], [bold]base[/], "
-        "[bold]chmod[/], [bold]subred[/], [bold]hash[/], [bold]genera[/], "
+        "[bold]chmod[/], [bold]red[/], [bold]puertos[/], [bold]sistema[/], [bold]subred[/], [bold]hash[/], [bold]genera[/], "
         "[bold]clave[/], [bold]chuleta[/], [bold]nuevo[/], [bold]hoy[/], [bold]compara[/], [bold]falsos[/], [bold]sql[/], [bold]estudia[/], [bold]foco[/], "
         "[bold]entregas[/], [bold]acciones[/], [bold]doctor[/], "
         "[bold]tema[/], [bold]config[/] y [bold]manual[/] (explica todo)."
@@ -147,7 +150,7 @@ def version_orden() -> None:
 for modulo in (
     listar, ocupa, arbol, busca, comprime, extrae, ordena, renombra, duplicados, copia, notas,
     convierte, cuenta, fondo, baja, qr, pdf, imagen,
-    base, chmod, subred,
+    base, chmod, red, puertos, sistema, subred,
     estudia, foco, entregas,
     huella, genera, clave, chuleta, nuevo, hoy, compara, falsos, sql,
     mis_acciones, doctor, ajustes, ayuda,

@@ -65,6 +65,9 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
 | `navaja notas` | Notas y enlaces con etiquetas, guardados en SQLite. Lo que empieza por `https://` o `www.` es un enlace. |
 | `navaja base NUMERO` | Pasa un número entre binario, octal, decimal y hexadecimal (`200`, `0b11001000`, `0o310`, `0xC8` o `C8h`; con `--de 2`, unos y ceros sin prefijo), con los pasos: las divisiones sucesivas, la suma de potencias o el atajo de agrupar bits (`--a 16`). Con una IP, cada octeto en binario. |
 | `navaja chmod PERMISOS` | Calculadora de permisos de Linux: `755` ↔ `rwxr-xr-x` (también `4755` y lo que sale en `ls -l`), con quién puede qué en un archivo y en una carpeta, y avisos si es peligroso (`777`). Solo calcula. |
+| `navaja red` | Tu tarjeta de red de un vistazo: IP con su `/prefijo`, máscara, puerta de enlace (tu router), MAC y velocidad de cada tarjeta encendida; la que sale a internet va primero con ★ y al final te da la orden `subred ver` con tu IP. Avisa si la IP es APIPA (169.254.x.x: el router no le ha dado ninguna). `--todas` enseña también las apagadas y la de loopback; `--ipv6`, las IPv6. Solo mira. |
+| `navaja puertos [PUERTO]` | Qué puertos TCP esperan conexiones en tu PC (`--udp`, también UDP), con el programa, su PID, desde dónde se puede entrar (toda la red o solo este PC) y para qué se suele usar (3306 MySQL, 5173 Vite…). `puertos 8000` dice quién usa el 8000 (o que está libre) y `puertos 8000 --cerrar` cierra ese programa después de enseñarlo y preguntar `[s/n]` (`--si`, `--simular`). Nunca cierra programas del sistema. En Windows, algunos solo se ven como administrador. |
+| `navaja sistema` | Cómo va el PC, en vivo hasta Ctrl+C: equipo y sistema, tiempo encendido, CPU, memoria, intercambio, cada disco y la batería con barras de colores (verde, amarillo desde el 70 %, rojo desde el 90 %), y los programas que más gastan (los procesos que se llaman igual, sumados, como en el Administrador de tareas). `--orden memoria`, `-n 10`, `--cada 5` segundos y `--una-vez`. Solo mira. |
 | `navaja subred` | Calculadora de subredes para clase. `ver 192.168.10.200/26` (o `ver 192.168.10.200 255.255.255.192`, o solo la IP con la máscara de su clase): red, broadcast, primer y último equipo, hosts útiles, máscara, wildcard, clase, si es privada, pública, loopback o APIPA, y la IP en binario con los bits de red y de host en colores distintos. `dividir RED N` (partes iguales, FLSM), `vlsm RED 50 20 10` (por equipos, de mayor a menor; con nombre: `ventas:50`), `misma IP1 IP2` (¿se hablan sin router?) y `practica` (ejercicios al azar que corrige y explica paso a paso). Solo calcula: no toca la red ni los archivos. |
 | `navaja hash` | Huellas MD5, SHA-1 y SHA-256 de un archivo (`hash archivo ubuntu.iso`) o de un texto (`hash texto hola`). Con `--compara` dice si coincide con la que da la web (sale con 1 si no). Lee por trozos: vale para ISO de varios GB. |
 | `navaja genera` | `uuid`, `lorem` (texto de relleno) y `numero MIN MAX` (al azar; con `--sin-repetir`, un sorteo). |
@@ -507,6 +510,14 @@ navaja base 11001000 --de 2 --a 16               # el atajo: cada 4 bits, una ci
 navaja base 192.168.1.10                         # una IP, octeto a octeto en binario
 navaja chmod 755                                 # rwxr-xr-x y quién puede qué
 navaja chmod -- -rw-r--r--                       # lo que sale en ls -l (con -- delante)
+
+# Tu PC: red, puertos y cómo va
+navaja red                                       # IP, máscara, router y MAC
+navaja puertos                                   # qué está abierto y qué programa lo usa
+navaja puertos 8000                              # ¿quién usa el 8000?
+navaja puertos 8000 --cerrar                     # cierra ese programa (pregunta [s/n])
+navaja sistema                                   # CPU, memoria, discos… en vivo (Ctrl+C)
+navaja sistema --orden memoria --una-vez         # lo que más memoria gasta, una vez
 
 # Subredes (para clase)
 navaja subred ver 192.168.10.200/26              # red, broadcast, hosts… y en binario
