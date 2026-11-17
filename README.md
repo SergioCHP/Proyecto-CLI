@@ -15,14 +15,16 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
    `fondo`, `baja`, `qr`, `pdf`, `imagen`, `base`, `chmod`, `subred` (`ver`, `dividir`, `vlsm`,
    `misma`, `practica`), `estudia` (`repasa`, `importa`, `estadisticas`), `foco` (`empieza`,
    `historial`), `entregas` (`agregar`, `listar`, `hecha`, `borrar`), `chuleta`, `nuevo`, `hoy`,
-   `compara`, `falsos`, `sql`, `hash`, `genera`, `clave`, `doctor`,
+   `compara`, `falsos`, `sql`, `hash`, `genera`, `clave`, `doctor`, `comprobar-ia`,
    `acciones` (`ver`, `ejecutar`, `deshacer`, `versiones`,
    `editar`, `validar`), `tema`, `config` (también `config autocompletar`, Tab en PowerShell),
    `manual` y `version`. Dentro de navaja, Tab completa y ↑ ↓ recuperan lo de antes.
 5. **Órdenes previstas:** se eligen una a una de la lista de ideas, según hagan falta.
 6. **Acciones:** `ordenar-descargas`, `imagenes-ia`, `instaladores-viejos`,
-   `fotos-con-fecha` y la rutina `limpieza-semanal`. La que más uso es
-   `ordenar-descargas`, porque me gusta tenerlo todo en orden.
+   `fotos-con-fecha`, `usb-a-pc`, `pc-a-usb` y la rutina `limpieza-semanal`; con IA,
+   `nombres-claros` (renombra documentos por lo que dicen), `resumir-apuntes` y la rutina
+   `descargas-con-ia`. La que más uso es `ordenar-descargas`, porque me gusta tenerlo todo
+   en orden.
 7. **Lo que nunca hará:**
    - Tocar nada sin enseñar antes qué va a hacer y preguntar `[s/n]` (salvo con `--si`).
    - Sobrescribir un archivo: si el nombre ya existe, añade « (1)».
@@ -37,6 +39,7 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
    - 1: fallo al ejecutar (una carpeta o una acción que no existe).
    - 2: uso incorrecto (falta un argumento o una opción no existe).
    - 3: `acciones.json` no existe o está mal escrito.
+   - 4: la IA no se puede usar ahora (sin clave, sin internet, clave mala o sin cupo).
 10. **Instalación:** `uv tool install --editable .` desde la carpeta del repo (más
     detalles en [Instalación](#instalación)).
 
@@ -82,7 +85,8 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
 | `navaja sql BASE [CONSULTA]` | Abre una base SQLite. Sin consulta, sus tablas y vistas con columnas, clave, obligatorias y cuántas filas tienen. Un `SELECT` sale en una tabla (`-n` filas; `--csv` lo guarda entero), siempre con la base en solo lectura. Un `INSERT`, `UPDATE`, `DELETE`, `CREATE`… enseña antes las sentencias y pregunta `[s/n]`; guarda una copia de la base (las 5 últimas, en `sql-copias` de tus datos) y lo hace todo o nada. `--simular` lo prueba y lo deshace (dice cuántas filas cambiaría). `--archivo datos.sql` ejecuta un script (como el de `falsos`) y `--crear` crea la base si no existe. |
 | `navaja clave` | `nueva` (contraseña segura al azar), `frase` (palabras al azar, fácil de recordar) y `fuerza` (cómo de fuerte es la tuya: la escribes sin que se vea y no se guarda). |
 | `navaja acciones` | Tus tareas de siempre guardadas con un nombre en `acciones.json` (ordenar Descargas, copiar apuntes, quitar instaladores viejos…) para hacerlas con una orden. Con simulación, confirmación y deshacer; lo que sustituye una copia se guarda en `acciones versiones`. |
-| `navaja doctor` | Revisa que todo esté listo: Python, librerías (y las opcionales), programas de fuera (git, LibreOffice, Pandoc, FFmpeg, 7-Zip, Word, winget), la carpeta de datos, `acciones.json` y la terminal. Dice cómo arreglar lo que falta. |
+| `navaja doctor` | Revisa que todo esté listo: Python, librerías (y las opcionales), programas de fuera (git, LibreOffice, Pandoc, FFmpeg, 7-Zip, Word, winget), la carpeta de datos, `acciones.json`, si hay clave para la IA y la terminal. Dice cómo arreglar lo que falta. |
+| `navaja comprobar-ia` | Dice si la IA (Gemini) está lista: de dónde sale la clave (sin enseñarla), qué modelo se usa y, con una pregunta mínima, si contesta. Si no, por qué y qué hacer (código 4). `--sin-llamar` solo mira la configuración. Ver [IA](#ia-gemini). |
 | `navaja tema` | `ver` los temas y `elegir` uno (clasico, morado, terminal, pastel). |
 | `navaja config` | Tu nombre para el saludo y dónde guarda navaja tus datos. La primera vez que abres navaja te pregunta cómo llamarte (Intro = tu usuario de Windows); con `config nombre` lo cambias para siempre; con `config versiones 30`, cuántos días se guardan las versiones viejas de «el-mas-nuevo» (0: siempre); con `config autocompletar $PROFILE`, Tab en PowerShell. |
 | `navaja manual [comando]` | El manual completo: cómo se usa, todos los comandos con sus opciones, atajos, seguridad y datos. Con un comando, solo su parte. |
@@ -242,6 +246,9 @@ Están en [acciones.json](acciones.json):
 | `limpieza-semanal` | rutina | `instaladores-viejos` → `imagenes-ia` → `ordenar-descargas`, en ese orden. |
 | `usb-a-pc` | copiar | Trae al PC (`~/Documents/ESTUDIO/DAM`) lo nuevo del USB de clase (`D:/DAM`), con sus subcarpetas. Si un archivo es distinto en los dos sitios, gana el más reciente. |
 | `pc-a-usb` | copiar | Lo mismo al revés. Las dos se saltan `node_modules`, `__pycache__`, `build`, `dist` y `target`, y los ocultos. Con el USB sin conectar, se paran antes de empezar. |
+| `nombres-claros` | renombrar-ia | La IA lee los PDF y Word de la última semana en Descargas y les pone un nombre que dice lo que son: `documento (3).pdf` → `factura-movistar-octubre-2026.pdf`. |
+| `resumir-apuntes` | resumir-ia | La IA resume los apuntes nuevos de `ESTUDIO/DAM` (con sus subcarpetas) y deja `tema.resumen.md` al lado de cada uno, «para estudiar». Los que ya tienen resumen se saltan. |
+| `descargas-con-ia` | rutina | `instaladores-viejos` → `nombres-claros` → `ordenar-descargas`. Sin internet o sin clave, el paso con IA se salta y los otros dos se hacen igual. |
 
 ### Esquema
 
@@ -266,16 +273,17 @@ Están en [acciones.json](acciones.json):
 | `acciones` | obligatorio | La lista de acciones. Vacía es un error. |
 | `nombre` | obligatorio | Con el que la ejecutas: minúsculas, números y guiones, sin espacios. Único. |
 | `descripcion` | obligatorio | Qué hace, en una frase. Sale en `acciones ver`. |
-| `tipo` | obligatorio | `mover`, `copiar`, `ordenar`, `renombrar`, `borrar` o `rutina`. |
+| `tipo` | obligatorio | `mover`, `copiar`, `ordenar`, `renombrar`, `borrar`, `rutina`, o con IA: `renombrar-ia` o `resumir-ia`. |
 | `carpeta` | opcional | Dónde trabaja (`~/Downloads`). Sin ella, en la carpeta actual. Al ejecutar puedes darle otra. |
 | `filtro` | opcional | Qué archivos se tocan (tabla de abajo). Sin filtro, todos. |
-| `destino` | mover, copiar (en ordenar, opcional) | A qué carpeta van. Si no existe, se crea. Una ruta relativa se cuenta desde la carpeta de la acción. Si está en una unidad que no existe (un USB sin conectar), la acción no empieza. |
+| `destino` | mover, copiar (en ordenar y resumir-ia, opcional) | A qué carpeta van (en `resumir-ia`, dónde se guardan los resúmenes; sin él, al lado de cada documento). Si no existe, se crea. Una ruta relativa se cuenta desde la carpeta de la acción. Si está en una unidad que no existe (un USB sin conectar), la acción no empieza. |
 | `si_cambia` | copiar, opcional | Si en el destino ya hay uno distinto con el mismo nombre: `copia-aparte` (por defecto: guarda `nombre (1)` al lado, una sola vez) o `el-mas-nuevo` (se queda el más reciente; el viejo se guarda y `acciones versiones` lo enseña, lo recupera o lo borra). Con un USB (FAT32 o exFAT) de por medio, tras el cambio de hora Windows enseña sus fechas movidas una hora: si los dos se diferencian en menos de una hora, no se adivina cuál es más nuevo y sale «míralo tú» (cada vez, hasta que lo arregles tú). Copia primero a un temporal: si se corta a medias, no queda un archivo roto. `deshacer` no quita una copia que hayas editado después. |
 | `guardar_viejas` | copiar, opcional | Con `el-mas-nuevo`: `true` (por defecto) guarda la versión vieja, que se borra sola pasados 30 días (`navaja config versiones` lo cambia; 0 = siempre); `false` la sustituye sin guardarla: no ocupa nada, pero no hay vuelta atrás (ni `deshacer` ni `acciones versiones` la traen). En `navaja copia a`: `--sin-guardar-viejas`. |
 | `por` | ordenar | `tipo`, `mes`, `año`, `día` o `letra`. |
 | `plantilla` | renombrar | El nombre nuevo con huecos: `{fecha:%Y-%m-%d}`, `{n:03}`, `{nombre}` y `{ext}`. |
 | `orden` | renombrar | En qué orden se cuenta `{n}`: `nombre` (por defecto) o `fecha`. |
-| `pasos` | rutina | Las acciones que hace, en orden. No puede tener otra rutina dentro. |
+| `instrucciones` | renombrar-ia, resumir-ia, opcional | Lo que le pides a la IA además, hasta 500 letras: `"pon la asignatura delante"`, `"resúmelo para estudiar"`. |
+| `pasos` | rutina | Las acciones que hace, en orden. No puede tener otra rutina dentro. Puede mezclar acciones con IA y sin ella. |
 | `_lo-que-sea` | opcional | Lo que empieza por `_` es una nota para ti: navaja no lo lee. |
 
 | Tipo | Qué le pasa a cada archivo |
@@ -285,7 +293,9 @@ Están en [acciones.json](acciones.json):
 | `ordenar` | Va a una subcarpeta según `por`, como `navaja ordena`. |
 | `renombrar` | Cambia de nombre según `plantilla`, como `navaja renombra plantilla`. |
 | `borrar` | Va a la papelera de navaja (se recupera con `acciones deshacer`). Necesita un filtro: sin él mandaría la carpeta entera. |
-| `rutina` | No toca archivos: hace sus `pasos` uno detrás de otro y pregunta en cada uno. |
+| `rutina` | No toca archivos: hace sus `pasos` uno detrás de otro y pregunta en cada uno. Si un paso necesita IA y no se puede, lo dice, se lo salta y sigue (sale con 1). |
+| `renombrar-ia` | La IA lee el principio del documento (`.pdf`, `.docx`, `.odt`, `.txt`, `.md`, `.html`…) y propone un nombre: minúsculas, sin tildes y con guiones; la extensión no cambia. Se pregunta al hacer el plan, así que `--simular` ya enseña los nombres (sin tocar nada). Lo que no sabe leer o no tiene texto (un PDF escaneado) se salta. Con deshacer. |
+| `resumir-ia` | La IA lee el documento y escribe `nombre.resumen.md` (título, idea principal y puntos clave, y al final una nota de que lo ha hecho la IA). El original no se toca y nunca pisa nada. El que ya tiene resumen se salta. `acciones deshacer` manda los resúmenes a la papelera de navaja. |
 
 | Filtro | Ejemplo | Qué elige |
 | --- | --- | --- |
@@ -321,6 +331,18 @@ navaja acciones ejecutar limpieza-semanal --config pruebas/acciones-prueba.json
 navaja acciones deshacer
 ```
 
+Para las acciones con IA hacen falta documentos con texto de verdad:
+
+```powershell
+New-Item -ItemType Directory -Force "$p\Apuntes" | Out-Null
+"Factura de Movistar. Periodo: octubre de 2026. Total a pagar: 30,25 euros." | Set-Content "$p\Descargas\documento (3).txt"
+"# Subredes`nVLSM reparte una red en subredes de distinto tamaño según los equipos de cada una." | Set-Content "$p\Apuntes\Tema5.md"
+
+navaja acciones ejecutar nombres-claros --simular --config pruebas/acciones-prueba.json
+navaja acciones ejecutar resumir-apuntes --config pruebas/acciones-prueba.json
+navaja acciones deshacer
+```
+
 Siempre primero con `--simular`, y en tus carpetas de verdad solo cuando la simulación
 diga exactamente lo que esperas.
 
@@ -343,6 +365,41 @@ en `pruebas/` hay cuatro archivos rotos a propósito: `roto-coma.json`, `roto-ti
 navaja acciones validar --config pruebas/roto-tipo.json
 $LASTEXITCODE   # 3
 ```
+
+## IA (Gemini)
+
+Dos tipos de acción usan IA: `renombrar-ia` y `resumir-ia`. Las dos le mandan a Gemini
+(Google) el texto del documento (en `renombrar-ia`, solo el principio) y nada más: ni la
+ruta ni otros archivos. No uses las acciones con IA con documentos privados que no
+quieras mandar a Google.
+
+**La clave.** Se saca gratis en [Google AI Studio](https://aistudio.google.com/apikey) y
+va en un archivo `.env`, nunca en el código ni en `acciones.json`:
+
+```powershell
+Copy-Item .env.example .env     # y escribe tu clave detrás de GEMINI_API_KEY=
+navaja comprobar-ia             # ✔ La IA está lista
+```
+
+navaja busca la clave por este orden: la variable de entorno `GEMINI_API_KEY`, el `.env`
+de la carpeta en la que estás y el `.env` de tus datos (`%LOCALAPPDATA%\navaja\.env`
+en Windows; así vale en cualquier carpeta). `.env` está en el `.gitignore` desde el
+principio, así que la clave no se sube nunca; [.env.example](.env.example) explica qué
+poner. Otras variables: `NAVAJA_MODELO` (por defecto `gemini-flash-lite-latest`, el Flash-Lite
+más nuevo: contesta en un segundo; el Flash normal piensa antes y puede tardar más de 60 s) y `NAVAJA_SIN_IA=1` (apaga la IA aunque haya clave).
+
+**Sin IA, todo lo demás sigue.** Sin clave, sin internet, con la clave mal copiada, con
+la red del instituto bloqueando Gemini o sin cupo gratis, navaja lo explica en una línea
+y sale con el código 4, sin trazas. Las órdenes y acciones sin IA funcionan igual; en una
+rutina, el paso con IA se salta y se hacen los demás. Si la red se va a medias, lo hecho
+se queda (y se puede deshacer) y no se le vuelve a preguntar.
+
+```text
+✘ No hay conexión con Gemini: ¿tienes internet? Las acciones sin IA funcionan igual; vuelve a probar cuando tengas red (navaja comprobar-ia).
+```
+
+`acciones validar` avisa si tienes acciones con IA y no hay clave, y `navaja doctor` dice
+si la hay (sin llamar a Gemini). Por qué IA y por qué así: [ADR-0002](docs/adr/0002-capa-ia.md).
 
 ## Instalación
 
@@ -573,6 +630,7 @@ navaja config ver
 - `ordena`, `renombra` y `copia` enseñan siempre el plan y preguntan `[s/n]` antes de tocar nada; con `--simular` solo miran. Los tres tienen `deshacer`. `copia` nunca pisa un archivo distinto: guarda `nombre (1)` al lado o, con `--si-cambia el-mas-nuevo`, aparta el viejo a `acciones versiones`.
 - Comodines (`copia`, `convierte`, `imagen`, `pdf`, `fondo`): navaja los expande él mismo, así que valen igual en PowerShell y en bash. Solo `*` y `?`: los corchetes son parte del nombre (`*[borrador].pdf` encuentra «apuntes [borrador].pdf»). `*` no coge ocultos ni archivos de sistema (`desktop.ini`, `Thumbs.db`); para eso, escríbelos por su nombre o empieza el patrón por punto (`.*`).
 - `acciones` comprueba `acciones.json` entero antes de tocar un solo archivo, enseña el plan y pregunta `[s/n]`; `--simular` solo mira y `acciones deshacer` lo revierte (una rutina, entera). Lo que borra va a la papelera de navaja.
+- La clave de la IA solo está en `.env` (ignorado por git) o en una variable de entorno; navaja nunca la enseña entera (`comprobar-ia` solo dice las 4 últimas letras) ni la escribe en ningún sitio, y va en una cabecera, no en la URL. A Gemini solo se le manda el texto de los documentos de las acciones con IA.
 - Nunca se sobrescribe un archivo, y se saltan los ocultos y los de sistema de Windows (`desktop.ini`, `Thumbs.db`), salvo con `--ocultos`.
 - Fechas fáciles en `--desde`, `--hasta` y `ordena tramo`: `1/9/2026`, `septiembre 2026`, `2026`, `hoy`, `hace 30 días`. Un mes o un año valen enteros.
 - `limpia` dice qué es cada cosa que borraría y pide confirmación; `--simular` solo mira y `--si` no pregunta. Solo borra lo que se vuelve a crear solo: `build`, `dist`, `target` y `coverage` únicamente dentro de un proyecto de programación (fuera pueden ser tuyas), y nunca `desktop.ini`. Lo que borra no va a la papelera.
@@ -599,6 +657,8 @@ La estructura está en `src/navaja/` y cada utilidad vive en `src/navaja/comando
 - [AGENTS.md](AGENTS.md): normas cortas que el agente lee siempre.
 - [docs/arquitectura.md](docs/arquitectura.md): cómo está hecho por dentro (estructura,
   modo interactivo, ayuda, convenciones y cómo añadir comandos).
+- [docs/adr/](docs/adr/): las decisiones importantes y por qué: [0001](docs/adr/0001-configuracion-externa.md)
+  (acciones en un JSON y no en el código) y [0002](docs/adr/0002-capa-ia.md) (la capa de IA).
 - [ESTADO.md](ESTADO.md): bitácora de lo implementado, decisiones y pendientes.
 - Agente de programación: las normas están en [AGENTS.md](AGENTS.md). Para OpenCode,
   `opencode.json` y `.opencode/`; para Claude Code, `CLAUDE.md` y `.claude/`. En los dos:

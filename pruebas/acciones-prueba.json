@@ -88,6 +88,36 @@
       },
       "destino": "~/pruebas-navaja/USB/DAM",
       "si_cambia": "el-mas-nuevo"
+    },
+    {
+      "nombre": "nombres-claros",
+      "descripcion": "La IA lee los PDF y Word de Descargas y les pone un nombre que dice lo que son",
+      "tipo": "renombrar-ia",
+      "carpeta": "~/pruebas-navaja/Descargas",
+      "filtro": {
+        "solo": "pdf,docx,odt,txt,md"
+      }
+    },
+    {
+      "nombre": "resumir-apuntes",
+      "descripcion": "La IA resume los apuntes: deja «tema.resumen.md» al lado de cada uno",
+      "tipo": "resumir-ia",
+      "carpeta": "~/pruebas-navaja/Apuntes",
+      "filtro": {
+        "solo": "pdf,docx,odt,md,txt",
+        "recursivo": true
+      },
+      "instrucciones": "Resúmelo para estudiar: conceptos clave, definiciones y algún ejemplo si lo hay"
+    },
+    {
+      "nombre": "descargas-con-ia",
+      "descripcion": "Quita instaladores viejos, pone nombres claros a los documentos con IA y ordena Descargas",
+      "tipo": "rutina",
+      "pasos": [
+        "instaladores-viejos",
+        "nombres-claros",
+        "ordenar-descargas"
+      ]
     }
   ]
 }

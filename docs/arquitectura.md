@@ -13,9 +13,12 @@ src/navaja/
 ├── entrada.py          # leer en el modo interactivo: Tab, ↑ ↓ e historial (prompt_toolkit)
 ├── comun.py            # console Rich, tamaños, rutas, undo, editor, iteradores
 ├── filtros.py          # qué archivos: tipos, texto, fechas fáciles (ordena y renombra)
-├── errores.py          # NavajaError (1), ConfigError (3), AccionNoValida(accion, campo, motivo)
+├── errores.py          # NavajaError (1), ConfigError (3), AccionNoValida(accion, campo, motivo),
+│                       #   IANoDisponible (4) y RespuestaIARara
 ├── esquema.py          # acciones.json: dónde está, leerlo y comprobarlo entero
-├── acciones.py         # clases Accion (registro + fábrica desde_config) y una por tipo
+├── acciones.py         # clases Accion (registro + fábrica desde_config) y una por tipo;
+│                       #   AccionConIA → RenombrarIA y ResumirIA
+├── proveedor_ia.py     # la única parte que habla con la IA: ProveedorIA (desde_entorno, .env) y Gemini
 ├── motor.py            # Motor: elige carpeta y archivos, pide el plan a la acción
 ├── versiones.py        # las versiones viejas que sustituye copiar (carpeta + índice)
 ├── ignorados.py        # qué se salta arbol, comprime y busca: lo de siempre y el .gitignore
@@ -50,7 +53,8 @@ src/navaja/
     ├── huella.py       # sub-app hash: archivo / texto (MD5, SHA-1, SHA-256 y --compara)
     ├── genera.py       # sub-app: uuid / lorem / numero
     ├── clave.py        # sub-app: nueva / frase / fuerza (con secrets)
-    ├── doctor.py       # doctor (Python, librerías, programas, datos, acciones.json, terminal)
+    ├── doctor.py       # doctor (Python, librerías, programas, datos, acciones.json, IA, terminal)
+    ├── ia.py           # comprobar-ia (clave, modelo y una pregunta mínima)
     ├── mis_acciones.py # sub-app acciones: ver / ejecutar / deshacer / (versiones) / editar / validar
     ├── versiones.py    # acciones versiones: ver / recuperar / borrar
     └── ajustes.py      # sub-apps tema (ver / elegir) y config (ver / nombre)

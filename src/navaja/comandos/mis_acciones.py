@@ -51,9 +51,10 @@ from ..comun import (
     ruta_libre,
     tamano_legible,
 )
-from ..errores import ConfigError, NavajaError
+from ..errores import ConfigError, IANoDisponible, NavajaError
 from ..filtros import OPCION_SI, OPCION_SIMULAR
 from ..motor import Motor
+from ..proveedor_ia import hay_clave
 from ..versiones import caducar
 from . import versiones
 
@@ -150,6 +151,14 @@ def comprobar_y_contar(ruta: Path) -> None:
     )
     for aviso in esquema.avisos(acciones):
         console.print(f"[aviso]Ojo: {escape(aviso)}[/]", soft_wrap=True)
+    con_ia = [a["nombre"] for a in acciones if Accion.tipos()[a["tipo"]].usa_ia]
+    if con_ia and not hay_clave():
+        console.print(
+            f"[aviso]Ojo: {escape(', '.join(con_ia))} {'usa' if len(con_ia) == 1 else 'usan'} IA y no "
+            "hay clave de Gemini: no se podrán hacer hasta que la pongas en .env. Las demás, sí. "
+            f"Más en: {escape(como_se_escribe('comprobar-ia'))}[/]",
+            soft_wrap=True,
+        )
     for clave in esquema.claves_repetidas(ruta):
         console.print(
             f"[aviso]Ojo: «{escape(clave)}» sale dos veces en el mismo sitio: solo cuenta la "
@@ -232,8 +241,8 @@ def mostrar_plan(accion: AccionDeArchivos, carpeta: Path, plan: list[Resultado])
     tabla = crear_tabla(["Archivo", accion.columna] + (["Por qué no"] if saltados else []))
     limite = 100
     for resultado in (pendientes + saltados)[:limite]:
-        if resultado.destino is None:
-            va_a = "papelera de navaja"
+        if resultado.destino is None:  # borrar va a la papelera; un saltado, a ningún sitio
+            va_a = "papelera de navaja" if accion.destructiva else "—"
         elif accion.columna == "Nombre nuevo":
             va_a = resultado.destino.name
         else:
@@ -311,6 +320,7 @@ def ejecutar(
 
     para_deshacer: list[dict[str, Any]] = []
     fallos = 0
+    sin_ia = 0
     cancelado = False
     for numero, paso in enumerate(pasos, start=1):
         if len(pasos) > 1:
@@ -320,7 +330,19 @@ def ejecutar(
                 align="left",
             )
         try:
-            base, plan = motor.planificar(paso, carpeta)
+            if paso.usa_ia:  # pregunta a la IA por cada archivo: tarda un poco
+                with console.status(f"[pista]Preguntando a la IA para {escape(paso.nombre)}…[/]"):
+                    base, plan = motor.planificar(paso, carpeta)
+            else:
+                base, plan = motor.planificar(paso, carpeta)
+        except IANoDisponible as error:
+            if len(pasos) == 1:
+                fallar(error)
+            # en una rutina, el paso con IA se salta y los demás se hacen igual
+            console.print(f"[aviso]Este paso necesita IA y no se puede: {escape(str(error))}[/]", soft_wrap=True)
+            console.print("[pista]Sigo con los demás pasos.[/]")
+            sin_ia += 1
+            continue
         except NavajaError as error:
             if para_deshacer:  # los pasos de antes sí se hicieron
                 console.print(f"[pista]Para deshacer lo hecho: {como_se_escribe('acciones deshacer')}[/]")
@@ -359,7 +381,13 @@ def ejecutar(
         console.print(f"[pista]Para deshacerlo: {como_se_escribe('acciones deshacer')}[/]")
     if fallos:
         console.print(f"[aviso]No se pudo con {cuantos(fallos, 'archivo')}.[/]")
-    if fallos or cancelado:  # decir que no también sale con 1: un script sabe que no se hizo
+    if sin_ia:
+        console.print(
+            f"[aviso]{cuantos(sin_ia, 'paso')} sin hacer por falta de IA.[/] "
+            f"[pista]Mira qué pasa con: {como_se_escribe('comprobar-ia')}[/]",
+            soft_wrap=True,
+        )
+    if fallos or cancelado or sin_ia:  # decir que no también sale con 1: un script sabe que no se hizo
         raise typer.Exit(1)
 
 
@@ -419,13 +447,19 @@ def deshacer_registro(nombre: str, que: str, vacio: str, si: bool) -> None:
     if not registros:
         console.print(f"[aviso]{vacio}[/]")
         return
+    creados = sum(r.get("como") == "creado" for r in registros)
     copias = sum(r.get("como") == "copiado" for r in registros)
     viejas = sum("apartado" in r and Path(r["apartado"]).exists() for r in registros)
     perdidas = sum("apartado" in r for r in registros) - viejas
     sin_vuelta = sum(bool(r.get("sin_guardar")) for r in registros)  # sustituyeron sin guardar la vieja
     copias -= perdidas + sin_vuelta  # esas copias se quedan (ver abajo)
-    movidos = len(registros) - copias - perdidas - sin_vuelta
+    movidos = len(registros) - copias - perdidas - sin_vuelta - creados
     partes = []
+    if creados:
+        partes.append(
+            f"irían a la papelera de navaja {cuantos(creados, 'archivo creado', 'archivos creados')} "
+            "(los resúmenes)"
+        )
     if movidos:
         partes.append(f"se devolverían {cuantos(movidos, 'archivo')} a su sitio")
     if copias - viejas:
@@ -473,7 +507,9 @@ def deshacer_registro(nombre: str, que: str, vacio: str, si: bool) -> None:
         if not destino.exists():
             continue
         try:
-            if registro.get("como") == "copiado":
+            if registro.get("como") == "creado":  # un resumen nuevo: a la papelera, nunca borrado
+                apartar(destino, papelera)
+            elif registro.get("como") == "copiado":
                 if registro.get("sin_guardar"):
                     continue  # sustituyó sin guardar la vieja: quitarla dejaría el sitio vacío
                 if not deshacer_copia(origen, destino, registro.get("apartado"), papelera):

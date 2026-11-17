@@ -34,6 +34,8 @@ EN_VOZ_ALTA = 130
 """Palabras por minuto en una exposición."""
 
 TEXTO_PLANO = {".txt", ".md", ".markdown", ".csv", ".tex", ".rst", ".py", ".java", ".js"}
+LEIBLES = TEXTO_PLANO | {".html", ".htm", ".docx", ".odt", ".pdf"}
+"""Lo que ``texto_de`` sabe leer (lo usan también las acciones con IA)."""
 W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 TEXTO_ODT = "{urn:oasis:names:tc:opendocument:xmlns:text:1.0}"
 INSTALAR_PDF = 'uv tool install --editable ".[todo]"  (desde la carpeta de navaja)'

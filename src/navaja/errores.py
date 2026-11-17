@@ -29,3 +29,20 @@ class AccionNoValida(ConfigError):
         self.accion = accion
         self.campo = campo
         self.motivo = motivo
+
+
+class IAError(NavajaError):
+    """Algo ha ido mal al pedirle algo a la IA (Gemini)."""
+
+
+class IANoDisponible(IAError):
+    """La IA no se puede usar ahora: falta la clave, no hay internet, la clave no vale o
+    se ha gastado el cupo gratis. No tiene sentido seguir preguntando; las órdenes y
+    acciones sin IA funcionan igual."""
+
+    codigo_salida = 4
+
+
+class RespuestaIARara(IAError):
+    """La IA ha contestado, pero algo que no sirve (vacío, bloqueado, un nombre imposible…).
+    Solo falla ese archivo: los demás siguen."""

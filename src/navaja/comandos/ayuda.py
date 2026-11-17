@@ -282,6 +282,12 @@ EXTRA: dict[str, str] = {
         "de un .tar) y nunca pisa nada. Si cancelas, quita lo que llevaba sacado. RAR y 7z aún "
         "no (hace falta 7-Zip)."
     ),
+    "comprobar-ia": (
+        "La clave se lee de la variable GEMINI_API_KEY o de un archivo .env (el de la carpeta "
+        "actual o el de tus datos; copia .env.example). Nunca se enseña entera. NAVAJA_MODELO "
+        "cambia el modelo y NAVAJA_SIN_IA=1 apaga la IA. Sin clave, sin red o sin cupo sale con "
+        "el código 4 y dice por qué; las órdenes sin IA funcionan igual."
+    ),
     "doctor": (
         "Solo mira: no instala nada. ✔ está bien, ! falta algo opcional (solo lo usan algunas "
         "órdenes) y ✘ falta algo que hace falta: entonces sale con el código 1."
