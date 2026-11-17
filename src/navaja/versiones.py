@@ -13,11 +13,12 @@ devolvió o porque se borró) no se lista.
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
-from .comun import directorio_datos
+from .comun import cargar_acciones, directorio_datos, quitar_solo_lectura
 
 INDICE = "indice.json"
 
@@ -98,6 +99,54 @@ def olvidar(quitadas: list[Version]) -> None:
     """Quita del índice estas versiones (ya recuperadas o borradas)."""
     fuera = {v.guardada for v in quitadas}
     guardar([v for v in cargar() if v.guardada not in fuera])
+
+
+def caducar(dias: int, ahora: datetime | None = None) -> tuple[int, int]:
+    """Borra las versiones guardadas hace más de ``dias`` días (con 0, ninguna) y dice cuántas
+    y cuánto ocupaban. Así no se acumulan: cada «el-mas-nuevo» guarda la vieja, y sin esto se
+    quedaban para siempre. Lo que no se pueda borrar se queda (se intentará la próxima vez)."""
+    if dias <= 0:
+        return 0, 0
+    try:
+        limite = (ahora or datetime.now()) - timedelta(days=dias)
+    except OverflowError:  # un número de días disparatado: no caduca nada
+        return 0, 0
+    pendientes = para_deshacer()
+    borradas: list[Version] = []
+    ocupaban = 0
+    for version in cargar():
+        if version.cuando >= limite or os.path.normcase(str(version.guardada)) in pendientes:
+            continue  # reciente, o la necesita un deshacer pendiente (de copia o de acciones)
+        tamano = version.tamano
+        try:
+            quitar_solo_lectura(version.guardada)
+            version.guardada.unlink()
+        except OSError:
+            continue
+        borradas.append(version)
+        ocupaban += tamano
+    if borradas:
+        try:  # si el índice no se puede escribir, no pasa nada: ``cargar`` ya no lista lo borrado
+            olvidar(borradas)
+        except OSError:
+            pass
+        quitar_carpetas_vacias()
+    return len(borradas), ocupaban
+
+
+REGISTROS_CON_VERSIONES = ("acciones", "copia")
+"""Los registros de deshacer que pueden apuntar a una versión vieja («apartado»)."""
+
+
+def para_deshacer() -> set[str]:
+    """Las versiones que necesita algún deshacer pendiente: esas no caducan (si caducaran,
+    deshacer ya no podría devolver la vieja)."""
+    return {
+        os.path.normcase(str(registro["apartado"]))
+        for nombre in REGISTROS_CON_VERSIONES
+        for registro in cargar_acciones(nombre)
+        if isinstance(registro, dict) and isinstance(registro.get("apartado"), str)
+    }
 
 
 def quitar_carpetas_vacias() -> None:

@@ -406,6 +406,8 @@ EXTRA: dict[str, str] = {
     "config": (
         "La primera vez que abres navaja te pregunta cómo quieres que te llame (Intro = tu "
         "usuario de Windows). Lo que pongas en «config nombre» se guarda y te llama así siempre. "
+        "«config versiones 30» dice cuántos días se guardan las versiones viejas que aparta "
+        "«el-mas-nuevo» (las más antiguas se borran solas al copiar; con 0, se guardan siempre). "
         "«config autocompletar $PROFILE» añade a PowerShell el Tab de navaja (y de nav), que "
         "completa también los nombres de tus acciones (acciones ejecutar us⇥ → usb-a-pc); "
         "abre una terminal nueva para que funcione."
@@ -436,7 +438,8 @@ EXTRA: dict[str, str] = {
         "Devuelve a su sitio lo movido, renombrado u ordenado, saca de la papelera lo borrado "
         "y quita las copias (a la papelera de navaja; solo si el original sigue ahí y la copia "
         "no ha cambiado: si la editaste después, la deja y avisa). Si una copia sustituyó a otra "
-        "más vieja, devuelve la vieja, mientras siga guardada. Solo deshace la última "
+        "más vieja, devuelve la vieja, mientras siga guardada; si la sustituyó sin guardarla "
+        "(«guardar_viejas»: false), la copia se queda. Solo deshace la última "
         "acción; si algo falla, lo guarda para volver a intentarlo. En una rutina, la deshace "
         "entera."
     ),
@@ -444,7 +447,9 @@ EXTRA: dict[str, str] = {
         "Cuando «copiar» con «si_cambia: el-mas-nuevo» sustituye un archivo, el viejo no se "
         "borra: se guarda en tus datos (no en la papelera de duplicados, así que «duplicados "
         "vaciar» no lo toca). Aquí lo ves, lo recuperas aunque hayas hecho otras acciones "
-        "después, y borras lo que ya no necesitas."
+        "después, y borras lo que ya no necesitas. Se borran solas pasados 30 días (cámbialo con "
+        "«config versiones»). Con «guardar_viejas»: false en la acción (o --sin-guardar-viejas "
+        "en «copia a») no se guardan: no ocupan, pero no hay vuelta atrás."
     ),
     "acciones versiones recuperar": (
         "Lo devuelve a donde estaba. Si allí ya hay un archivo (la versión nueva), no lo pisa: "

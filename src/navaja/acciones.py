@@ -25,7 +25,10 @@ from pathlib import Path
 from typing import Any, ClassVar
 
 from .comandos import ordena, renombra
-from .comun import carpeta_papelera, crear_carpetas, cuantos, destino_libre, hora_dudosa, quitar_vacias, ruta_libre
+from .comun import (
+    carpeta_papelera, crear_carpetas, cuantos, destino_libre, hora_dudosa, poner_solo_lectura, quitar_solo_lectura,
+    quitar_vacias, ruta_libre,
+)
 from .errores import AccionNoValida, NavajaError
 from .filtros import sin_tildes
 from .versiones import Version, apuntar, carpeta_versiones
@@ -54,6 +57,8 @@ class Resultado:
     """Dónde quedó (en «versiones» de los datos de navaja) la versión vieja sustituida."""
     creadas: list[Path] = field(default_factory=list)
     """Las carpetas que no existían y se crearon para este archivo (las únicas que deshacer quita)."""
+    sin_guardar: bool = False
+    """Sustituyó a la versión vieja sin guardarla (``guardar_viejas: false``): no hay vuelta atrás."""
 
 
 def relativa(archivo: Path, carpeta: Path) -> Path:
@@ -266,10 +271,27 @@ def copia_igual_al_lado(original: Path, deseado: Path, dudosa: bool = True) -> P
 
 def apartar(archivo: Path, papelera: Path) -> Path:
     """Lleva ``archivo`` a ``papelera`` (una carpeta de navaja) sin pisar nada y dice dónde
-    ha quedado."""
+    ha quedado.
+
+    Sin el «solo lectura»: de un USB a C: mover es copiar y borrar, y en Windows un archivo de
+    solo lectura no se deja borrar (la copia entera fallaba). La versión guardada se queda sin
+    él, para poder devolverla o borrarla después.
+    """
     papelera.mkdir(parents=True, exist_ok=True)
     destino = ruta_libre(papelera / archivo.name)
-    shutil.move(str(archivo), str(destino))
+    era_solo_lectura = quitar_solo_lectura(archivo)
+    try:
+        shutil.move(str(archivo), str(destino))
+    except BaseException:
+        # De otra unidad, mover es copiar y borrar: si el borrado falla (abierto en otro
+        # programa), la copia de aquí sobra (el original sigue donde estaba) y, sin apuntar
+        # en el índice, nunca caducaría
+        if archivo.exists() and destino.exists():
+            with contextlib.suppress(OSError):
+                destino.unlink()
+        if era_solo_lectura and archivo.exists():
+            poner_solo_lectura(archivo)
+        raise
     return destino
 
 
@@ -324,7 +346,7 @@ class Copiar(Mover):
         "Copia los archivos a otra carpeta; el original se queda donde está. Si allí ya "
         "hay uno distinto con el mismo nombre, «si_cambia» decide: copia-aparte o el-mas-nuevo."
     )
-    campos = {"destino": True, "si_cambia": False}
+    campos = {"destino": True, "si_cambia": False, "guardar_viejas": False}
     verbo = "Copiar"
     participio = ("copiado", "copiados")
     para = "para copiar"
@@ -346,6 +368,21 @@ class Copiar(Mover):
                 f"«{si_cambia}» no vale; usa copia-aparte (guarda «nombre (1)» al lado) o "
                 "el-mas-nuevo (se queda la versión más reciente)",
             )
+        if "guardar_viejas" in datos:
+            if not isinstance(datos["guardar_viejas"], bool):
+                raise AccionNoValida(
+                    datos["nombre"], "guardar_viejas",
+                    "tiene que ser true (guarda la versión vieja, por defecto) o false (no la guarda)",
+                )
+            if si_cambia != "el-mas-nuevo":
+                raise AccionNoValida(
+                    datos["nombre"], "guardar_viejas",
+                    "solo se usa con «si_cambia»: «el-mas-nuevo» (con copia-aparte no se sustituye nada)",
+                )
+
+    @property
+    def guardar_viejas(self) -> bool:
+        return self.datos.get("guardar_viejas", True)
 
     @staticmethod
     def cual_gana(archivo: Path, deseado: Path, dudosa: bool = True) -> Resultado:
@@ -423,13 +460,22 @@ class Copiar(Mover):
         destino = resultado.destino
         resultado.creadas = crear_carpetas(destino.parent)
         temporal = destino.with_name(f".{destino.name}.navaja-copiando")
+        destino_era_solo_lectura = False
         try:
             shutil.copy2(resultado.origen, temporal)  # copy2 conserva la fecha
             if resultado.sustituir and destino.exists():
-                assert self._versiones is not None
-                resultado.apartado = apartar(destino, self._versiones)
+                if self.guardar_viejas:
+                    assert self._versiones is not None
+                    resultado.apartado = apartar(destino, self._versiones)
+                else:  # os.replace la sustituye de golpe; de solo lectura, no se deja
+                    destino_era_solo_lectura = quitar_solo_lectura(destino)
+                    resultado.sin_guardar = True
             os.replace(temporal, destino)
         except BaseException as error:  # también Ctrl+C: que no quede el temporal
+            if resultado.sin_guardar and destino_era_solo_lectura:
+                poner_solo_lectura(destino)  # la vieja sigue ahí: tal como estaba
+            resultado.sin_guardar = False  # si falla, la vieja sigue ahí
+            quitar_solo_lectura(temporal)  # el original era de solo lectura: el temporal también
             with contextlib.suppress(OSError):
                 temporal.unlink(missing_ok=True)
             if isinstance(error, OSError):
@@ -462,6 +508,8 @@ class Copiar(Mover):
         registro = super().para_deshacer(resultado)
         if resultado.apartado is not None:
             registro["apartado"] = str(resultado.apartado)
+        if resultado.sin_guardar:
+            registro["sin_guardar"] = True  # deshacer no la quita: dejaría el sitio vacío
         return registro
 
 

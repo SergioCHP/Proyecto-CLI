@@ -1107,6 +1107,39 @@ cosas mal:
 - Aprendido: al pasar código por la terminal (heredoc), las barras dobles se quedan en una
   (`\\servidor` → `\servidor`, `"\n"` → salto de línea): lo que lleve barras, con un editor.
 
+### 2026-11-17 — Versiones viejas: caducan, se pueden no guardar, y las de solo lectura
+
+- Sergio: «si siempre guarda la copia anterior ocupará mucho». Las versiones viejas que
+  aparta «el-mas-nuevo» se quedaban para siempre hasta `acciones versiones borrar`.
+- **Caducan solas:** `config versiones DIAS` (por defecto 30; 0 = siempre), guardado en
+  `config.json` como `dias_versiones`. `versiones.caducar` borra las más antiguas al terminar
+  `acciones ejecutar` y `copia a` (no con `--simular`), y lo dice («Borradas N versiones
+  viejas de hace más de 30 días (tamaño)»). `config ver` lo enseña.
+- **No guardarlas:** campo nuevo de `copiar`, `guardar_viejas` (true por defecto; solo con
+  `el-mas-nuevo`, si no `validar` da error). Con false, la vieja se sustituye de golpe
+  (`os.replace`); el plan lo dice («sin guardarla»); el registro lleva `sin_guardar` y
+  deshacer **no quita** esa copia (dejaría el sitio vacío) y lo explica. En `copia a`:
+  `--sin-guardar-viejas` (solo con `--si-cambia el-mas-nuevo`).
+- **Solo lectura:** apartar una vieja de solo lectura del USB a C: (mover entre unidades =
+  copiar y borrar) fallaba en Windows. `comun.quitar_solo_lectura` antes de apartarla, de
+  sustituirla sin guardar y de borrar el temporal; la versión guardada queda sin él.
+- Dónde se guardan: siguen en C: (decidido con Sergio: se recuperan sin el USB).
+- Tras el revisor:
+  - No caduca una versión que necesita un deshacer pendiente (de `copia` o de acciones:
+    `versiones.para_deshacer`), aunque sea antigua.
+  - Sin trazas: `config versiones` hasta 3650 días; en `config.json`, `dias_versiones`
+    escrito a mano como número (7) vale, y «²» o un disparate vuelven a 30; si el índice no
+    se puede escribir al caducar, se sigue.
+  - Si la sustitución sin guardar falla, la vieja vuelve a ser de solo lectura como estaba.
+  - Si apartar a C: falla a medias (copiada pero sin poder borrar la de origen), se quita la
+    copia suelta de «versiones» (sin índice, nunca caducaría).
+  - `acciones ejecutar` solo caduca si se ha hecho algo (no al cancelar), como `copia a`.
+- Caducar borra las versiones de todas las acciones por igual (por fecha). Sin arreglar
+  (ya pasaba): con el índice de versiones roto no se lista nada ni caduca nada, y el
+  siguiente `apuntar` deja las de antes sin índice.
+- Manual, README, `DOC_CAMPOS` y la skill (las dos copias) al día. Los tests nuevos fallan
+  con el código de antes (el de solo lectura, solo en Windows). 762 pasando y 1 saltado.
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.
@@ -1172,8 +1205,9 @@ cosas mal:
     red (UNC) dice «NTFS» aunque detrás sea otra cosa.
   - `comprobar_destino` no sirve en Linux/macOS (la raíz «/» siempre existe: un USB sin
     montar se copiaría al disco interno) ni distingue otro USB que coja la misma letra.
-  - En `pc-a-usb` la versión vieja del USB va a la papelera de C: (lento; un archivo de
-    solo lectura falla).
+  - En `pc-a-usb` la versión vieja del USB se aparta a C: (con archivos grandes, lento:
+    hay que copiarla). Decidido así (Sergio, 2026-11-17): en el PC se recuperan aunque el
+    USB no esté; para que no ocupen, caducan y hay `guardar_viejas: false`.
 - [x] Ctrl+C en mitad de una copia: temporal, versiones y deshacer.
 - [ ] De la revisión de `copia`, sin arreglar:
   - `unidades()`: una unidad de red desconectada puede tardar segundos al hacer la lista.

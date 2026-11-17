@@ -41,7 +41,11 @@ def test_config_ignora_valores_invalidos(tmp_path):
 def test_config_se_guarda_y_se_lee(tmp_path):
     ruta = tmp_path / "config.json"
     guardar_config({"nombre": "Lucía", "tema": "pastel"}, ruta)
-    assert cargar_config(ruta) == {"nombre": "Lucía", "tema": "pastel"}
+    assert cargar_config(ruta) == {"nombre": "Lucía", "tema": "pastel", "dias_versiones": "30"}
+    guardar_config({"nombre": "Lucía", "tema": "pastel", "dias_versiones": "0"}, ruta)
+    assert cargar_config(ruta)["dias_versiones"] == "0"  # 0 vale: nunca caducan
+    guardar_config({"nombre": "Lucía", "tema": "pastel", "dias_versiones": "-3"}, ruta)
+    assert cargar_config(ruta)["dias_versiones"] == "30"  # inválido: el de por defecto
 
 
 def test_todos_los_temas_definen_los_mismos_estilos():
@@ -67,7 +71,7 @@ def test_sin_argumentos_muestra_bienvenida(monkeypatch):
 def test_elegir_tema_y_nombre_desde_la_cli():
     assert runner.invoke(app, ["tema", "elegir", "Morado"]).exit_code == 0
     assert runner.invoke(app, ["config", "nombre", "[Sergio]"]).exit_code == 0
-    assert cargar_config() == {"nombre": "[Sergio]", "tema": "morado"}
+    assert cargar_config() == {"nombre": "[Sergio]", "tema": "morado", "dias_versiones": "30"}
 
     resultado = runner.invoke(app, [])
     assert "[Sergio]" in resultado.output
@@ -165,3 +169,32 @@ def test_autocompletar_shell_que_no_existe():
 
     resultado = CliRunner().invoke(app, ["config", "autocompletar", "--shell", "cmd"])
     assert resultado.exit_code == 1
+
+
+def test_config_versiones():
+    from typer.testing import CliRunner
+
+    from navaja.app import app
+
+    runner_ = CliRunner()
+    salida = runner_.invoke(app, ["config", "versiones", "60"])
+    assert salida.exit_code == 0 and "60 días" in salida.output
+    assert cargar_config()["dias_versiones"] == "60"
+    assert "60 días" in runner_.invoke(app, ["config", "ver"]).output
+    assert "siempre" in runner_.invoke(app, ["config", "versiones", "0"]).output
+    assert runner_.invoke(app, ["config", "versiones", "-1"]).exit_code != 0
+
+
+@pytest.mark.parametrize("escrito, queda", [(7, "7"), ("²", "30"), ("99999", "30"), (True, "30"), ("12", "12")])
+def test_dias_versiones_escrito_a_mano(tmp_path, escrito, queda):
+    ruta = tmp_path / "config.json"
+    ruta.write_text(json.dumps({"dias_versiones": escrito}))
+    assert cargar_config(ruta)["dias_versiones"] == queda
+
+
+def test_config_versiones_no_acepta_disparates():
+    from typer.testing import CliRunner
+
+    from navaja.app import app
+
+    assert CliRunner().invoke(app, ["config", "versiones", "4000"]).exit_code != 0

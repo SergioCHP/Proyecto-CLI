@@ -1222,3 +1222,148 @@ def test_barra_estrecha_corta_el_nombre_y_usa_los_colores_del_tema(tmp_path, mon
     lineas = [linea for linea in limpio.split("\n") if "2 de 2" in linea]
     assert lineas and all(len(linea) <= 60 for linea in lineas)
     assert any("Tema 3" in linea and linea.rstrip().endswith("…") for linea in lineas)
+
+
+def test_sin_guardar_viejas_sustituye_y_deshacer_no_quita_la_copia(tmp_path):
+    pc, usb = tmp_path / "PC", tmp_path / "USB"
+    crear(usb / "a.txt", "viejo")
+    fecha(usb / "a.txt", 86400)
+    crear(pc / "a.txt", "nuevo")
+    ruta = archivo_de_acciones(tmp_path, accion(
+        "ida", "copiar", carpeta=str(pc), destino=str(usb), si_cambia="el-mas-nuevo", guardar_viejas=False,
+    ))
+    assert "sin guardarla" in plano(acciones("ejecutar", "ida", "--simular", config=ruta).output)
+    assert acciones("ejecutar", "ida", config=ruta).exit_code == 0
+    assert (usb / "a.txt").read_text(encoding="utf-8") == "nuevo"
+    from navaja import versiones
+
+    assert versiones.cargar() == []  # no se ha guardado la vieja
+    deshecho = acciones("deshacer", entrada="s\n")
+    salida = plano(deshecho.output)
+    assert deshecho.exit_code == 0 and "sin guardarla" in salida
+    assert (usb / "a.txt").read_text(encoding="utf-8") == "nuevo"  # sigue: quitarla dejaría el sitio vacío
+
+
+@pytest.mark.parametrize("campos, mensaje", [
+    ({"si_cambia": "el-mas-nuevo", "guardar_viejas": "no"}, "true"),
+    ({"guardar_viejas": False}, "solo se usa con"),
+])
+def test_guardar_viejas_mal_puesto(tmp_path, campos, mensaje):
+    ruta = archivo_de_acciones(tmp_path, accion("ida", "copiar", destino="x", **campos))
+    salida = acciones("validar", config=ruta)
+    assert salida.exit_code == 3 and "guardar_viejas" in salida.output and mensaje in plano(salida.output)
+
+
+def test_el_mas_nuevo_con_la_vieja_de_solo_lectura(tmp_path, monkeypatch):
+    """Antes, en Windows, apartar una versión vieja de solo lectura a otra unidad fallaba:
+    mover entre unidades es copiar y borrar, y un archivo de solo lectura no se deja borrar."""
+    import shutil
+    import stat
+
+    mover = shutil.move
+
+    def como_entre_dos_unidades(origen, destino):
+        shutil.copy2(origen, destino)
+        os.unlink(origen)  # en Windows, PermissionError si es de solo lectura
+        return destino
+
+    pc, usb, ruta = usb_y_pc_con_cambio(tmp_path)
+    os.chmod(usb / "a.txt", stat.S_IREAD)
+    monkeypatch.setattr(shutil, "move", como_entre_dos_unidades)
+    resultado = acciones("ejecutar", "ida", config=ruta)
+    assert resultado.exit_code == 0, resultado.output
+    assert (usb / "a.txt").read_text(encoding="utf-8") == "nuevo"
+    monkeypatch.setattr(shutil, "move", mover)  # solo esto (undo() quitaría NAVAJA_DATOS)
+    assert acciones("deshacer", entrada="s\n").exit_code == 0  # y la vieja vuelve
+    assert (usb / "a.txt").read_text(encoding="utf-8") == "viejo"
+
+
+def test_las_versiones_viejas_caducan(tmp_path):
+    from navaja import versiones
+
+    pc, usb, ruta = usb_y_pc_con_cambio(tmp_path)
+    assert acciones("ejecutar", "ida", config=ruta).exit_code == 0
+    assert len(versiones.cargar()) == 1
+    assert versiones.caducar(30) == (0, 0)  # de hoy: se queda
+    assert versiones.caducar(0, ahora=datetime.now() + timedelta(days=999)) == (0, 0)  # 0: nunca caducan
+    dentro_de_un_mes = datetime.now() + timedelta(days=31)
+    assert versiones.caducar(30, ahora=dentro_de_un_mes) == (0, 0)  # la necesita «acciones deshacer»
+    from navaja.comun import limpiar_acciones
+
+    limpiar_acciones("acciones")  # ya no hay nada que deshacer
+    cuantas, ocupaban = versiones.caducar(30, ahora=dentro_de_un_mes)
+    assert cuantas == 1 and ocupaban == len("viejo")
+    assert versiones.cargar() == [] and not list(versiones.carpeta_versiones().rglob("a.txt"))
+
+
+def test_caducan_solas_al_ejecutar_y_se_dice(tmp_path, monkeypatch):
+    from navaja import versiones
+
+    pc, usb, ruta = usb_y_pc_con_cambio(tmp_path)
+    assert acciones("ejecutar", "ida", config=ruta).exit_code == 0
+    vieja = versiones.cargar()[0]
+    vieja.cuando = datetime.now() - timedelta(days=40)  # como si fuera de hace 40 días
+    versiones.guardar([vieja])
+    crear(pc / "b.txt", "otro")
+    salida = plano(acciones("ejecutar", "ida", config=ruta).output)
+    assert "Borradas 1 versión vieja de hace más de 30 días" in salida
+    assert versiones.cargar() == []
+
+
+def test_no_caduca_la_vieja_que_necesita_un_deshacer_pendiente(tmp_path):
+    """Una «copia a» de hace 40 días sin deshacer: su versión vieja no caduca, y deshacer la trae."""
+    from navaja import versiones
+    from navaja.comun import cargar_acciones, guardar_acciones, limpiar_acciones
+
+    pc, usb, ruta = usb_y_pc_con_cambio(tmp_path)
+    assert acciones("ejecutar", "ida", config=ruta).exit_code == 0
+    guardar_acciones("copia", cargar_acciones("acciones"))  # como si la hubiera hecho «copia a»
+    limpiar_acciones("acciones")
+    vieja = versiones.cargar()[0]
+    vieja.cuando = datetime.now() - timedelta(days=40)
+    versiones.guardar([vieja])
+    assert versiones.caducar(30) == (0, 0)
+    assert runner.invoke(app, ["copia", "deshacer"], input="s\n").exit_code == 0
+    assert (usb / "a.txt").read_text(encoding="utf-8") == "viejo"
+
+
+def test_sin_guardar_que_falla_deja_la_vieja_como_estaba(tmp_path, monkeypatch):
+    import stat
+
+    from navaja import acciones as modulo
+
+    pc, usb, _ = usb_y_pc_con_cambio(tmp_path)
+    os.chmod(usb / "a.txt", stat.S_IREAD)
+    copiar = modulo.Accion.desde_config(accion(
+        "ida", "copiar", carpeta=str(pc), destino=str(usb), si_cambia="el-mas-nuevo", guardar_viejas=False,
+    ))
+    resultado = modulo.Resultado(pc / "a.txt", usb / "a.txt", sustituir=True)
+
+    def abierto_en_otro_programa(*_):
+        raise PermissionError(32, "El proceso no tiene acceso al archivo")
+
+    monkeypatch.setattr(modulo.os, "replace", abierto_en_otro_programa)
+    with pytest.raises(PermissionError):
+        copiar.aplicar(resultado)
+    assert not resultado.sin_guardar
+    assert (usb / "a.txt").read_text(encoding="utf-8") == "viejo"
+    assert not (usb / "a.txt").stat().st_mode & stat.S_IWRITE  # sigue de solo lectura
+    assert [p.name for p in usb.iterdir()] == ["a.txt"]  # sin el temporal
+
+
+def test_apartar_que_falla_a_medias_no_deja_copias_sueltas(tmp_path, monkeypatch):
+    import shutil
+
+    from navaja import acciones as modulo
+
+    vieja = crear(tmp_path / "USB" / "a.txt", "viejo")
+    papelera = tmp_path / "versiones"
+
+    def copia_y_no_puede_borrar(origen, destino):
+        shutil.copy2(origen, destino)
+        raise PermissionError(32, "abierto en otro programa")
+
+    monkeypatch.setattr(modulo.shutil, "move", copia_y_no_puede_borrar)
+    with pytest.raises(PermissionError):
+        modulo.apartar(vieja, papelera)
+    assert vieja.read_text(encoding="utf-8") == "viejo" and list(papelera.iterdir()) == []

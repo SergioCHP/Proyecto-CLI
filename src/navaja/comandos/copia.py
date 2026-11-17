@@ -33,7 +33,7 @@ from ..filtros import (
     OPCION_SOLO,
 )
 from ..motor import Motor
-from .mis_acciones import deshacer_registro, fallar, hacer, mostrar_plan
+from .mis_acciones import caducar_versiones, deshacer_registro, fallar, hacer, mostrar_plan
 
 REGISTRO = "copia"
 
@@ -44,21 +44,22 @@ class SiCambia(str, Enum):
 
 
 def accion_de_copia(
-    carpeta: Path, destino: Path, si_cambia: str, filtro: dict[str, object]
+    carpeta: Path, destino: Path, si_cambia: str, filtro: dict[str, object], guardar_viejas: bool = True
 ) -> AccionDeArchivos:
     """La acción de tipo copiar que hace «copia a», como si estuviera en acciones.json."""
-    accion = Accion.desde_config(
-        {
-            "nombre": "copia",
-            "descripcion": "Los originales se quedan donde están.",
-            "tipo": "copiar",
-            "carpeta": str(carpeta),
-            # absoluta, desde donde estás: el plan y el deshacer no dependen de la carpeta actual
-            "destino": str(destino.expanduser().absolute()),
-            "si_cambia": si_cambia,
-            "filtro": filtro,
-        }
-    )
+    datos: dict[str, object] = {
+        "nombre": "copia",
+        "descripcion": "Los originales se quedan donde están.",
+        "tipo": "copiar",
+        "carpeta": str(carpeta),
+        # absoluta, desde donde estás: el plan y el deshacer no dependen de la carpeta actual
+        "destino": str(destino.expanduser().absolute()),
+        "si_cambia": si_cambia,
+        "filtro": filtro,
+    }
+    if not guardar_viejas:
+        datos["guardar_viejas"] = False
+    accion = Accion.desde_config(datos)
     assert isinstance(accion, AccionDeArchivos)
     return accion
 
@@ -163,6 +164,13 @@ def a(
         "«nombre (1)» al lado; el-mas-nuevo deja el más reciente (y guarda el viejo).",
         rich_help_panel=AJUSTE,
     ),
+    sin_guardar_viejas: bool = typer.Option(
+        False,
+        "--sin-guardar-viejas",
+        help="Con --si-cambia el-mas-nuevo: sustituye sin guardar la versión vieja (no ocupa "
+        "nada, pero no hay vuelta atrás: ni deshacer ni «acciones versiones» la traen).",
+        rich_help_panel=AJUSTE,
+    ),
     carpeta: Path = OPCION_CARPETA,
     solo: str = OPCION_SOLO,
     contiene: str = OPCION_CONTIENE,
@@ -191,8 +199,13 @@ def a(
         error_console.print(f"[error]✘ La carpeta {escape(str(carpeta))} {que}.[/]", soft_wrap=True)
         raise typer.Exit(1)
     try:
+        if sin_guardar_viejas and si_cambia is not SiCambia.el_mas_nuevo:
+            raise NavajaError(
+                "--sin-guardar-viejas solo vale con --si-cambia el-mas-nuevo (con copia-aparte no "
+                "se sustituye nada)."
+            )
         comprobar_destino(destino)
-        paso = accion_de_copia(carpeta, destino, si_cambia.value, filtro)
+        paso = accion_de_copia(carpeta, destino, si_cambia.value, filtro, not sin_guardar_viejas)
         if archivos:
             if filtro:
                 raise NavajaError(
@@ -233,6 +246,7 @@ def a(
         raise typer.Exit(1)  # decir que no también sale con 1: un script sabe que no se hizo
 
     fallos = hacer(paso, plan, REGISTRO, [])
+    caducar_versiones()
     if any(r.estado == "hecho" for r in plan):
         console.print(f"[pista]Para deshacerlo: {como_se_escribe('copia deshacer')}[/]")
     if fallos:

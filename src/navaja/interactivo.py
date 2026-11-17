@@ -267,6 +267,7 @@ CORTO = {
     "tema ver": "Los temas, con una muestra de sus colores.",
     "config ver": "Tu nombre, tu tema y dónde están tus datos.",
     "config nombre": "Cambia el nombre con el que te saluda.",
+    "config versiones": "Días que se guardan las versiones viejas.",
     "config autocompletar": "Tab en PowerShell o bash (ord⇥ → ordena).",
 }
 """Frase del menú de las opciones cuya ayuda no cabe en ``LARGO_MENU``. Solo para el

@@ -11,12 +11,14 @@ from rich.markup import escape
 from rich.theme import Theme
 
 from ..comun import (
+    MAX_DIAS_VERSIONES,
     NAVAJA,
     TEMAS,
     aplicar_tema,
     cargar_config,
     como_se_escribe,
     console,
+    cuantos,
     directorio_datos,
     error_console,
     guardar_config,
@@ -75,6 +77,13 @@ def ver_config() -> None:
             soft_wrap=True,
         )
     console.print(f"Tema:   [acento]{config['tema']}[/]")
+    dias = int(config["dias_versiones"])
+    guardadas = f"{cuantos(dias, 'día')}" if dias else "siempre (hasta que las borres tú)"
+    console.print(
+        f"Versiones viejas: [acento]{guardadas}[/] "
+        f"[pista](las que guarda «el-mas-nuevo»; para cambiarlo: {como_se_escribe('config versiones')})[/]",
+        soft_wrap=True,
+    )
     console.print(
         f"Datos:  [acento]{escape(str(directorio_datos()))}[/] "
         "[pista](configuración, notas, lo de deshacer y la papelera)[/]",
@@ -120,6 +129,30 @@ def nombre(
     config["nombre"] = nuevo
     guardar_config(config)
     console.print(f"[ok]A partir de ahora te saludo como[/] [acento]{escape(nuevo)}[/].")
+
+
+def versiones_dias(
+    dias: int = typer.Argument(
+        ..., min=0, max=MAX_DIAS_VERSIONES,
+        help="Cuántos días se guardan las versiones viejas (0: siempre, hasta que las borres tú).",
+        show_default=False,
+    ),
+) -> None:
+    """Cuántos días se guardan las versiones viejas que aparta «el-mas-nuevo» (se guarda)."""
+    config = cargar_config()
+    config["dias_versiones"] = str(dias)
+    guardar_config(config)
+    if dias:
+        console.print(
+            f"[ok]Las versiones viejas se guardan {cuantos(dias, 'día')}[/] "
+            "[pista](las más antiguas se borran solas al copiar).[/]"
+        )
+    else:
+        console.print(
+            "[ok]Las versiones viejas se guardan siempre.[/] "
+            f"[pista]Bórralas tú con {como_se_escribe('acciones versiones borrar')}.[/]",
+            soft_wrap=True,
+        )
 
 
 MARCA = "# navaja: autocompletar con Tab"
@@ -212,10 +245,14 @@ def registrar(app: typer.Typer) -> None:
     app.add_typer(tema, name="tema", rich_help_panel=NAVAJA)
 
     config = typer.Typer(
-        help="Tu nombre para el saludo y dónde guarda navaja tus datos.", no_args_is_help=True
+        help="Tu nombre para el saludo, cuánto se guardan las versiones viejas y dónde guarda navaja tus datos.",
+        no_args_is_help=True,
     )
     config.command("ver", help="Muestra tu nombre, tu tema y dónde están tus datos.")(ver_config)
     config.command("nombre", help="Cambia el nombre con el que te saluda (para siempre).")(nombre)
+    config.command(
+        "versiones", help="Cuántos días se guardan las versiones viejas de «el-mas-nuevo» (0: siempre)."
+    )(versiones_dias)
     config.command(
         "autocompletar", help="Tab en PowerShell o bash: navaja ord⇥ → navaja ordena."
     )(autocompletar)

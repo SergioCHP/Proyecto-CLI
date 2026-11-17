@@ -71,7 +71,7 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
 | `navaja acciones` | Tus tareas de siempre guardadas con un nombre en `acciones.json` (ordenar Descargas, copiar apuntes, quitar instaladores viejos…) para hacerlas con una orden. Con simulación, confirmación y deshacer; lo que sustituye una copia se guarda en `acciones versiones`. |
 | `navaja doctor` | Revisa que todo esté listo: Python, librerías (y las opcionales), programas de fuera (git, LibreOffice, Pandoc, FFmpeg, 7-Zip, Word, winget), la carpeta de datos, `acciones.json` y la terminal. Dice cómo arreglar lo que falta. |
 | `navaja tema` | `ver` los temas y `elegir` uno (clasico, morado, terminal, pastel). |
-| `navaja config` | Tu nombre para el saludo y dónde guarda navaja tus datos. La primera vez que abres navaja te pregunta cómo llamarte (Intro = tu usuario de Windows); con `config nombre` lo cambias para siempre; con `config autocompletar $PROFILE`, Tab en PowerShell. |
+| `navaja config` | Tu nombre para el saludo y dónde guarda navaja tus datos. La primera vez que abres navaja te pregunta cómo llamarte (Intro = tu usuario de Windows); con `config nombre` lo cambias para siempre; con `config versiones 30`, cuántos días se guardan las versiones viejas de «el-mas-nuevo» (0: siempre); con `config autocompletar $PROFILE`, Tab en PowerShell. |
 | `navaja manual [comando]` | El manual completo: cómo se usa, todos los comandos con sus opciones, atajos, seguridad y datos. Con un comando, solo su parte. |
 
 `navaja version` (o `navaja --version`) dice la versión.
@@ -256,6 +256,7 @@ Están en [acciones.json](acciones.json):
 | `filtro` | opcional | Qué archivos se tocan (tabla de abajo). Sin filtro, todos. |
 | `destino` | mover, copiar (en ordenar, opcional) | A qué carpeta van. Si no existe, se crea. Una ruta relativa se cuenta desde la carpeta de la acción. Si está en una unidad que no existe (un USB sin conectar), la acción no empieza. |
 | `si_cambia` | copiar, opcional | Si en el destino ya hay uno distinto con el mismo nombre: `copia-aparte` (por defecto: guarda `nombre (1)` al lado, una sola vez) o `el-mas-nuevo` (se queda el más reciente; el viejo se guarda y `acciones versiones` lo enseña, lo recupera o lo borra). Con un USB (FAT32 o exFAT) de por medio, tras el cambio de hora Windows enseña sus fechas movidas una hora: si los dos se diferencian en menos de una hora, no se adivina cuál es más nuevo y sale «míralo tú» (cada vez, hasta que lo arregles tú). Copia primero a un temporal: si se corta a medias, no queda un archivo roto. `deshacer` no quita una copia que hayas editado después. |
+| `guardar_viejas` | copiar, opcional | Con `el-mas-nuevo`: `true` (por defecto) guarda la versión vieja, que se borra sola pasados 30 días (`navaja config versiones` lo cambia; 0 = siempre); `false` la sustituye sin guardarla: no ocupa nada, pero no hay vuelta atrás (ni `deshacer` ni `acciones versiones` la traen). En `navaja copia a`: `--sin-guardar-viejas`. |
 | `por` | ordenar | `tipo`, `mes`, `año`, `día` o `letra`. |
 | `plantilla` | renombrar | El nombre nuevo con huecos: `{fecha:%Y-%m-%d}`, `{n:03}`, `{nombre}` y `{ext}`. |
 | `orden` | renombrar | En qué orden se cuenta `{n}`: `nombre` (por defecto) o `fecha`. |
@@ -512,6 +513,7 @@ navaja clave fuerza                              # la escribes sin que se vea
 navaja tema ver                 # muestra cada tema con sus colores
 navaja tema elegir morado
 navaja config nombre Sergio
+navaja config versiones 60      # las versiones viejas, 60 días (0: siempre)
 navaja config ver
 ```
 

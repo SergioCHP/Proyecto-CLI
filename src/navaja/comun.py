@@ -89,7 +89,11 @@ TEMAS: dict[str, dict[str, str]] = {
     },
 }
 TEMA_POR_DEFECTO = "clasico"
-CONFIG_POR_DEFECTO = {"nombre": "", "tema": TEMA_POR_DEFECTO}
+DIAS_VERSIONES = 30
+"""Cuántos días se guardan las versiones viejas de «el-mas-nuevo» (``config versiones``)."""
+MAX_DIAS_VERSIONES = 3650
+"""Diez años: más no tiene sentido (y con números enormes, restar fechas da error)."""
+CONFIG_POR_DEFECTO = {"nombre": "", "tema": TEMA_POR_DEFECTO, "dias_versiones": str(DIAS_VERSIONES)}
 """Sin nombre guardado, navaja te llama por tu usuario del sistema (y la primera vez
 que abres el menú te pregunta cómo quieres que te llame)."""
 
@@ -204,7 +208,39 @@ def cargar_config(ruta: Path | None = None) -> dict[str, str]:
                 config[clave] = datos[clave].strip()
     if config["tema"] not in TEMAS:
         config["tema"] = TEMA_POR_DEFECTO
+    if isinstance(datos, dict) and isinstance(datos.get("dias_versiones"), int):
+        config["dias_versiones"] = str(datos["dias_versiones"])  # escrito a mano como número: vale
+    dias = config["dias_versiones"]
+    if not (dias.isascii() and dias.isdigit() and int(dias) <= MAX_DIAS_VERSIONES):  # «0» vale: nunca caducan
+        config["dias_versiones"] = str(DIAS_VERSIONES)
     return config
+
+
+def dias_versiones() -> int:
+    """Días que se guardan las versiones viejas (0: siempre, hasta que las borres tú)."""
+    return int(cargar_config()["dias_versiones"])
+
+
+def quitar_solo_lectura(ruta: Path) -> bool:
+    """Le quita el «solo lectura»: en Windows, sin esto no se puede borrar (ni moverlo a otra
+    unidad, que es copiar y borrar) ni escribir encima. Si no se puede, se queda como está.
+    Devuelve si lo era (para volver a ponérselo si algo falla: ``poner_solo_lectura``)."""
+    try:
+        modo = ruta.stat().st_mode
+        if not modo & stat.S_IWRITE:
+            os.chmod(ruta, modo | stat.S_IWRITE)
+            return True
+    except OSError:
+        pass
+    return False
+
+
+def poner_solo_lectura(ruta: Path) -> None:
+    """Le vuelve a poner el «solo lectura» (lo contrario de ``quitar_solo_lectura``)."""
+    try:
+        os.chmod(ruta, ruta.stat().st_mode & ~(stat.S_IWRITE | stat.S_IWGRP | stat.S_IWOTH))
+    except OSError:
+        pass
 
 
 def usuario_del_sistema() -> str:

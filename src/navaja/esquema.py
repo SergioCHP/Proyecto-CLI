@@ -55,6 +55,9 @@ DOC_CAMPOS = [
     ("si_cambia", "copiar, opcional", "Si allí ya hay uno distinto con el mismo nombre: "
      "copia-aparte (por defecto: guarda «nombre (1)» al lado) o el-mas-nuevo (se queda el más "
      "reciente; el viejo se guarda y «acciones versiones» lo devuelve o lo borra)."),
+    ("guardar_viejas", "copiar, opcional", "Con «el-mas-nuevo»: true (por defecto) guarda la "
+     "versión vieja (se borra sola a los 30 días: «config versiones»); false la sustituye sin "
+     "guardarla: no ocupa, pero no hay vuelta atrás."),
     ("por", "ordenar", "tipo, mes, año, día o letra."),
     ("plantilla", "renombrar", "El nombre nuevo con huecos: {fecha:%Y-%m-%d}, {n:03}, {nombre} "
      "y {ext}."),

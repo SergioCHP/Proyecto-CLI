@@ -483,3 +483,19 @@ def test_deshacer_a_medias_quita_la_carpeta_al_reintentar(tmp_path, monkeypatch)
     monkeypatch.setattr(mis_acciones, "deshacer_copia", deshacer)
     assert copia("deshacer").exit_code == 0
     assert not (tmp_path / "Nueva").exists()
+
+
+def test_sin_guardar_viejas_solo_con_el_mas_nuevo(tmp_path):
+    crear(tmp_path / "PC" / "a.txt", "nuevo")
+    crear(tmp_path / "USB" / "a.txt", "viejo")
+    os.utime(tmp_path / "USB" / "a.txt", (time.time() - 86400,) * 2)
+    resultado = copia("a", str(tmp_path / "USB"), "--carpeta", str(tmp_path / "PC"), "--sin-guardar-viejas")
+    assert resultado.exit_code == 1 and "solo vale con --si-cambia el-mas-nuevo" in plano(resultado.output)
+    resultado = copia(
+        "a", str(tmp_path / "USB"), "--carpeta", str(tmp_path / "PC"),
+        "--si-cambia", "el-mas-nuevo", "--sin-guardar-viejas",
+    )
+    assert resultado.exit_code == 0, resultado.output
+    assert (tmp_path / "USB" / "a.txt").read_text(encoding="utf-8") == "nuevo"
+    ver = runner.invoke(app, ["acciones", "versiones", "ver"])
+    assert ver.exit_code == 0 and "a.txt" not in ver.output  # no se ha guardado la vieja

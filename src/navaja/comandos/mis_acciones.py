@@ -42,16 +42,19 @@ from ..comun import (
     console,
     crear_tabla,
     cuantos,
+    dias_versiones,
     error_console,
     guardar_acciones,
     limpiar_acciones,
     pasar_a_pendientes,
     quitar_vacias,
     ruta_libre,
+    tamano_legible,
 )
 from ..errores import ConfigError, NavajaError
 from ..filtros import OPCION_SI, OPCION_SIMULAR
 from ..motor import Motor
+from ..versiones import caducar
 from . import versiones
 
 OPCION_CONFIG = typer.Option(
@@ -245,7 +248,8 @@ def mostrar_plan(accion: AccionDeArchivos, carpeta: Path, plan: list[Resultado])
                     continue
         estilo = "ok" if resultado.estado == "pendiente" else "pista"
         if resultado.sustituir:
-            va_a += "  (sustituye a la versión vieja)"
+            guarda = getattr(accion, "guardar_viejas", True)  # solo copiar sustituye
+            va_a += "  (sustituye a la versión vieja)" if guarda else "  (sustituye a la vieja, sin guardarla)"
         fila = [escape(str(relativa(resultado.origen, carpeta))), f"[{estilo}]{escape(va_a)}[/]"]
         if saltados:
             fila.append(f"[aviso]{escape(resultado.motivo)}[/]" if resultado.estado == "saltado" else "")
@@ -342,6 +346,8 @@ def ejecutar(
 
         fallos += hacer(paso, plan, "acciones", para_deshacer)
 
+    if para_deshacer:  # solo si se ha hecho algo (no al simular, cancelar o sin nada que hacer)
+        caducar_versiones()
     if simular:
         console.print("[pista]Simulación: no se ha tocado nada. Sin --simular, lo hace.[/]")
         if len(pasos) > 1:
@@ -416,8 +422,9 @@ def deshacer_registro(nombre: str, que: str, vacio: str, si: bool) -> None:
     copias = sum(r.get("como") == "copiado" for r in registros)
     viejas = sum("apartado" in r and Path(r["apartado"]).exists() for r in registros)
     perdidas = sum("apartado" in r for r in registros) - viejas
-    copias -= perdidas  # sin su versión vieja, esas copias se quedan (ver abajo)
-    movidos = len(registros) - copias - perdidas
+    sin_vuelta = sum(bool(r.get("sin_guardar")) for r in registros)  # sustituyeron sin guardar la vieja
+    copias -= perdidas + sin_vuelta  # esas copias se quedan (ver abajo)
+    movidos = len(registros) - copias - perdidas - sin_vuelta
     partes = []
     if movidos:
         partes.append(f"se devolverían {cuantos(movidos, 'archivo')} a su sitio")
@@ -436,6 +443,13 @@ def deshacer_registro(nombre: str, que: str, vacio: str, si: bool) -> None:
             f"[aviso]{cuantos(perdidas, 'versión vieja', 'versiones viejas')} ya no "
             f"{'está guardada' if perdidas == 1 else 'están guardadas'} (¿borrada con «acciones "
             "versiones borrar»?): esas copias se quedan como están.[/]",
+            soft_wrap=True,
+        )
+    if sin_vuelta:
+        console.print(
+            f"[aviso]{cuantos(sin_vuelta, 'copia sustituyó', 'copias sustituyeron')} a la versión "
+            "vieja sin guardarla («guardar_viejas»: false): se quedan, porque quitarlas dejaría "
+            "el sitio vacío.[/]",
             soft_wrap=True,
         )
     if not confirmar(f"¿Deshacer {que}?", saltar=si, por_defecto=False):
@@ -460,6 +474,8 @@ def deshacer_registro(nombre: str, que: str, vacio: str, si: bool) -> None:
             continue
         try:
             if registro.get("como") == "copiado":
+                if registro.get("sin_guardar"):
+                    continue  # sustituyó sin guardar la vieja: quitarla dejaría el sitio vacío
                 if not deshacer_copia(origen, destino, registro.get("apartado"), papelera):
                     continue
             elif str(origen).lower() == str(destino).lower():  # solo cambió de mayúsculas
@@ -494,6 +510,19 @@ def deshacer_registro(nombre: str, que: str, vacio: str, si: bool) -> None:
         )
         raise typer.Exit(1)
     limpiar_acciones(nombre)
+
+
+def caducar_versiones() -> None:
+    """Borra las versiones viejas de hace más de ``config versiones`` días y lo dice."""
+    dias = dias_versiones()
+    cuantas, ocupaban = caducar(dias)
+    if cuantas:
+        console.print(
+            f"[pista]Borradas {cuantos(cuantas, 'versión vieja', 'versiones viejas')} de hace más de "
+            f"{cuantos(dias, 'día')} ({tamano_legible(ocupaban)}). Para cambiar cuánto se guardan: "
+            f"{como_se_escribe('config versiones')}[/]",
+            soft_wrap=True,
+        )
 
 
 def deshacer_copia(origen: Path, destino: Path, apartado: str | None, papelera: Path) -> bool:
