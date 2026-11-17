@@ -28,6 +28,12 @@ LETRAS = (
 SANGRIA = " "
 """Lo que va delante del saludo para que quede alineado con las letras."""
 
+ALTO_GRANDE = 11
+"""Líneas que ocupa el rótulo grande (el hueco de arriba, las letras, el saludo y el hueco)."""
+
+ALTO_SENCILLO = 4
+"""Líneas que ocupa el recuadro sencillo."""
+
 
 def letras() -> Text:
     """«NAVAJA» en dos tonos: el bloque con ``titulo`` y la sombra con ``marco``."""
@@ -58,9 +64,15 @@ def cabe(consola: Console, saludo: str, detalle: str) -> bool:
     )
 
 
-def rotulo(consola: Console, saludo: str, detalle: str) -> RenderableType:
-    """La cabecera de navaja: el rótulo grande si cabe; si no, el recuadro sencillo."""
-    if not cabe(consola, saludo, detalle):
+def rotulo(
+    consola: Console, saludo: str, detalle: str, grande: bool = True
+) -> RenderableType:
+    """La cabecera de navaja: el rótulo grande si cabe; si no, el recuadro sencillo.
+
+    Con ``grande=False`` sale siempre el sencillo: es lo que se usa cuando la ventana es
+    tan baja que el rótulo grande no dejaría ver el menú.
+    """
+    if not grande or not cabe(consola, saludo, detalle):
         texto = f"[titulo]{escape(saludo)}[/]\n[pista]{escape(detalle)}[/]"
         return Panel(texto, title="navaja", border_style="marco", expand=False)
     return Group(

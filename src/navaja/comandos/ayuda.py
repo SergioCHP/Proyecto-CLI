@@ -10,8 +10,9 @@ from __future__ import annotations
 
 import difflib
 import re
+import typing
 from enum import Enum
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import Any
 
 import typer
@@ -149,12 +150,43 @@ def uso(nombres: list[str], comando: Any) -> str:
     return " ".join(partes)
 
 
-def tipo_texto(param: Any) -> str:
+def elecciones_de(param: Any) -> list[Any]:
+    """Las opciones válidas de un parámetro con lista cerrada (``--orden cpu|memoria``).
+
+    Typer antiguo las guarda en ``param.type``; el nuevo (sin click) en ``type_descriptor``.
+    """
     tipo = getattr(param, "type", None)
-    choices = getattr(tipo, "choices", None)
+    if tipo is None:
+        tipo = getattr(param, "type_descriptor", None)
+    return list(getattr(tipo, "choices", None) or [])
+
+
+def nombre_tipo(param: Any) -> str:
+    """El tipo del parámetro con los nombres de click: «path», «int», «float», «bool»,
+    «text»… (vacío si no se sabe). Sirve igual con typer antiguo y con el nuevo."""
+    tipo = getattr(param, "type", None)
+    if tipo is not None:
+        return getattr(tipo, "name", "")
+    descriptor = getattr(param, "type_descriptor", None)
+    if descriptor is None:
+        return ""
+    anotacion = getattr(descriptor, "annotation", None)
+    if getattr(descriptor, "is_list", False):  # list[Path] → el tipo de cada elemento
+        elementos = typing.get_args(anotacion)
+        anotacion = elementos[0] if elementos else None
+    if getattr(descriptor, "is_path", False) or (
+        isinstance(anotacion, type) and issubclass(anotacion, PurePath)
+    ):
+        return "path"
+    return {int: "int", float: "float", bool: "bool", str: "text"}.get(anotacion, "")
+
+
+def tipo_texto(param: Any) -> str:
+    choices = elecciones_de(param)
     if choices:
         return " | ".join(valor_texto(c) for c in choices)
-    nombre = getattr(tipo, "name", "")
+    # Con min= o max= el tipo es un rango: «int range» (typer) o «integer range» (click).
+    nombre = nombre_tipo(param).removesuffix(" range")
     return {
         "int": "número",
         "integer": "número",

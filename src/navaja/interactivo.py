@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import difflib
 import functools
+import itertools
 import os
 import re
 import shlex
@@ -27,7 +28,9 @@ from rich.table import Table
 from .comandos.ayuda import (
     ayuda_aqui,
     ayuda_corta,
+    elecciones_de,
     es_grupo,
+    nombre_tipo,
     opciones_visibles,
     por_secciones,
     resolver,
@@ -311,17 +314,16 @@ def frase_del_menu(camino: list[str], nombre: str, comando: Any) -> str:
 
 
 def con_iconos() -> bool:
-    """¿Se pueden poner emojis? Hace falta UTF-8 y, en Windows, una terminal moderna
-    (Windows Terminal o la de VS Code): la consola antigua los pinta como cuadrados.
-
-    Se mira por las variables que esas terminales ponen (``WT_SESSION``,
-    ``TERM_PROGRAM``); se heredan, así que una consola antigua abierta desde Windows
-    Terminal también las tiene. Con ``NAVAJA_SIN_ICONOS`` no salen nunca.
+    """¿Se pueden poner emojis? Hace falta UTF-8 y, en Windows, una consola que entienda
+    los códigos de color modernos (VT): Windows Terminal, VS Code y también la ventana de
+    PowerShell de Windows 10 y 11. Solo la consola muy antigua (sin VT, ``legacy_windows``
+    para Rich) los pinta como cuadrados. Con ``NAVAJA_SIN_ICONOS`` no salen nunca: sirve si
+    en tu ventana se ven mal.
     """
     if os.environ.get("NAVAJA_SIN_ICONOS") or not es_utf8(console):
         return False
     if sys.platform == "win32":
-        return bool(os.environ.get("WT_SESSION") or os.environ.get("TERM_PROGRAM"))
+        return not console.legacy_windows
     return True
 
 
@@ -337,6 +339,7 @@ def recuadro(
     ancho_numero: int,
     ancho_nombre: int,
     iconos: bool,
+    ancho: int | None = None,
 ) -> Panel:
     """Un grupo del menú: número, icono, nombre y lo que hace, una fila por opción.
 
@@ -345,8 +348,10 @@ def recuadro(
     estrecha, la frase se acorta con «…» en vez de pasar a la línea de abajo.
     Con ``iconos``, cada fila lleva el de su comando (solo en el menú principal: en un
     submenú, «listar» de notas no es el «listar» de navaja).
+    Con ``ancho`` el recuadro mide eso (el menú en dos columnas); la frase se acorta con «…».
     """
-    ancho = max(min(console.width, ANCHO_MENU), ANCHO_MINIMO)
+    if ancho is None:
+        ancho = max(min(console.width, ANCHO_MENU), ANCHO_MINIMO)
     dentro = ancho - 4  # los dos bordes y un espacio a cada lado
     lineas = []
     for numero, nombre, frase in filas:
@@ -377,17 +382,78 @@ def recuadro(
     )
 
 
-def mostrar_menu(grupo: Any, camino: list[str]) -> None:
+MARGEN = 2
+"""Líneas que se dejan libres debajo del menú: el prompt y una de sobra."""
+
+
+def medidas(secciones: list[tuple[str, list[tuple[str, Any]]]]) -> tuple[int, int]:
+    """Ancho de la columna de números y de la de nombres, iguales en todos los recuadros."""
+    nombres = [nombre for _, comandos in secciones for nombre, _ in comandos]
+    return len(str(len(nombres))), max(cell_len(nombre) for nombre in nombres)
+
+
+def alto_completo(secciones: list[tuple[str, list[tuple[str, Any]]]]) -> int:
+    """Líneas del menú de siempre: un recuadro por sección, más la línea de salir y un hueco."""
+    return sum(len(comandos) + 2 for _, comandos in secciones) + 2
+
+
+def repartir(alturas: list[int], columnas: int) -> list[list[int]]:
+    """Reparte los recuadros (por su posición) en columnas, sin cambiar el orden y lo más
+    parejas posible: así los números siguen creciendo de arriba abajo y de izquierda a derecha."""
+    columnas = max(1, min(columnas, len(alturas)))
+    mejor: tuple[int, list[list[int]]] | None = None
+    for cortes in itertools.combinations(range(1, len(alturas)), columnas - 1):
+        limites = (0, *cortes, len(alturas))
+        trozos = [list(range(a, b)) for a, b in zip(limites, limites[1:])]
+        alto = max(sum(alturas[i] for i in trozo) for trozo in trozos)
+        if mejor is None or alto < mejor[0]:
+            mejor = (alto, trozos)
+    assert mejor is not None
+    return mejor[1]
+
+
+COLUMNAS = 2
+"""Columnas del menú compacto: con dos todavía caben las frases de cada opción."""
+
+
+def plan_compacto(
+    secciones: list[tuple[str, list[tuple[str, Any]]]], iconos: bool
+) -> tuple[int, list[list[int]], int] | None:
+    """El menú compacto: ancho de cada recuadro, qué recuadros van en cada columna y las
+    líneas que ocupa en total. None si la ventana es tan estrecha que no caben dos columnas."""
+    ancho = min(ANCHO_MENU, (console.width - (COLUMNAS - 1)) // COLUMNAS)
+    if ancho < ANCHO_MINIMO:
+        return None
+    alturas = [len(comandos) + 2 for _, comandos in secciones]
+    trozos = repartir(alturas, COLUMNAS)
+    alto = max(sum(alturas[i] for i in trozo) for trozo in trozos) + 1  # y la línea de salir
+    return ancho, trozos, alto
+
+
+def alto_menu(raiz: Any) -> int:
+    """Lo mínimo que mide el menú principal en esta ventana (completo o compacto)."""
+    secciones = por_secciones(raiz)
+    plan = plan_compacto(secciones, con_iconos())
+    return min(alto_completo(secciones), plan[2] if plan else alto_completo(secciones))
+
+
+def mostrar_menu(grupo: Any, camino: list[str], reservado: int = 0) -> None:
     """Las opciones numeradas, un recuadro por sección (en un submenú, uno solo).
 
-    Todos los recuadros miden lo mismo, para que se vean como una columna.
+    Todos los recuadros miden lo mismo, para que se vean como una columna. Si el menú
+    principal no cabe en la altura de la ventana (contando las ``reservado`` líneas que ya
+    hay encima, como el rótulo), se reparte en dos columnas, con sus frases, para verlo
+    entero sin subir.
     """
     secciones = por_secciones(grupo)
-    nombres = [nombre for _, comandos in secciones for nombre, _ in comandos]
-    ancho_numero = len(str(len(nombres)))
-    ancho_nombre = max(cell_len(nombre) for nombre in nombres)
+    ancho_numero, ancho_nombre = medidas(secciones)
     iconos = con_iconos()
+    plan = None
+    if not camino and console.is_terminal:
+        if alto_completo(secciones) + reservado + MARGEN > console.height:
+            plan = plan_compacto(secciones, iconos)
     numero = 0
+    recuadros = []
     for seccion_, comandos in secciones:
         filas = []
         for nombre, comando in comandos:
@@ -399,9 +465,26 @@ def mostrar_menu(grupo: Any, camino: list[str]) -> None:
         else:  # un submenú: el título es el comando del que cuelga
             titulo = f"{icono(camino[0], iconos)}{' '.join(camino)}" if camino else ""
             subtitulo = ""
-        console.print(
-            recuadro(titulo, subtitulo, filas, ancho_numero, ancho_nombre, iconos and not camino)
+        recuadros.append(
+            recuadro(
+                titulo,
+                subtitulo,
+                filas,
+                ancho_numero,
+                ancho_nombre,
+                iconos and not camino,
+                ancho=plan[0] if plan else None,
+            )
         )
+    if plan:
+        columnas = Table.grid(padding=(0, 1))
+        for _ in plan[1]:
+            columnas.add_column(no_wrap=True)
+        columnas.add_row(*[Group(*[recuadros[i] for i in trozo]) for trozo in plan[1]])
+        console.print(columnas)
+    else:
+        for uno in recuadros:
+            console.print(uno)
     if camino:
         console.print(
             f"   [boton]{0:>{ancho_numero}}[/]  [bold]volver[/]   [pista]·  Intro también  ·  [/]"
@@ -415,7 +498,8 @@ def mostrar_menu(grupo: Any, camino: list[str]) -> None:
             no_wrap=True,
             overflow="ellipsis",
         )
-        console.print()
+        if not plan:  # el hueco antes del prompt: en el compacto cada línea cuenta
+            console.print()
 
 
 def ejecutar(raiz: Any, argumentos: list[str]) -> int:
@@ -467,7 +551,7 @@ def pasos_carpeta(comando: Any, leer: Lector) -> list[Paso]:
         "--si" in opciones
         and argumentos
         and not argumentos[0].required
-        and getattr(argumentos[0].type, "name", "") == "path"
+        and nombre_tipo(argumentos[0]) == "path"
     ):
         return [functools.partial(preguntar_carpeta, leer, False)]
     return []
@@ -525,7 +609,7 @@ def pasos_obligatorios(comando: Any, leer: Lector) -> list[Paso]:
     for param in comando.params:
         if param.param_type_name != "argument":
             continue
-        es_ruta = getattr(getattr(param, "type", None), "name", "") == "path"
+        es_ruta = nombre_tipo(param) == "path"
         es_lista = getattr(param, "nargs", 1) == -1
         if not param.required and (es_ruta or es_lista):
             if param.default is not None and not es_lista:
@@ -555,7 +639,7 @@ def _preguntar_argumento(param: Any, leer: Lector, delante: list[str]) -> list[s
     texto = escape((getattr(param, "help", None) or param.name or "").rstrip("."))
     es_fecha = param.name in ("desde", "hasta")
     es_lista = getattr(param, "nargs", 1) == -1
-    es_ruta = getattr(getattr(param, "type", None), "name", "") == "path"
+    es_ruta = nombre_tipo(param) == "path"
     if param.required:
         while True:
             valor = leer_texto(leer, f"  {texto}: ", "")
@@ -608,7 +692,7 @@ def preguntar_ajuste(param: Any, leer: Lector) -> list[str]:
         return [nombre] if respuesta.strip().lower() in ("s", "si", "sí", "y") else []
     vacio = param.default is None or getattr(param, "multiple", False)
     defecto = "" if vacio else valor_texto(param.default)
-    elecciones = [valor_texto(c) for c in getattr(param.type, "choices", None) or []]
+    elecciones = [valor_texto(c) for c in elecciones_de(param)]
     if elecciones:
         pista = f"{', '.join(elecciones[:-1])} o {elecciones[-1]} · Intro = {defecto}"
     else:
@@ -1352,6 +1436,10 @@ def bucle(raiz: Any, grupo: Any, camino: list[str], leer: Lector) -> None:
         if palabra in SALIR or (palabra == "0" and not camino):
             raise Salir
         if palabra in MENU:
+            if console.is_terminal:
+                # si has cambiado el tamaño de la ventana, lo dibujado antes se descoloca:
+                # se limpia y se dibuja otra vez con el tamaño de ahora
+                console.clear()
             mostrar_menu(grupo, camino)
             continue
         if palabra in AYUDA_SOLA:
@@ -1452,8 +1540,11 @@ def _activar_historial() -> None:
         pass
 
 
-def iniciar(app: typer.Typer, leer: Lector | None = None) -> None:
-    """Abre el modo interactivo. Al salir, vuelve a la carpeta desde la que se entró."""
+def iniciar(app: typer.Typer, leer: Lector | None = None, reservado: int = 0) -> None:
+    """Abre el modo interactivo. Al salir, vuelve a la carpeta desde la que se entró.
+
+    ``reservado`` son las líneas que ya hay en pantalla encima del menú (el rótulo).
+    """
     global activo
     raiz = typer.main.get_command(app)
     if leer is None:
@@ -1463,7 +1554,7 @@ def iniciar(app: typer.Typer, leer: Lector | None = None) -> None:
             _activar_historial()
     original = Path.cwd()
     activo = True
-    mostrar_menu(raiz, [])
+    mostrar_menu(raiz, [], reservado)
     try:
         bucle(raiz, raiz, [], leer)
     except Salir:
