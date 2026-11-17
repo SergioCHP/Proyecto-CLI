@@ -1034,6 +1034,33 @@ cosas mal:
   `ordena`, Ctrl+C a mitad no guarda nada para deshacer (ya pasaba) y con `-c .` el
   registro guarda rutas relativas (ya pasaba; las «creadas» ya van absolutas).
 
+### 2026-11-17 — «el-mas-nuevo» y el cambio de hora de los USB FAT32
+
+- FAT y FAT32 guardan la hora local, y Windows la pasa a UTC con el horario de verano de
+  **ahora**: tras el cambio de hora, todo lo del USB se ve movido una hora. Antes solo se
+  disimulaba en `misma_copia` («una hora justa vale como igual», y en cualquier disco), y
+  `cual_gana` no lo tenía en cuenta: con dos ediciones a menos de una hora, podía ganar la
+  vieja (la nueva iba a «versiones»).
+- **No se puede corregir.** Primera versión: corregir la fecha con el desfase de cuando
+  se guardó. El revisor vio el fallo: lo que *navaja copia* al USB se guarda con el desfase
+  del momento de copiar, no con el de la fecha del archivo; con la hora local de FAT no se
+  sabe cuál de los dos fue, y la «corrección» hacía que la segunda ejecución no
+  reconociera su propia copia (una «(1)» o una sustitución en cada ejecución). Descartada.
+- **Lo que hay:** `comun.hora_dudosa(carpetas)` dice si algún lado puede tener la hora
+  movida: FAT, FAT32, exFAT o desconocido (fuera de Windows) → sí; NTFS o ReFS → no
+  (`sistema_de_archivos`, con `GetVolumeInformationW`, sin caché: en el modo interactivo
+  se puede cambiar de USB con la misma letra). Se mira **una vez por carpeta** al planificar,
+  no por archivo (rápido, y sin bloqueos con unidades de red). Con duda:
+  - `misma_copia`: una hora justa de diferencia cuenta como la misma fecha (como antes).
+  - `cual_gana`: con menos de una hora de diferencia no decide: «míralo tú». Así nunca
+    gana el viejo por el cambio de hora.
+  Sin duda (NTFS ↔ NTFS): las fechas son exactas; una hora justa ya no es «la misma copia».
+- Comprobado en este PC: C: es NTFS. Tests con un USB FAT32 simulado: copiar, mover la hora
+  una hora (como Windows tras el cambio de hora) y ejecutar otra vez da «ya está copiado»
+  (con copia-aparte y con el-mas-nuevo); «míralo tú» con menos de una hora; entre NTFS una
+  hora justa no es la misma copia (también de punta a punta, ejecutando). README al día.
+  734 pasando y 1 saltado.
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.
@@ -1091,11 +1118,12 @@ cosas mal:
 - [x] `--destino` al ejecutar.
 - [x] Traza al cortar la salida con una tubería (`| head -1`).
 - [ ] De la segunda revisión de `copiar`, sin arreglar:
-  - «el-mas-nuevo» se fía del reloj de cada PC; y con el desfase de una hora de FAT32, si
-    los dos lados se editaron con menos de una hora de diferencia, puede ganar el viejo (va
-    a la papelera, no se pierde).
-  - La hora justa de tolerancia vale en cualquier disco: dos archivos distintos del mismo
-    tamaño con 3600 s de diferencia se darían por iguales (muy raro).
+  - «el-mas-nuevo» se fía del reloj de cada PC (si uno va adelantado, gana el suyo; la
+    versión que pierde va a «versiones», no se pierde).
+  - Fuera de Windows no se sabe el sistema de archivos: siempre hay duda (± 1 h vale como
+    igual; con menos de una hora, «míralo tú»).
+  - `hora_dudosa` no se ha probado con un USB FAT32 de verdad (solo simulado). Un recurso de
+    red (UNC) dice «NTFS» aunque detrás sea otra cosa.
   - `comprobar_destino` no sirve en Linux/macOS (la raíz «/» siempre existe: un USB sin
     montar se copiaría al disco interno) ni distingue otro USB que coja la misma letra.
   - En `pc-a-usb` la versión vieja del USB va a la papelera de C: (lento; un archivo de

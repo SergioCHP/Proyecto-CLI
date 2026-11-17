@@ -773,15 +773,117 @@ def test_el_mas_nuevo_no_toca_si_alli_es_mas_reciente(tmp_path):
     assert relativos(usb) == {"a.txt"}
 
 
-def test_misma_copia_aguanta_el_cambio_de_hora_de_fat32(tmp_path):
-    from navaja.acciones import misma_copia
+@pytest.fixture
+def usb_fat32(tmp_path, monkeypatch):
+    """Lo de «USB» está en FAT32 y lo demás en NTFS (para ``hora_dudosa``)."""
+    from navaja import comun
 
-    original, copia = crear(tmp_path / "a.txt", "igual"), crear(tmp_path / "b.txt", "igual")
+    usb = tmp_path / "USB"
+    monkeypatch.setattr(
+        comun, "sistema_de_archivos",
+        lambda ruta: "FAT32" if usb == Path(ruta) or usb in Path(ruta).parents else "NTFS",
+    )
+    return usb
+
+
+def mover_una_hora(archivo: Path) -> None:
+    """Lo que hace Windows con un archivo de un USB FAT32 tras el cambio de hora."""
+    estado = archivo.stat()
+    os.utime(archivo, (estado.st_atime, estado.st_mtime + 3600))
+
+
+def test_misma_copia_aguanta_el_cambio_de_hora_de_fat32(tmp_path, usb_fat32):
+    from navaja.acciones import misma_copia
+    from navaja.comun import hora_dudosa
+
+    original, copia = crear(tmp_path / "PC" / "a.txt", "igual"), crear(usb_fat32 / "a.txt", "igual")
+    dudosa = hora_dudosa(original.parent, copia.parent)
+    assert dudosa
     fecha(original, 7200)
     fecha(copia, 7200 - 3601)  # una hora (y un segundo de redondeo de FAT32) después
-    assert misma_copia(original, copia)
+    assert misma_copia(original, copia, dudosa)
     fecha(copia, 7200 - 1800)  # media hora: es otro archivo
-    assert not misma_copia(original, copia)
+    assert not misma_copia(original, copia, dudosa)
+
+
+def test_una_hora_justa_entre_dos_ntfs_no_es_la_misma_copia(tmp_path, usb_fat32):
+    """Antes, una hora de diferencia valía como «la misma» en cualquier disco."""
+    from navaja.acciones import misma_copia
+    from navaja.comun import hora_dudosa
+
+    a, b = crear(tmp_path / "PC" / "a.txt", "igual"), crear(tmp_path / "Otro" / "a.txt", "IGUAL")
+    assert not hora_dudosa(a.parent, b.parent)  # los dos, NTFS
+    fecha(a, 7200)
+    fecha(b, 3600)
+    assert not misma_copia(a, b, dudosa=False)
+
+
+def test_sin_saber_el_sistema_de_archivos_hay_duda(tmp_path, monkeypatch):
+    from navaja import comun
+
+    monkeypatch.setattr(comun, "sistema_de_archivos", lambda ruta: None)  # Linux, macOS…
+    assert comun.hora_dudosa(tmp_path)
+
+
+def test_el_mas_nuevo_con_menos_de_una_hora_y_un_usb_no_decide_a_ciegas(tmp_path, usb_fat32):
+    """Editado en el USB y, media hora después, en el PC: con el cambio de hora el del USB
+    puede verse más nuevo de lo que es. Antes ganaba el viejo; ahora, «míralo tú»."""
+    from navaja.acciones import Copiar
+
+    en_usb, en_pc = crear(usb_fat32 / "a.txt", "de clase"), crear(tmp_path / "PC" / "a.txt", "de casa, más nuevo")
+    fecha(en_usb, 3600)  # se ve de hace 1 h (de verdad, hace 2 h)
+    fecha(en_pc, 5400)  # hace 1 h 30 min
+    for resultado in (Copiar.cual_gana(en_usb, en_pc, True), Copiar.cual_gana(en_pc, en_usb, True)):
+        assert resultado.estado == "saltado" and "míralo tú" in resultado.motivo and not resultado.sustituir
+    fecha(en_usb, 4 * 3600)  # con más de una hora no hay duda posible
+    assert Copiar.cual_gana(en_pc, en_usb, True).sustituir
+    fecha(en_usb, 3600)
+    assert Copiar.cual_gana(en_usb, en_pc, False).sustituir  # sin USB (NTFS) se fía de la fecha
+
+
+@pytest.mark.parametrize("si_cambia", ["copia-aparte", "el-mas-nuevo"])
+def test_lo_copiado_al_usb_sigue_copiado_tras_el_cambio_de_hora(tmp_path, usb_fat32, si_cambia):
+    """Lo que navaja copia al USB, visto una hora movido tras el cambio de hora: la segunda vez
+    tiene que salir «ya está copiado», no una «(1)» ni una sustitución en cada ejecución."""
+    pc = tmp_path / "PC"
+    crear(pc / "a.txt", "apuntes")
+    fecha(pc / "a.txt", 30 * 86400)
+    ruta = archivo_de_acciones(
+        tmp_path, accion("ida", "copiar", carpeta=str(pc), destino=str(usb_fat32), si_cambia=si_cambia)
+    )
+    assert acciones("ejecutar", "ida", config=ruta).exit_code == 0
+    mover_una_hora(usb_fat32 / "a.txt")
+    salida = plano(acciones("ejecutar", "ida", "--simular", config=ruta).output)
+    assert "ya está copiado" in salida
+    assert acciones("ejecutar", "ida", config=ruta).exit_code == 0
+    assert relativos(usb_fat32) == {"a.txt"}
+
+
+def test_entre_dos_ntfs_una_hora_justa_se_vuelve_a_copiar(tmp_path, usb_fat32):
+    """De punta a punta: sin USB de por medio, una hora de diferencia es otro archivo."""
+    pc, otro = tmp_path / "PC", tmp_path / "Otro"
+    crear(pc / "a.txt", "nuevo")
+    crear(otro / "a.txt", "viejo")  # mismo tamaño
+    fecha(pc / "a.txt", 3600)
+    fecha(otro / "a.txt", 7200)
+    ruta = archivo_de_acciones(
+        tmp_path, accion("ida", "copiar", carpeta=str(pc), destino=str(otro), si_cambia="el-mas-nuevo")
+    )
+    salida = plano(acciones("ejecutar", "ida", "--simular", config=ruta).output)
+    assert "ya está copiado" not in salida and "míralo tú" not in salida
+    assert acciones("ejecutar", "ida", config=ruta).exit_code == 0
+    assert (otro / "a.txt").read_text(encoding="utf-8") == "nuevo"
+
+
+def test_sistema_de_archivos_de_verdad_en_este_equipo(tmp_path):
+    """Sin simular: en Windows dice el de la carpeta de los tests; fuera, None."""
+    from navaja.comun import sistema_de_archivos
+
+    if os.name == "nt":  # sea cual sea el disco de la carpeta temporal: un nombre o, si no se sabe, None
+        nombre = sistema_de_archivos(tmp_path)
+        assert nombre is None or (nombre.isupper() and nombre)
+    else:
+        assert sistema_de_archivos(tmp_path) is None
 
 
 @pytest.mark.skipif(os.name != "nt", reason="las letras de unidad son de Windows")

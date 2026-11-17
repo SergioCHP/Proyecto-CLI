@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Any, ClassVar
 
 from .comandos import ordena, renombra
-from .comun import carpeta_papelera, crear_carpetas, cuantos, destino_libre, quitar_vacias, ruta_libre
+from .comun import carpeta_papelera, crear_carpetas, cuantos, destino_libre, hora_dudosa, quitar_vacias, ruta_libre
 from .errores import AccionNoValida, NavajaError
 from .filtros import sin_tildes
 from .versiones import Version, apuntar, carpeta_versiones
@@ -234,11 +234,12 @@ TOLERANCIA = 2
 """Segundos de diferencia que no cuentan: FAT32 (muchos USB) guarda la hora de 2 en 2 s."""
 
 
-def misma_copia(original: Path, copia: Path) -> bool:
+def misma_copia(original: Path, copia: Path, dudosa: bool = True) -> bool:
     """Mismo tamaño y misma fecha (la copia conserva la fecha): ya está copiado.
 
-    Una hora justa de diferencia también cuenta como la misma fecha: FAT32 guarda la hora
-    local, y tras el cambio de hora Windows ve todas las fechas del USB movidas una hora.
+    Con ``dudosa`` (algún lado en un USB FAT32, o no se sabe: ver ``hora_dudosa``), una hora
+    justa de diferencia también cuenta como la misma fecha: tras el cambio de hora Windows ve
+    todo lo del USB movido una hora. Entre dos discos NTFS, no: serían archivos distintos.
     """
     try:
         a, b = original.stat(), copia.stat()
@@ -246,11 +247,11 @@ def misma_copia(original: Path, copia: Path) -> bool:
         return False
     diferencia = abs(a.st_mtime - b.st_mtime)
     return a.st_size == b.st_size and (
-        diferencia <= TOLERANCIA or abs(diferencia - 3600) <= TOLERANCIA
+        diferencia <= TOLERANCIA or (dudosa and abs(diferencia - 3600) <= TOLERANCIA)
     )
 
 
-def copia_igual_al_lado(original: Path, deseado: Path) -> Path | None:
+def copia_igual_al_lado(original: Path, deseado: Path, dudosa: bool = True) -> Path | None:
     """Una «nombre (n).ext» junto a ``deseado`` que ya es copia de ``original``: así la
     segunda vez no se hace otra «(n)» con lo mismo."""
     indice = 1
@@ -258,7 +259,7 @@ def copia_igual_al_lado(original: Path, deseado: Path) -> Path | None:
         candidato = deseado.with_name(f"{deseado.stem} ({indice}){deseado.suffix}")
         if not candidato.exists():
             return None
-        if misma_copia(original, candidato):
+        if misma_copia(original, candidato, dudosa):
             return candidato
         indice += 1
 
@@ -347,35 +348,48 @@ class Copiar(Mover):
             )
 
     @staticmethod
-    def cual_gana(archivo: Path, deseado: Path) -> Resultado:
+    def cual_gana(archivo: Path, deseado: Path, dudosa: bool = True) -> Resultado:
         """«el-mas-nuevo» y allí hay otro distinto: si el de aquí es más reciente, lo
-        sustituye; si no, no se toca."""
+        sustituye; si no, no se toca.
+
+        Con ``dudosa`` (un USB FAT32 de por medio), las fechas pueden ir movidas una hora:
+        con menos de una hora de diferencia no se sabe cuál es más nuevo, y antes podía
+        ganar el viejo. Entonces no se toca y se dice: míralo tú.
+        """
         try:
             aqui, alli = archivo.stat().st_mtime, deseado.stat().st_mtime
         except OSError:
             return Resultado(archivo, deseado, "saltado", "no puedo leer su fecha")
-        if aqui > alli + TOLERANCIA:
+        diferencia = abs(aqui - alli)
+        if diferencia <= TOLERANCIA:
+            return Resultado(archivo, deseado, "saltado", "distinto pero con la misma fecha: míralo tú")
+        if dudosa and diferencia <= 3600 + TOLERANCIA:
+            return Resultado(
+                archivo, deseado, "saltado",
+                "distinto y con menos de una hora de diferencia; en un USB la hora puede ir "
+                "movida por el cambio de hora: míralo tú",
+            )
+        if aqui > alli:
             return Resultado(archivo, deseado, sustituir=True)
-        if alli > aqui + TOLERANCIA:
-            return Resultado(archivo, deseado, "saltado", "allí hay una versión más nueva")
-        return Resultado(archivo, deseado, "saltado", "distinto pero con la misma fecha: míralo tú")
+        return Resultado(archivo, deseado, "saltado", "allí hay una versión más nueva")
 
     def planificar(self, archivos: list[Path], carpeta: Path) -> list[Resultado]:
         base = self.base(carpeta)
         el_mas_nuevo = self.datos.get("si_cambia") == "el-mas-nuevo"
+        dudosa = hora_dudosa(carpeta, base)  # una vez por carpeta, no por archivo
         reservados: set[str] = set()
         plan = []
         for archivo in archivos:
             deseado = base / relativa(archivo, carpeta)
             if deseado == archivo:
                 continue
-            if misma_copia(archivo, deseado):  # la segunda vez no se copia otra vez
+            if misma_copia(archivo, deseado, dudosa):  # la segunda vez no se copia otra vez
                 plan.append(Resultado(archivo, deseado, "saltado", "ya está copiado"))
                 continue
             if el_mas_nuevo and deseado.is_file():
-                plan.append(self.cual_gana(archivo, deseado))
+                plan.append(self.cual_gana(archivo, deseado, dudosa))
                 continue
-            igual = copia_igual_al_lado(archivo, deseado)
+            igual = copia_igual_al_lado(archivo, deseado, dudosa)
             if igual is not None:
                 plan.append(Resultado(archivo, igual, "saltado", f"ya está copiado como «{igual.name}»"))
                 continue

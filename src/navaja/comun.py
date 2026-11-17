@@ -298,6 +298,44 @@ def problema_del_nombre(nombre: str) -> str:
     return ""
 
 
+def sistema_de_archivos(ruta: Path) -> str | None:
+    """«NTFS», «FAT32», «EXFAT»… de la unidad donde está ``ruta``. None si no se sabe (Linux,
+    macOS, o si Windows no lo dice). Sin caché: en el modo interactivo puedes cambiar de USB
+    con la misma letra. Llámala una vez por carpeta, no por archivo."""
+    if os.name != "nt":
+        return None
+    try:
+        import ctypes
+
+        kernel32 = ctypes.windll.kernel32
+        raiz = ctypes.create_unicode_buffer(300)
+        if not kernel32.GetVolumePathNameW(str(ruta), raiz, len(raiz)):
+            return None
+        nombre = ctypes.create_unicode_buffer(64)
+        if not kernel32.GetVolumeInformationW(raiz.value, None, 0, None, None, None, nombre, len(nombre)):
+            return None
+        return nombre.value.upper() or None
+    except (OSError, AttributeError, ValueError):
+        return None
+
+
+SIN_HORA_MOVIDA = ("NTFS", "REFS")
+"""Los que guardan la hora en UTC sin más. FAT y FAT32 guardan la hora local (y exFAT, según
+quién lo escriba), así que tras el cambio de hora Windows enseña sus fechas movidas una hora."""
+
+
+def hora_dudosa(*carpetas: Path) -> bool:
+    """¿Puede verse movida una hora la fecha de algún archivo de estas carpetas? Sí si alguna
+    está en FAT, FAT32 o exFAT (un USB), o si no se sabe (fuera de Windows): por si acaso.
+
+    No se puede corregir: con la hora local de FAT no se sabe si se guardó con el horario de
+    cuando se editó o con el de cuando se copió. Así que, con duda, una hora justa de
+    diferencia cuenta como la misma fecha, y menos de una hora no basta para decidir cuál es
+    más nueva.
+    """
+    return any(sistema_de_archivos(carpeta) not in SIN_HORA_MOVIDA for carpeta in carpetas)
+
+
 def crear_carpetas(carpeta: Path) -> list[Path]:
     """Crea ``carpeta`` (y las de encima que falten) y devuelve las que no existían, de la más
     alta a la más honda. Se apuntan para deshacer: así solo se quitan esas, nunca una carpeta
