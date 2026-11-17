@@ -1,3 +1,5 @@
+import os
+
 import pytest
 
 from navaja import lotes
@@ -117,3 +119,63 @@ def test_ctrl_c_no_empieza_mas_y_no_deja_nada_a_medias(tmp_path, monkeypatch):
     assert "o2:" in todo and "cortado a medias" in todo  # el fallo se dice
     assert "bórralo tú: 2c.txt" in todo and "No queda nada a medias" not in todo
     assert "Cortado: 1 archivo nuevo de 3" in todo
+
+
+def test_expandir_corchetes_tal_cual_y_sin_ocultos(tmp_path):
+    for nombre in ("tema1.pdf", "tema[1] v2.pdf", "apuntes [borrador].pdf", "desktop.ini", ".oculto.pdf"):
+        (tmp_path / nombre).write_text("x")
+    (tmp_path / "[2026] fotos").mkdir()
+    (tmp_path / "[2026] fotos" / "a.jpg").write_text("x")
+    nombres = lambda *p: [r.name for r in expandir([str(tmp_path / x) for x in p])]  # noqa: E731
+    assert nombres("*") == ["apuntes [borrador].pdf", "tema1.pdf", "tema[1] v2.pdf"]  # sin ocultos
+    assert nombres("*[borrador].pdf") == ["apuntes [borrador].pdf"]
+    assert nombres("tema[1]*.pdf") == ["tema[1] v2.pdf"]  # no coge tema1.pdf
+    assert nombres("[2026] fotos/*.jpg") == ["a.jpg"]  # corchetes también en la carpeta
+    # «.oculto.pdf» cuenta como oculto (es_oculto): sin ver_ocultos, «.*» no lo daría
+    assert nombres(".*") == [".oculto.pdf"]  # empezando por punto, se piden
+    assert nombres("**.pdf") == ["apuntes [borrador].pdf", "tema1.pdf", "tema[1] v2.pdf"]  # como «*»
+    assert nombres("desktop.ini") == ["desktop.ini"]  # por su nombre (sin comodín), sí
+    with pytest.raises(NavajaError, match="No existe"):
+        expandir([str(tmp_path / "tema[2].pdf")])  # sin * ni ?: un nombre, no un patrón
+
+
+def test_convierte_con_asterisco_en_una_carpeta_de_windows(tmp_path):
+    """Antes, desktop.ini entraba en el «*» y paraba todo: «No sé pasar .ini a .png»."""
+    pytest.importorskip("PIL")
+    from PIL import Image
+    from typer.testing import CliRunner
+
+    from navaja.app import app
+
+    Image.new("RGB", (4, 4)).save(tmp_path / "foto.jpg")
+    (tmp_path / "desktop.ini").write_text("[.ShellClassInfo]")
+    salida = CliRunner().invoke(app, ["convierte", str(tmp_path / "*"), "a", "png", "--simular"])
+    assert salida.exit_code == 0, salida.output
+    assert "foto.png" in salida.output and "desktop" not in salida.output
+
+
+def test_comodin_con_unidad_recurso_de_red_y_prefijo():
+    from navaja.comun import patron_glob, tiene_comodin
+
+    # el recurso de red se deja tal cual (glob ya lo toma así); lo de después, escapado
+    assert patron_glob(r"\\servidor\apuntes[1]\*[b].pdf") == r"\\servidor\apuntes[1]\*[[]b[]].pdf"
+    assert patron_glob(r"C:\a[1]\*.pdf") == r"C:\a[[]1[]]\*.pdf"
+    assert not tiene_comodin(r"\\?\C:\x\foto.jpg")  # el «?» del prefijo no es un comodín
+    assert tiene_comodin(r"\\?\C:\x\*.jpg") and tiene_comodin("fotos/tema?.md")
+
+
+def test_expandir_un_patron_relativo(tmp_path, monkeypatch):
+    (tmp_path / "a.pdf").write_text("x")
+    monkeypatch.chdir(tmp_path)
+    assert [r.name for r in expandir(["*.pdf"])] == ["a.pdf"]
+
+
+@pytest.mark.skipif(os.name != "nt", reason="mayúsculas y atributo oculto: cosas de Windows")
+def test_expandir_en_windows_mayusculas_y_atributo_oculto(tmp_path):
+    import ctypes
+
+    (tmp_path / "FOTO.JPG").write_text("x")
+    secreto = tmp_path / "secreto.jpg"
+    secreto.write_text("x")
+    assert ctypes.windll.kernel32.SetFileAttributesW(str(secreto), 2)  # FILE_ATTRIBUTE_HIDDEN
+    assert [r.name for r in expandir([str(tmp_path / "*.jpg")])] == ["FOTO.JPG"]  # sin el oculto

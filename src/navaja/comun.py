@@ -5,8 +5,10 @@ from __future__ import annotations
 import codecs
 import fnmatch
 import getpass
+import glob
 import json
 import os
+import re
 import shlex
 import shutil
 import stat
@@ -334,6 +336,37 @@ def hora_dudosa(*carpetas: Path) -> bool:
     más nueva.
     """
     return any(sistema_de_archivos(carpeta) not in SIN_HORA_MOVIDA for carpeta in carpetas)
+
+
+def tiene_comodin(texto: str) -> bool:
+    """¿Lleva ``*`` o ``?`` fuera de la unidad? (El «?» de «\\\\?\\C:\\…» no es un comodín.)"""
+    return any(c in os.path.splitdrive(texto)[1] for c in "*?")
+
+
+def patron_glob(texto: str) -> str:
+    """El patrón para ``glob``: los corchetes, tal cual (``[[]`` y ``[]]``), salvo en la unidad
+    o el recurso de red («\\\\servidor\\apuntes[1]»), que ``glob`` ya toma tal cual."""
+    unidad, resto = os.path.splitdrive(texto)
+    return unidad + re.sub(r"[\[\]]", lambda m: f"[{m.group()}]", resto)
+
+
+def buscar_con_comodin(patron: Path) -> list[Path]:
+    """Los archivos que encajan con ``patron`` (``*.pdf``, ``tema?.md``, ``fotos/*/a.jpg``).
+
+    - Solo ``*`` y ``?`` son comodines: los corchetes van tal cual («apuntes [borrador].pdf»
+      es un nombre normal en Windows; «tema[1].pdf» no debe coger tema1.pdf). ``**`` es como
+      ``*`` (no entra en subcarpetas).
+    - Sin ocultos ni de sistema (desktop.ini, Thumbs.db, los que Windows marca ocultos), como
+      la lista del menú, salvo que el patrón empiece por punto (``.*``): se están pidiendo.
+    - ``patron`` ya con ``~`` expandido. Las mayúsculas cuentan como en el sistema: en Windows
+      no; en Linux, ``*.jpg`` no coge ``FOTO.JPG``.
+    """
+    ver_ocultos = patron.name.startswith(".")
+    encontrados = (Path(p) for p in glob.glob(patron_glob(str(patron))))
+    return sorted(
+        (p for p in encontrados if p.is_file() and (ver_ocultos or not es_oculto(p))),
+        key=lambda p: (str(p.parent).lower(), p.name.lower(), p.name),
+    )
 
 
 def crear_carpetas(carpeta: Path) -> list[Path]:

@@ -518,6 +518,7 @@ navaja config ver
 ## Seguridad
 
 - `ordena`, `renombra` y `copia` enseñan siempre el plan y preguntan `[s/n]` antes de tocar nada; con `--simular` solo miran. Los tres tienen `deshacer`. `copia` nunca pisa un archivo distinto: guarda `nombre (1)` al lado o, con `--si-cambia el-mas-nuevo`, aparta el viejo a `acciones versiones`.
+- Comodines (`copia`, `convierte`, `imagen`, `pdf`, `fondo`): navaja los expande él mismo, así que valen igual en PowerShell y en bash. Solo `*` y `?`: los corchetes son parte del nombre (`*[borrador].pdf` encuentra «apuntes [borrador].pdf»). `*` no coge ocultos ni archivos de sistema (`desktop.ini`, `Thumbs.db`); para eso, escríbelos por su nombre o empieza el patrón por punto (`.*`).
 - `acciones` comprueba `acciones.json` entero antes de tocar un solo archivo, enseña el plan y pregunta `[s/n]`; `--simular` solo mira y `acciones deshacer` lo revierte (una rutina, entera). Lo que borra va a la papelera de navaja.
 - Nunca se sobrescribe un archivo, y se saltan los ocultos y los de sistema de Windows (`desktop.ini`, `Thumbs.db`), salvo con `--ocultos`.
 - Fechas fáciles en `--desde`, `--hasta` y `ordena tramo`: `1/9/2026`, `septiembre 2026`, `2026`, `hoy`, `hace 30 días`. Un mes o un año valen enteros.

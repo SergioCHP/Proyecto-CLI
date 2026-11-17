@@ -1030,7 +1030,8 @@ cosas mal:
 - Tests: los de los fallos fallan con el código de antes; los demás vigilan lo que ya iba
   bien (el primer archivo que falla, un registro antiguo, reintentar el deshacer). 727
   pasando y 1 saltado.
-- Sin tocar: `lotes.expandir` (convierte, imagen, pdf…) aún toma «[» como comodín.
+- `lotes.expandir` (convierte, imagen, pdf…) igual: ver la entrada «Comodines iguales en
+  todas las órdenes».
 
 ### 2026-11-17 — «el-mas-nuevo» y el cambio de hora de los USB FAT32
 
@@ -1081,6 +1082,30 @@ cosas mal:
   copia y luego borra, y puede quedar el archivo a medias en el destino, o duplicado, sin
   apuntar.
 - Los seis tests nuevos fallan con el código de antes. 740 pasando y 1 saltado.
+
+### 2026-11-17 — Comodines iguales en todas las órdenes
+
+- `comun.buscar_con_comodin`, compartida por `copia` y `lotes.expandir` (convierte,
+  imagen, pdf, fondo): solo `*` y `?` son comodines; los corchetes van tal cual, también
+  en la carpeta («[2026] fotos/*.jpg»); `**` es `*`; sin ocultos ni de sistema salvo que el
+  patrón empiece por punto (`.*`).
+- Arreglo práctico: `navaja convierte carpeta/* a png` en una carpeta de Windows cogía
+  `desktop.ini` y paraba todo con «No sé pasar .ini a .png».
+- `lotes` sigue admitiendo comodines en la carpeta (`fotos/*/a.jpg`); `copia`, no (avisa).
+- Tras el revisor: los corchetes de un recurso de red (`\\servidor\apuntes[1]`) no se
+  escapan (glob ya toma la unidad tal cual; antes no encontraba nada), y el «?» del prefijo
+  `\\?\C:\…` ya no cuenta como comodín (`comun.patron_glob` y `comun.tiene_comodin`, con
+  `os.path.splitdrive`). Quitado el «`**` → `*`»: `glob.glob` ya lo hace (lo que daba traza
+  era `Path.glob`). Orden estable aunque solo cambien las mayúsculas.
+- Sin tocar: `**` no entra en subcarpetas (como `*`); en Linux y macOS `*.jpg` no coge
+  `FOTO.JPG`; `desktop.*` no coge `desktop.ini` (por su nombre, sí); los enlaces a archivos
+  se siguen (los rotos se saltan sin avisar); en carpetas enormes o de red, un `stat` de más
+  por archivo.
+- README: una nota sobre los comodines. Los tests nuevos de corchetes y de `desktop.ini`
+  fallan con el código de antes; más: recurso de red, prefijo `\\?\`, patrón relativo, y en
+  Windows mayúsculas y atributo oculto. 745 pasando y 1 saltado.
+- Aprendido: al pasar código por la terminal (heredoc), las barras dobles se quedan en una
+  (`\\servidor` → `\servidor`, `"\n"` → salto de línea): lo que lleve barras, con un editor.
 
 ## Decisiones técnicas
 

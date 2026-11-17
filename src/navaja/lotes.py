@@ -7,7 +7,6 @@ paralelo y decir qué ha fallado, y avisar bien cuando falta una librería o un 
 from __future__ import annotations
 
 import contextlib
-import glob
 import importlib
 import os
 import shutil
@@ -25,7 +24,9 @@ import typer
 from rich.markup import escape
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
 
-from .comun import bonita, confirmar, console, cuantos, error_console, ruta_libre, tabla_ligera
+from .comun import (
+    bonita, buscar_con_comodin, confirmar, console, cuantos, error_console, ruta_libre, tabla_ligera, tiene_comodin,
+)
 from .errores import NavajaError
 
 WINDOWS = sys.platform == "win32"
@@ -111,11 +112,11 @@ def expandir(patrones: list[str]) -> list[Path]:
     archivos: list[Path] = []
     for patron in patrones:
         ruta = Path(patron).expanduser()
-        if any(c in patron for c in "*?["):
-            encontrados = sorted(Path(p) for p in glob.glob(str(ruta)) if Path(p).is_file())
-            if not encontrados and not ruta.is_file():
+        if tiene_comodin(patron):  # solo * y ? (los corchetes van tal cual): buscar_con_comodin
+            encontrados = buscar_con_comodin(ruta)
+            if not encontrados:
                 raise NavajaError(f"Ningún archivo encaja con {patron}.")
-            archivos += encontrados or [ruta]
+            archivos += encontrados
         elif ruta.is_file():
             archivos.append(ruta)
         elif ruta.is_dir():
