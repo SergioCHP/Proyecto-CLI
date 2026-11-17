@@ -94,10 +94,19 @@ def resumen_comandos(raiz: typer.Typer) -> list[tuple[str, str]]:
     return [(nombre, comando.help or "") for nombre, comando in ayuda.subcomandos(grupo)]
 
 
-def _mostrar_cabecera(config: dict[str, str]) -> None:
+def _rotulo_grande() -> bool:
+    """¿Cabe el rótulo grande y, debajo, el menú entero? Si la ventana es baja, se usa el
+    recuadro sencillo para dejar sitio al menú."""
+    if not console.is_terminal:
+        return True
+    menu = interactivo.alto_menu(typer.main.get_command(app))
+    return logo.ALTO_GRANDE + menu + interactivo.MARGEN <= console.height
+
+
+def _mostrar_cabecera(config: dict[str, str], grande: bool = True) -> None:
     hola = saludo(datetime.now().hour, nombre_para_saludar(config))
     detalle = f"navaja {__version__} · tema {config['tema']}"
-    console.print(logo.rotulo(console, hola, detalle))
+    console.print(logo.rotulo(console, hola, detalle, grande))
 
 
 def _mostrar_bienvenida(config: dict[str, str]) -> None:
@@ -133,10 +142,13 @@ def principal(
         if interactivo.puede_iniciar():
             if not config["nombre"]:  # la primera vez
                 config["nombre"] = ajustes.preguntar_nombre()
-            _mostrar_cabecera(config)
+            grande = _rotulo_grande()
+            _mostrar_cabecera(config, grande)
+            reservado = logo.ALTO_GRANDE if grande else logo.ALTO_SENCILLO
             if aviso := entregas.aviso_de_pendientes():
                 console.print(aviso)
-            interactivo.iniciar(app)
+                reservado += 2
+            interactivo.iniciar(app, reservado=reservado)
         else:
             _mostrar_bienvenida(config)
 

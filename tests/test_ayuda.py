@@ -199,11 +199,12 @@ def test_iconos_solo_con_utf8_y_terminal_moderna(monkeypatch):
     assert not interactivo.con_iconos()
     monkeypatch.setattr(interactivo.console, "_encoding", "utf_8", raising=False)
     monkeypatch.setattr(interactivo.sys, "platform", "win32")
-    monkeypatch.delenv("WT_SESSION", raising=False)
-    monkeypatch.delenv("TERM_PROGRAM", raising=False)
+    monkeypatch.delenv("NAVAJA_SIN_ICONOS", raising=False)
+    # con_iconos pregunta a Rich si es la consola antigua (sin VT), no mira WT_SESSION
+    monkeypatch.setattr(interactivo.console, "legacy_windows", True)
     assert not interactivo.con_iconos()  # la consola antigua de Windows
-    monkeypatch.setenv("WT_SESSION", "1")
-    assert interactivo.con_iconos()
+    monkeypatch.setattr(interactivo.console, "legacy_windows", False)
+    assert interactivo.con_iconos()  # Windows Terminal, VS Code o PowerShell de Windows 10/11
     monkeypatch.setenv("NAVAJA_SIN_ICONOS", "1")
     assert not interactivo.con_iconos()
 
