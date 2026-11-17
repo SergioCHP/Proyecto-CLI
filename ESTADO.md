@@ -944,13 +944,57 @@ cosas mal:
   - Mientras se recoge, otro Ctrl+C se ignora (`sin_ctrl_c`): ni traza ni archivos a medias.
   - Se dicen también los fallos de antes del corte, y si algo a medias no se ha podido
     borrar (abierto por el antivirus, OneDrive…) se dice cuál, en vez de «no queda nada».
-  - La salida de FFmpeg, Pandoc y LibreOffice se lee en UTF-8: con «Árbol.mp4» el motivo
-    del fallo era un `UnicodeDecodeError`.
+  - La salida de FFmpeg y Pandoc se lee en UTF-8: con «Árbol.mp4» el motivo del fallo era
+    un `UnicodeDecodeError` (LibreOffice, en cambio, escribe en cp1252: ver más abajo).
   - El test ya no depende del reloj (eventos en vez de esperas).
 - `Tarea.mas_destinos`: un PDF a imágenes que falla a mitad ya no deja páginas sueltas.
 - PyMuPDF (PDF a imágenes) entra en los extras `documentos`, `todo` y `dev`; antes llegaba
   de rebote con pdf2docx.
 - Tests nuevos: 704 pasando y 1 saltado.
+
+### 2026-11-16 — `convierte` a PDF con LibreOffice, probado en Windows
+
+- Primera prueba real (un .docx en `~/pruebas-navaja`): LibreOffice hacía el PDF, pero
+  al borrar la carpeta temporal con su perfil, `update.log` seguía abierto un instante
+  (`WinError 32`); la tarea contaba como fallida y se borraba el PDF bueno.
+- Ahora el perfil es fijo, en la carpeta de datos (`libreoffice/`): no se borra, y las
+  siguientes conversiones van más rápido. La carpeta temporal de salida se borra con
+  `ignore_cleanup_errors`: si algo sigue abierto, se queda en %TEMP% en vez de fallar.
+- Un hilo si cualquier archivo es de ofimática o vídeo (antes miraba solo el primero): dos
+  LibreOffice no pueden compartir el perfil.
+- Segunda prueba real: «LibreOffice no ha podido convertirlo» sin más. Una llamada sí y
+  otra no, LibreOffice salía en 0,4 s con código 0 sin convertir nada (igual con perfil
+  fijo o nuevo, `soffice.exe` o `soffice.com`, con o sin `--norestore`). Y después, con
+  `WinError 32` al arrancar `soffice.exe`.
+- **Causa:** el actualizador automático de LibreOffice (el nuevo, con `update.mar`). Desde
+  el perfil de navaja descargaba una versión nueva y, en cada arranque «vacío», intentaba
+  instalarla en `C:\Program Files\LibreOffice` con permisos elevados (fallaba: `failed: 4`
+  en `updates/0/update.status`), bloqueando `soffice.exe` mientras. El primer error ya lo
+  apuntaba: `perfil\updates\0\update.log`.
+- **Arreglo:** `preparar_perfil` pone `/org.openoffice.Office.Update/Update/Enabled` a
+  `false` en el `registrymodifications.xcu` del perfil de navaja (respetando lo demás) y
+  borra `updates/`. Probado: 8 de 8 a la primera, unos 4 s cada una. El perfil de LibreOffice
+  del usuario no se toca. Se dejan el reintento y el plan B como red, por si acaso.
+- La salida de LibreOffice va en la codificación del sistema (cp1252 en Windows), no en
+  UTF-8 como FFmpeg: se lee así. Si stderr viene vacío, un mensaje que dice qué hacer.
+- Word a PDF con Word (`docx2pdf`) desde un hilo de `hacer_todo`, probado a mano: funciona
+  (la duda era si COM fallaba sin `CoInitialize`; no). Su barra en inglés (tqdm, por
+  stderr) ya no sale.
+- Tras el revisor: si con el perfil fijo sale «bien» sin PDF tres veces (otro navaja en otra
+  terminal lo está usando, o está estropeado), plan B con un perfil nuevo en la carpeta
+  temporal. Un segundo entre intentos. Mensajes en castellano si LibreOffice se cuelga
+  (timeout de 5 min) o si Windows no deja arrancarlo; si no dice nada, el mensaje dice qué
+  carpeta del perfil borrar. Ruta del perfil absoluta (`NAVAJA_DATOS` relativo).
+- Si aun así Windows no deja arrancar LibreOffice (`WinError 32`), mensaje que dice
+  cerrarlo, en vez de un `PermissionError`.
+- Última pasada del revisor: si el perfil fijo no se puede preparar (otro navaja lo tiene
+  abierto), se va directo al plan B; el `.xcu` solo se escribe si cambia, de golpe (a un
+  temporal y `os.replace`) y con «\n» como LibreOffice; `con_word` comprueba que el PDF
+  existe (docx2pdf se traga a veces el error de Word); el test de la barra de docx2pdf no
+  comprobaba nada (buscaba «it/s» en un texto con «s/it»).
+- Tests: 717 pasando y 1 saltado.
+- Pendiente: probar el plan B con un LibreOffice de verdad (perfil nuevo que ya trae el
+  `.xcu`). Al intentarlo, el .docx de prueba ya no estaba en `~/pruebas-navaja`.
 
 ## Decisiones técnicas
 
@@ -1036,9 +1080,6 @@ cosas mal:
   con el del JSON (en NFC).
 - [x] Traza `UnicodeEncodeError` con `✔` o `→` en Git Bash o con la salida redirigida.
 - [ ] De la revisión de la fase 2, sin arreglar:
-  - Word a PDF con Word (`docx2pdf`, sin LibreOffice) va por COM dentro de un hilo de
-    `hacer_todo`: sin `pythoncom.CoInitialize()` probablemente falla. Probarlo a mano.
-  - `convierte` elige los hilos mirando solo el primer archivo.
   - Ctrl+C con trabajo en Python (Pillow, PyMuPDF, pdf2docx): la tarea en marcha no se
     puede parar, hay que esperar a que acabe (con un PDF de 200 páginas, un rato). Con
     LibreOffice en Windows puede quedar un `soffice.bin` vivo y su carpeta en %TEMP%.

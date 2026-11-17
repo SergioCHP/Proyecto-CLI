@@ -1,6 +1,7 @@
 import json
 import shutil
 import subprocess
+from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
@@ -132,3 +133,227 @@ def test_csv_con_columnas_de_mas(tmp_path):
     c.csv_a_xlsx(tmp_path / "a.csv", tmp_path / "a.xlsx")
     filas = list(openpyxl.load_workbook(tmp_path / "a.xlsx").active.iter_rows(values_only=True))
     assert filas == [("a", "b", None), (1, 2, None), (3, 4, 5)]
+
+
+def test_libreoffice_perfil_fijo_y_archivo_soltado_tarde(tmp_path, monkeypatch):
+    """Lo que pasó de verdad en Windows: LibreOffice convierte bien pero suelta un archivo un
+    instante tarde; borrar la carpeta temporal fallaba y el PDF bueno se tiraba."""
+    abiertos, ordenes, carpetas = [], [], []
+
+    def soffice_falso(orden, **_):
+        ordenes.append(orden)
+        salida = Path(orden[orden.index("--outdir") + 1])
+        carpetas.append(salida)
+        (salida / "trabajo.pdf").write_bytes(b"%PDF")
+        abiertos.append((salida / "update.log").open("w"))  # sigue abierto: en Windows no se puede borrar
+        return subprocess.CompletedProcess(orden, 0, "", "")
+
+    monkeypatch.setattr(c, "programa", lambda *_: "soffice")
+    monkeypatch.setattr(c.subprocess, "run", soffice_falso)
+    (tmp_path / "trabajo.docx").write_bytes(b"x")
+    try:
+        c.con_libreoffice(tmp_path / "trabajo.docx", tmp_path / "trabajo.pdf")
+    finally:
+        for archivo in abiertos:
+            archivo.close()
+        for carpeta in carpetas:
+            shutil.rmtree(carpeta, ignore_errors=True)
+    assert (tmp_path / "trabajo.pdf").read_bytes() == b"%PDF"
+    perfil = next(a for a in ordenes[0] if a.startswith("-env:UserInstallation="))
+    assert perfil.endswith("/libreoffice") and "navaja-" not in perfil  # en la carpeta de datos
+
+
+def test_libreoffice_reintenta_si_sale_bien_sin_convertir(tmp_path, monkeypatch):
+    """Lo de Windows: una llamada sí y otra no sale con código 0 sin hacer nada."""
+    llamadas = []
+
+    def soffice_que_alterna(orden, **_):
+        llamadas.append(orden)
+        if len(llamadas) % 2 == 0:
+            (Path(orden[orden.index("--outdir") + 1]) / "trabajo.pdf").write_bytes(b"%PDF")
+        return subprocess.CompletedProcess(orden, 0, "", "")
+
+    monkeypatch.setattr(c, "programa", lambda *_: "soffice")
+    monkeypatch.setattr(c.subprocess, "run", soffice_que_alterna)
+    (tmp_path / "trabajo.docx").write_bytes(b"x")
+    c.con_libreoffice(tmp_path / "trabajo.docx", tmp_path / "trabajo.pdf")
+    assert (tmp_path / "trabajo.pdf").read_bytes() == b"%PDF" and len(llamadas) == 2
+
+
+def test_libreoffice_con_error_de_verdad_no_reintenta(tmp_path, monkeypatch):
+    llamadas = []
+
+    def soffice_que_falla(orden, **_):
+        llamadas.append(orden)
+        return subprocess.CompletedProcess(orden, 1, "", "Error: source file could not be loaded")
+
+    monkeypatch.setattr(c, "programa", lambda *_: "soffice")
+    monkeypatch.setattr(c.subprocess, "run", soffice_que_falla)
+    (tmp_path / "roto.docx").write_bytes(b"x")
+    with pytest.raises(NavajaError, match="could not be loaded"):
+        c.con_libreoffice(tmp_path / "roto.docx", tmp_path / "roto.pdf")
+    assert len(llamadas) == 1
+
+
+def test_word_sin_la_barra_en_ingles_de_docx2pdf(tmp_path, monkeypatch, capfd):
+    import sys
+    import types
+
+    def convert(origen, destino):
+        sys.stderr.write("100%|##########| 1/1 [00:04<00:00,  4.95s/it]\n")  # lo que pinta tqdm
+        Path(destino).write_bytes(b"%PDF")
+
+    convert(None, tmp_path / "prueba.pdf")
+    assert "100%" in capfd.readouterr().err  # sin callarla, la barra sí se vería
+    monkeypatch.setitem(sys.modules, "docx2pdf", types.SimpleNamespace(convert=convert))
+    c.con_word(tmp_path / "a.docx", tmp_path / "a.pdf")
+    assert (tmp_path / "a.pdf").exists() and "100%" not in capfd.readouterr().err
+
+
+def test_word_que_no_crea_el_pdf(tmp_path, monkeypatch):
+    import sys
+    import types
+
+    monkeypatch.setitem(sys.modules, "docx2pdf", types.SimpleNamespace(convert=lambda *_: None))
+    with pytest.raises(NavajaError, match="Word no ha podido"):
+        c.con_word(tmp_path / "a.docx", tmp_path / "a.pdf")
+
+
+@pytest.fixture(autouse=True)
+def sin_pausa_entre_intentos(monkeypatch):
+    monkeypatch.setattr(c, "PAUSA_LIBREOFFICE", 0)
+
+
+def soffice_falso(monkeypatch, responder):
+    """Cambia LibreOffice por ``responder(orden, carpeta_de_salida, perfil)`` y apunta las llamadas."""
+    llamadas = []
+
+    def run(orden, **_):
+        llamadas.append(orden)
+        perfil = next(a for a in orden if a.startswith("-env:UserInstallation=")).split("=", 1)[1]
+        return responder(orden, Path(orden[orden.index("--outdir") + 1]), perfil)
+
+    monkeypatch.setattr(c, "programa", lambda *_: "soffice")
+    monkeypatch.setattr(c.subprocess, "run", run)
+    return llamadas
+
+
+def test_libreoffice_plan_b_con_perfil_nuevo(tmp_path, monkeypatch):
+    """El perfil fijo en uso por otro navaja (otra terminal) o estropeado: sale «bien» sin nada."""
+    def responder(orden, salida, perfil):
+        if perfil != c.carpeta_perfil_libreoffice().as_uri():
+            (salida / "trabajo.pdf").write_bytes(b"%PDF")
+        return subprocess.CompletedProcess(orden, 0, "", "")
+
+    llamadas = soffice_falso(monkeypatch, responder)
+    (tmp_path / "trabajo.docx").write_bytes(b"x")
+    c.con_libreoffice(tmp_path / "trabajo.docx", tmp_path / "trabajo.pdf")
+    assert (tmp_path / "trabajo.pdf").exists() and len(llamadas) == c.INTENTOS_LIBREOFFICE + 1
+
+
+def test_libreoffice_sin_decir_nada_explica_que_hacer(tmp_path, monkeypatch):
+    llamadas = soffice_falso(monkeypatch, lambda orden, *_: subprocess.CompletedProcess(orden, 0, "convert ... -> ...", ""))
+    (tmp_path / "trabajo.docx").write_bytes(b"x")
+    with pytest.raises(NavajaError, match="no dice por qué") as error:
+        c.con_libreoffice(tmp_path / "trabajo.docx", tmp_path / "trabajo.pdf")
+    assert str(c.carpeta_perfil_libreoffice()) in str(error.value) and "->" not in str(error.value)  # ni su stdout
+    assert len(llamadas) == 2 * c.INTENTOS_LIBREOFFICE  # perfil fijo y plan B
+
+
+def test_libreoffice_colgado(tmp_path, monkeypatch):
+    def colgado(orden, *_):
+        raise subprocess.TimeoutExpired(orden, c.TIEMPO_LIBREOFFICE)
+
+    soffice_falso(monkeypatch, colgado)
+    (tmp_path / "trabajo.docx").write_bytes(b"x")
+    with pytest.raises(NavajaError, match="minutos sin acabar"):
+        c.con_libreoffice(tmp_path / "trabajo.docx", tmp_path / "trabajo.pdf")
+
+
+def test_un_hilo_si_cualquier_archivo_es_de_ofimatica(tmp_path, monkeypatch):
+    pytest.importorskip("PIL")
+    from PIL import Image
+
+    Image.new("RGB", (4, 4)).save(tmp_path / "a.jpg")
+    (tmp_path / "b.docx").write_bytes(b"x")
+    monkeypatch.setattr(lotes, "buscar_programa", lambda *_: "soffice")
+    hilos = []
+    monkeypatch.setattr(c, "ejecutar", lambda tareas, titulo, simular, si, h: hilos.append(h))
+    salida = runner.invoke(app, ["convierte", str(tmp_path / "a.jpg"), str(tmp_path / "b.docx"), "a", "pdf", "--simular"])
+    assert salida.exit_code == 0 and hilos == [1]  # el primero es una foto, pero hay un .docx
+
+
+def test_libreoffice_que_windows_no_deja_arrancar(tmp_path, monkeypatch):
+    def bloqueado(orden, *_):
+        raise PermissionError(32, "El proceso no tiene acceso al archivo")
+
+    soffice_falso(monkeypatch, bloqueado)
+    (tmp_path / "trabajo.docx").write_bytes(b"x")
+    with pytest.raises(NavajaError, match="no deja arrancar LibreOffice"):
+        c.con_libreoffice(tmp_path / "trabajo.docx", tmp_path / "trabajo.pdf")
+
+
+def test_perfil_sin_actualizaciones_automaticas(tmp_path):
+    """Lo que de verdad pasaba en Windows: LibreOffice usaba una llamada sí y otra no para
+    instalarse una versión nueva desde el perfil de navaja."""
+    perfil = tmp_path / "perfil"
+    (perfil / "updates" / "0").mkdir(parents=True)
+    (perfil / "updates" / "0" / "update.mar").write_bytes(b"x")
+    assert c.preparar_perfil(perfil) == perfil.as_uri()
+    ajustes = perfil / "user" / "registrymodifications.xcu"
+    assert not (perfil / "updates").exists()
+    assert '<prop oor:name="Enabled" oor:op="fuse"><value>false</value>' in ajustes.read_text(encoding="utf-8")
+    # como lo deja LibreOffice al salir: con sus ajustes y nuestro valor reescrito
+    ajustes.write_text(
+        c.XCU_VACIO.replace("</oor:items>",
+            '<item oor:path="/org.openoffice.Office.Common/Misc"><prop oor:name="X" oor:op="fuse"><value>1</value></prop></item>\n'
+            '<item oor:path="/org.openoffice.Office.Update/Update"><prop oor:name="Enabled" oor:op="fuse" oor:type="xs:boolean">'
+            "<value>true</value></prop></item>\n</oor:items>"),
+        encoding="utf-8",
+    )
+    c.preparar_perfil(perfil)
+    texto = ajustes.read_text(encoding="utf-8")
+    assert texto.count('oor:name="Enabled"') == 1 and "<value>true</value>" not in texto
+    assert 'oor:name="X"' in texto  # lo demás de LibreOffice se queda
+    ajustes.write_text("roto", encoding="utf-8")
+    c.preparar_perfil(perfil)
+    assert "<value>false</value>" in ajustes.read_text(encoding="utf-8")
+
+
+def test_perfil_xml_valido_sin_reescribir_y_respetando_lo_demas(tmp_path):
+    import xml.etree.ElementTree as ET
+
+    perfil = tmp_path / "perfil"
+    ajustes = perfil / "user" / "registrymodifications.xcu"
+    ajustes.parent.mkdir(parents=True)
+    canal = '<item oor:path="/org.openoffice.Office.Update/Update"><prop oor:name="UpdateChannel" oor:op="fuse"><value>x</value></prop></item>\n'
+    ajustes.write_text(c.XCU_VACIO.replace("</oor:items>", canal + "</oor:items>"), encoding="utf-8")
+    c.preparar_perfil(perfil)
+    primero = ajustes.read_bytes()
+    ET.fromstring(primero)  # XML válido
+    assert b"UpdateChannel" in primero and b"\r\n" not in primero  # lo demás se queda; «\n» como LibreOffice
+    antes = ajustes.stat().st_mtime_ns
+    c.preparar_perfil(perfil)  # otra vez: ya está bien, no se toca
+    assert ajustes.read_bytes() == primero and ajustes.stat().st_mtime_ns == antes
+    assert primero.count(b'oor:name="Enabled"') == 1
+    assert not ajustes.with_name(ajustes.name + ".navaja").exists()
+
+
+def test_si_el_perfil_fijo_no_se_puede_preparar_va_al_plan_b(tmp_path, monkeypatch):
+    preparar = c.preparar_perfil
+
+    def preparar_bloqueado(carpeta):
+        if carpeta == c.carpeta_perfil_libreoffice():
+            raise PermissionError(32, "en uso por otro proceso")  # otro navaja en otra terminal
+        return preparar(carpeta)
+
+    def responder(orden, salida, perfil):
+        (salida / "trabajo.pdf").write_bytes(b"%PDF")
+        return subprocess.CompletedProcess(orden, 0, "", "")
+
+    monkeypatch.setattr(c, "preparar_perfil", preparar_bloqueado)
+    llamadas = soffice_falso(monkeypatch, responder)
+    (tmp_path / "trabajo.docx").write_bytes(b"x")
+    c.con_libreoffice(tmp_path / "trabajo.docx", tmp_path / "trabajo.pdf")
+    assert (tmp_path / "trabajo.pdf").exists() and len(llamadas) == 1
+    assert c.carpeta_perfil_libreoffice().as_uri() not in " ".join(llamadas[0])

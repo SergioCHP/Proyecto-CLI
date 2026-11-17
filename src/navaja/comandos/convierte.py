@@ -14,14 +14,17 @@ nuevo va al lado con la extensión nueva y, si ya existe, «(1)». Si uno falla,
 
 from __future__ import annotations
 
+import contextlib
 import csv
 import io
 import json
 import logging
+import os
 import re
 import shutil
 import subprocess
 import tempfile
+import time
 import warnings
 from collections.abc import Callable
 from pathlib import Path
@@ -30,7 +33,7 @@ from typing import Any
 import typer
 from rich.markup import escape
 
-from ..comun import DOCUMENTOS, console
+from ..comun import DOCUMENTOS, console, directorio_datos
 from ..errores import NavajaError
 from ..filtros import OPCION_SI, OPCION_SIMULAR
 from ..lotes import WINDOWS, FaltaAlgo, Tarea, al_lado, ejecutar, expandir, fallar, libreria, programa
@@ -101,23 +104,140 @@ def pdf_a_docx(origen: Path, destino: Path) -> None:
         logging.disable(logging.NOTSET)
 
 
+def carpeta_perfil_libreoffice() -> Path:
+    """El perfil de LibreOffice de navaja, en su carpeta de datos: uno propio para que funcione
+    aunque tengas LibreOffice abierto, y fijo para no crearlo en cada conversión (más rápido).
+    El temporal queda para el plan B (ver ``con_libreoffice``)."""
+    return (directorio_datos() / "libreoffice").resolve()  # as_uri() no admite rutas relativas
+
+
+SIN_ACTUALIZAR = {"/org.openoffice.Office.Update/Update": "Enabled"}
+"""El actualizador automático de LibreOffice. Visto en Windows: encendido, una llamada sí y
+otra no LibreOffice no convertía, sino que intentaba instalarse una versión nueva (update.mar,
+con permisos elevados) y bloqueaba soffice.exe mientras. (El aviso clásico de «hay versión
+nueva», UpdateCheck, no hace falta apagarlo: solo salta con ventana, y LibreOffice lo vuelve a
+encender al salir.)"""
+
+XCU_VACIO = (
+    '<?xml version="1.0" encoding="UTF-8"?>\n'
+    '<oor:items xmlns:oor="http://openoffice.org/2001/registry" '
+    'xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">\n'
+    "</oor:items>\n"
+)
+
+
+def preparar_perfil(carpeta: Path) -> str:
+    """Deja el perfil de navaja sin actualizaciones automáticas y sin la pendiente; devuelve
+    su URI para ``-env:UserInstallation``. Solo toca este perfil, nunca el tuyo de LibreOffice.
+
+    ``OSError`` si no se puede escribir (otro navaja lo tiene abierto en otra terminal):
+    ``con_libreoffice`` pasa entonces al plan B.
+    """
+    shutil.rmtree(carpeta / "updates", ignore_errors=True)  # una actualización descargada a medio instalar
+    ajustes = carpeta / "user" / "registrymodifications.xcu"
+    ajustes.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        antes = ajustes.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        antes = ""
+    texto = antes if "</oor:items>" in antes else XCU_VACIO  # no existe o está roto: uno nuevo
+    for ruta, propiedad in SIN_ACTUALIZAR.items():
+        # quita el valor que hubiera (LibreOffice lo reescribe al salir) y pone «false» al final,
+        # que es el que vale si quedara otro que la regex no reconoce
+        texto = re.sub(rf'<item oor:path="{re.escape(ruta)}"><prop oor:name="{propiedad}"[^\n]*?</item>\n?', "", texto)
+        linea = f'<item oor:path="{ruta}"><prop oor:name="{propiedad}" oor:op="fuse"><value>false</value></prop></item>\n'
+        texto = texto.replace("</oor:items>", linea + "</oor:items>")
+    if texto != antes:  # casi siempre ya está bien: no se reescribe
+        # a un temporal y luego se cambia de golpe: otro LibreOffice nunca lee uno a medias
+        temporal = ajustes.with_name(ajustes.name + ".navaja")
+        with temporal.open("w", encoding="utf-8", newline="\n") as archivo:  # «\n», como LibreOffice
+            archivo.write(texto)
+        os.replace(temporal, ajustes)
+    return carpeta.as_uri()
+
+
+INTENTOS_LIBREOFFICE = 3
+"""Red por si acaso: con el actualizador encendido, una llamada sí y otra no LibreOffice salía
+con código 0 sin convertir. Ya se apaga en ``preparar_perfil``, pero si vuelve a pasar por
+otra causa, se reintenta."""
+PAUSA_LIBREOFFICE = 1.0
+TIEMPO_LIBREOFFICE = 300
+
+
+def llamar_libreoffice(orden: list[str], hecho: Path) -> subprocess.CompletedProcess[str] | None:
+    """Hasta ``INTENTOS_LIBREOFFICE`` veces mientras salga «bien» sin crear nada. Devuelve la
+    última respuesta (None si no se ha llamado)."""
+    resultado = None
+    for intento in range(INTENTOS_LIBREOFFICE):
+        if intento:
+            time.sleep(PAUSA_LIBREOFFICE)
+        try:
+            # sin encoding: LibreOffice escribe con la codificación del sistema (en Windows,
+            # la de la página ANSI, cp1252 en castellano), no siempre en UTF-8 como FFmpeg
+            resultado = subprocess.run(orden, capture_output=True, text=True, errors="replace", timeout=TIEMPO_LIBREOFFICE)
+        except subprocess.TimeoutExpired:
+            raise NavajaError(
+                f"LibreOffice lleva más de {TIEMPO_LIBREOFFICE // 60} minutos sin acabar: se ha parado. "
+                "Si se repite, cierra LibreOffice (también desde el Administrador de tareas: soffice.bin)."
+            ) from None
+        except OSError as error:  # visto en Windows: WinError 32 al arrancarlo, con otro soffice colgado
+            raise NavajaError(
+                f"Windows no deja arrancar LibreOffice ({error.strerror or error}). ¿Se está actualizando "
+                "o hay uno colgado? Cierra LibreOffice (en el Administrador de tareas, soffice.exe y "
+                "soffice.bin) y vuelve a probar."
+            ) from None
+        if hecho.is_file() or resultado.returncode != 0:
+            break  # hecho, o un error de verdad (ese no se arregla repitiendo)
+    return resultado
+
+
 def con_libreoffice(origen: Path, destino: Path) -> None:
-    """LibreOffice sin ventana: escribe en una carpeta temporal y se mueve al nombre libre."""
+    """LibreOffice sin ventana: escribe en una carpeta temporal y se mueve al nombre libre.
+
+    Si con el perfil de navaja sale «bien» sin crear nada, se prueba con uno nuevo en la carpeta
+    temporal: el fijo puede estar en uso por otro navaja (otra terminal) o estropeado.
+    """
     soffice = programa("soffice", "pasar documentos a PDF (o instala Word en Windows)", "libreoffice")
     formato = destino.suffix.lstrip(".")
-    with tempfile.TemporaryDirectory(prefix="navaja-") as temporal:
-        perfil = Path(temporal, "perfil").as_uri()  # un perfil propio: funciona aunque tengas LibreOffice abierto
-        orden = [soffice, f"-env:UserInstallation={perfil}", "--headless", "--convert-to", formato, "--outdir", temporal, str(origen)]
-        resultado = subprocess.run(orden, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300)
-        hecho = Path(temporal, f"{origen.stem}.{formato}")
-        if resultado.returncode != 0 or not hecho.is_file():
-            raise NavajaError(f"LibreOffice no ha podido convertirlo. {resultado.stderr.strip()[:200]}")
+    # ignore_cleanup_errors: si algo de la carpeta sigue abierto un instante, se queda en %TEMP%
+    # en vez de convertir en fallo (y borrar) una conversión que ha salido bien
+    with tempfile.TemporaryDirectory(prefix="navaja-", ignore_cleanup_errors=True) as temporal:
+        salida = Path(temporal, "salida")
+        salida.mkdir()
+        hecho = salida / f"{origen.stem}.{formato}"
+
+        def orden(perfil: str) -> list[str]:
+            return [soffice, f"-env:UserInstallation={perfil}", "--headless", "--convert-to", formato,
+                    "--outdir", str(salida), str(origen)]
+
+        resultado = None
+        try:
+            perfil = preparar_perfil(carpeta_perfil_libreoffice())
+        except OSError:
+            perfil = None  # en uso por otro navaja o sin permiso: directamente al plan B
+        if perfil is not None:
+            resultado = llamar_libreoffice(orden(perfil), hecho)
+        if not hecho.is_file() and (resultado is None or resultado.returncode == 0):
+            resultado = llamar_libreoffice(orden(preparar_perfil(Path(temporal, "perfil"))), hecho)  # plan B
+        if not hecho.is_file():
+            dice = resultado.stderr.strip()[:200] if resultado is not None else ""
+            if dice:
+                raise NavajaError(f"LibreOffice no ha podido convertirlo: {dice}")
+            raise NavajaError(
+                "LibreOffice no ha podido convertirlo y no dice por qué. ¿Está dañado o protegido? "
+                f"Si pasa con todos, cierra LibreOffice y borra la carpeta {carpeta_perfil_libreoffice()}."
+            )
         shutil.move(str(hecho), destino)
 
 
 def con_word(origen: Path, destino: Path) -> None:
     modulo = libreria("docx2pdf", "docx2pdf", "documentos", "pasar Word a PDF con Word")
-    modulo.convert(str(origen), str(destino))
+    # docx2pdf pinta su propia barra en inglés (tqdm, por stderr): se calla. Va de uno en uno
+    # (ofimática = 1 hilo), así que no se come los mensajes de otra tarea.
+    with contextlib.redirect_stderr(io.StringIO()):
+        modulo.convert(str(origen), str(destino))
+    if not destino.is_file():  # docx2pdf a veces se traga el error de Word
+        raise NavajaError("Word no ha podido convertirlo (¿está dañado, protegido o abierto en Word?).")
 
 
 def ofimatica_a_pdf(origen: Path, destino: Path) -> None:
@@ -383,7 +503,9 @@ def convierte(
         comprobar_herramientas(tareas, salida)
     except NavajaError as error:
         fallar(error)
-    hilos = 1 if conversion(rutas[0].suffix.lower(), salida) in ("ffmpeg", "ofimatica-pdf") else 4
+    # FFmpeg ya usa todos los núcleos, y dos LibreOffice no pueden compartir el perfil: de uno en uno
+    pesadas = {conversion(r.suffix.lower(), salida) for r in rutas} & {"ffmpeg", "ofimatica-pdf"}
+    hilos = 1 if pesadas else 4
     ejecutar(tareas, f"Convertir a {salida.lstrip('.')}", simular, si, hilos)
     if any(conversion(r.suffix.lower(), salida) == "pdf-docx" for r in rutas):
         console.print("[pista]Un PDF escaneado o con un diseño complicado no queda perfecto en Word: revísalo.[/]")
