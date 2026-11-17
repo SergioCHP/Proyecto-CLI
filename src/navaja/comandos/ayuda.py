@@ -449,7 +449,9 @@ EXTRA: dict[str, str] = {
         "vaciar» no lo toca). Aquí lo ves, lo recuperas aunque hayas hecho otras acciones "
         "después, y borras lo que ya no necesitas. Se borran solas pasados 30 días (cámbialo con "
         "«config versiones»). Con «guardar_viejas»: false en la acción (o --sin-guardar-viejas "
-        "en «copia a») no se guardan: no ocupan, pero no hay vuelta atrás."
+        "en «copia a») no se guardan: no ocupan, pero no hay vuelta atrás. Si el índice de "
+        "versiones se estropea, las que hay en la carpeta se siguen viendo (con «Estaba en: no "
+        "se sabe»): se pueden borrar, pero para recuperarlas tienes que copiarlas tú."
     ),
     "acciones versiones recuperar": (
         "Lo devuelve a donde estaba. Si allí ya hay un archivo (la versión nueva), no lo pisa: "

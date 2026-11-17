@@ -442,12 +442,15 @@ class Copiar(Mover):
             super().ejecutar(plan, avance)
         finally:
             # también con Ctrl+C a medias, y las de un fallo que no se pudieron devolver:
-            # así «acciones versiones» las lista y se recuperan
-            apuntar([
-                Version(r.apartado, r.destino, self.nombre, cuando)
-                for r in plan
-                if r.apartado is not None and r.destino is not None
-            ])
+            # así «acciones versiones» las lista y se recuperan. Si el índice no se puede
+            # escribir, no para nada: «acciones versiones» las encuentra igual en la carpeta
+            # (sin saber de dónde salieron), así que no se pierden.
+            with contextlib.suppress(OSError):
+                apuntar([
+                    Version(r.apartado, r.destino, self.nombre, cuando)
+                    for r in plan
+                    if r.apartado is not None and r.destino is not None
+                ])
         return plan
 
     def aplicar(self, resultado: Resultado) -> None:

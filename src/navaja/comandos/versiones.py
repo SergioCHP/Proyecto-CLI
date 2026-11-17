@@ -22,6 +22,7 @@ from ..comun import (
     crear_tabla,
     cuantos,
     error_console,
+    quitar_solo_lectura,
     ruta_libre,
     tamano_legible,
 )
@@ -41,7 +42,7 @@ def cuando_legible(momento: datetime) -> str:
 def numeros_para_tab(ctx: typer.Context, incomplete: str) -> list[tuple[str, str]]:
     """Tab en los números: cada uno con el archivo al que corresponde."""
     return [
-        (str(n), f"{v.sitio.name} ({cuando_legible(v.cuando)})")
+        (str(n), f"{(v.sitio if v.sitio_conocido else v.guardada).name} ({cuando_legible(v.cuando)})")
         for n, v in enumerate(versiones.cargar(), start=1)
         if str(n).startswith(incomplete)
     ]
@@ -60,15 +61,29 @@ def elegir(numeros: list[int], lista: list[Version]) -> list[Version]:
     return [lista[n - 1] for n in dict.fromkeys(numeros)]  # sin repetir, en el orden dado
 
 
+def olvidar(quitadas: list[Version]) -> None:
+    """Las quita del índice; si no se puede (bloqueado), lo dice en vez de dar una traza.
+    No pasa nada grave: lo que ya no está en la carpeta no se lista."""
+    try:
+        versiones.olvidar(quitadas)
+    except OSError as exc:
+        error_console.print(
+            f"[aviso]No se pudo poner al día el índice de versiones[/] "
+            f"({escape(exc.strerror or str(exc))}): no importa, lo que ya no está no se lista.",
+            soft_wrap=True,
+        )
+
+
 def pintar(lista: list[Version]) -> None:
     tabla = crear_tabla(["Nº", "Archivo", "Estaba en", "Sustituida", "Por", "Tamaño"])
     todas = versiones.cargar()
     for version in lista:
         numero = todas.index(version) + 1 if version in todas else "?"
+        conocido = version.sitio_conocido
         tabla.add_row(
             str(numero),
-            escape(version.sitio.name),
-            escape(bonita(version.sitio.parent)),
+            escape(version.sitio.name if conocido else version.guardada.name),
+            escape(bonita(version.sitio.parent)) if conocido else "[pista](no se sabe)[/]",
             cuando_legible(version.cuando),
             escape(version.accion),
             tamano_legible(version.tamano),
@@ -111,6 +126,16 @@ def recuperar(
         console.print("[aviso]No hay versiones viejas guardadas.[/]")
         return
     elegidas = elegir(numeros, lista)
+    sin_sitio = [v for v in elegidas if not v.sitio_conocido]
+    for version in sin_sitio:  # encontradas en la carpeta sin estar en el índice
+        error_console.print(
+            f"[aviso]No se sabe de dónde salió[/] {escape(version.guardada.name)} [aviso](el índice de "
+            f"versiones se perdió). Está en[/] {escape(str(version.guardada))}[aviso]: cópiala tú.[/]",
+            soft_wrap=True,
+        )
+    elegidas = [v for v in elegidas if v.sitio_conocido]
+    if not elegidas:
+        raise typer.Exit(1)
     pintar(elegidas)
     ocupados = sum(v.sitio.exists() for v in elegidas)
     if ocupados:
@@ -141,9 +166,9 @@ def recuperar(
         devueltas.append(version)
         aparte = "" if destino == version.sitio else f" [pista](como «{escape(destino.name)}»)[/]"
         console.print(f"[ok]Recuperada[/] {escape(bonita(destino))}{aparte}", soft_wrap=True)
-    versiones.olvidar(devueltas)
+    olvidar(devueltas)
     versiones.quitar_carpetas_vacias()
-    if len(devueltas) < len(elegidas):
+    if len(devueltas) < len(elegidas) or sin_sitio:
         raise typer.Exit(1)
 
 
@@ -196,17 +221,18 @@ def borrar(
     for version in elegidas:
         tamano = version.tamano
         try:
+            quitar_solo_lectura(version.guardada)  # en Windows, si no, no se deja borrar
             version.guardada.unlink()
         except OSError as exc:
+            nombre = (version.sitio if version.sitio_conocido else version.guardada).name
             error_console.print(
-                f"[error]No se pudo borrar[/] {escape(version.sitio.name)}: "
-                f"{escape(exc.strerror or str(exc))}",
+                f"[error]No se pudo borrar[/] {escape(nombre)}: {escape(exc.strerror or str(exc))}",
                 soft_wrap=True,
             )
             continue
         borradas.append(version)
         liberado += tamano
-    versiones.olvidar(borradas)
+    olvidar(borradas)
     versiones.quitar_carpetas_vacias()
     console.print(
         f"[ok]Borradas {cuantos(len(borradas), 'versión', 'versiones')}: "

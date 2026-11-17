@@ -1134,11 +1134,43 @@ cosas mal:
   - Si apartar a C: falla a medias (copiada pero sin poder borrar la de origen), se quita la
     copia suelta de «versiones» (sin índice, nunca caducaría).
   - `acciones ejecutar` solo caduca si se ha hecho algo (no al cancelar), como `copia a`.
-- Caducar borra las versiones de todas las acciones por igual (por fecha). Sin arreglar
-  (ya pasaba): con el índice de versiones roto no se lista nada ni caduca nada, y el
-  siguiente `apuntar` deja las de antes sin índice.
+- Caducar borra las versiones de todas las acciones por igual (por fecha). El índice roto:
+  ver la entrada siguiente.
 - Manual, README, `DOC_CAMPOS` y la skill (las dos copias) al día. Los tests nuevos fallan
   con el código de antes (el de solo lectura, solo en Windows). 762 pasando y 1 saltado.
+
+### 2026-11-17 — Índice de versiones a prueba de roturas
+
+- Antes, con `versiones/indice.json` roto (o borrado) no se listaba ni caducaba nada, y el
+  siguiente `apuntar` escribía uno nuevo solo con las nuevas: las de antes quedaban en la
+  carpeta para siempre, sin índice.
+- `versiones.guardar` escribe a un temporal y `os.replace` (cortado a medias, queda el de
+  antes). Si el que hay está roto, lo guarda aparte como `indice.roto.json` antes de
+  escribir el nuevo.
+- `versiones.cargar` = lo del índice + lo que hay en la carpeta sin estar en él
+  (`sin_indice`), con la fecha de su subcarpeta (`20261117-103000`) o la del archivo. Esas
+  se ven («Estaba en: no se sabe»), caducan y se borran; `recuperar` no puede devolverlas a
+  su sitio y dice dónde están para que las copies tú (sale con 1).
+- `apuntar` y `olvidar` escriben solo lo que se sabe (las «sin índice» no se guardan: se
+  encuentran solas en la carpeta). Si el índice no se puede escribir al copiar, la copia no
+  se para: se encuentran igual en la carpeta (sin sitio).
+- Tras el revisor:
+  - Una entrada mala ya no tira todo el índice (y con él el «de dónde salió» de todas): se
+    ignora esa sola. También las que apuntan fuera de la carpeta de versiones (caducar
+    borraría un archivo tuyo); fechas con zona horaria y `accion` que no es texto, sin traza.
+  - Un índice que no se puede leer (bloqueado por el antivirus) no es uno roto: se listan
+    igual, pero no se escribe encima (`apuntar`/`olvidar` lanzan `OSError`).
+  - Un `indice.roto.json` anterior no se pisa («(1)»); un índice con BOM (Bloc de notas) vale.
+  - `versiones borrar` quita el solo lectura antes de borrar, nombra bien las de sitio
+    desconocido y, si no puede poner al día el índice, avisa en vez de dar traza (también
+    `recuperar`).
+  - `sin_indice`: sin traza si un archivo desaparece mientras se mira; en una carpeta sin
+    fecha en el nombre, la fecha de la carpeta (no la del archivo, que conserva la original).
+- Sin arreglar: dos navaja escribiendo el índice a la vez (gana el último; las del otro se
+  quedan sin sitio); `versiones borrar` deja borrar una que necesita un deshacer pendiente
+  (pregunta antes; el deshacer luego deja la copia); archivos sueltos en la raíz de
+  `versiones` no se listan.
+- Los tests nuevos fallan con el código de antes. 769 pasando y 1 saltado.
 
 ## Decisiones técnicas
 
