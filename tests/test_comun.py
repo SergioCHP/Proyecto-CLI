@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from rich.prompt import InvalidResponse
 
@@ -89,3 +91,22 @@ def test_crear_carpetas_dice_cuales_son_nuevas(tmp_path):
     assert carpetas_creadas({"creadas": None}, destino) == [] and carpetas_creadas({"creadas": "C:/"}, destino) == []
     assert carpetas_creadas({}, destino) is None  # registro de antes de apuntarlas
     assert carpetas_supuestas(destino) == [tmp_path / "x" / "y", tmp_path / "x"]
+
+
+def test_guardar_acciones_cortado_deja_el_registro_de_antes(monkeypatch):
+    from navaja import comun
+
+    comun.guardar_acciones("prueba", [{"origen": "a", "destino": "b"}])
+    reemplazar = os.replace  # el de verdad, antes de cambiarlo (comun.os es este mismo módulo)
+
+    def corta(*_):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(comun.os, "replace", corta)
+    with pytest.raises(KeyboardInterrupt):
+        comun.guardar_acciones("prueba", [{"origen": "x", "destino": "y"}])
+    monkeypatch.setattr(comun.os, "replace", reemplazar)  # solo esto (undo() quitaría NAVAJA_DATOS)
+    assert comun.cargar_acciones("prueba") == [{"origen": "a", "destino": "b"}]
+    assert not list(comun.directorio_datos().glob("*.navaja"))  # sin temporales sueltos
+    comun.guardar_acciones("prueba", [{"origen": "x", "destino": "y"}])  # y ya vuelve a guardar
+    assert comun.cargar_acciones("prueba") == [{"origen": "x", "destino": "y"}]

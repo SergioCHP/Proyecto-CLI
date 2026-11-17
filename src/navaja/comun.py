@@ -14,7 +14,7 @@ import subprocess
 import sys
 import tempfile
 from collections.abc import Callable, Iterable, Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -625,13 +625,24 @@ def barra_de_archivos(rutas: list[Path]) -> Iterator[Callable[[Path], None]]:
 
 
 def guardar_acciones(nombre: str, acciones: list[dict]) -> None:
-    """Guarda el registro de la última operación para poder deshacerla."""
+    """Guarda el registro de la última operación para poder deshacerla.
+
+    A un temporal y luego se cambia de golpe (``os.replace``): si se corta a medias (Ctrl+C,
+    disco lleno), queda el registro de antes entero, nunca uno roto que se lea como vacío.
+    """
     ruta = directorio_datos() / f"{nombre}_deshacer.json"
     datos = {
         "cuando": datetime.now().isoformat(timespec="seconds"),
         "acciones": acciones,
     }
-    ruta.write_text(json.dumps(datos, ensure_ascii=False, indent=2), encoding="utf-8")
+    temporal = ruta.with_name(ruta.name + ".navaja")
+    try:
+        temporal.write_text(json.dumps(datos, ensure_ascii=False, indent=2), encoding="utf-8")
+        os.replace(temporal, ruta)
+    except BaseException:
+        with suppress(OSError):
+            temporal.unlink(missing_ok=True)
+        raise
 
 
 def cargar_acciones(nombre: str) -> list[dict]:

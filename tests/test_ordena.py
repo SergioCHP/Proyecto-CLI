@@ -244,3 +244,90 @@ def test_deshacer_con_un_error_se_puede_reintentar(descargas, monkeypatch):
     monkeypatch.setattr(modulo.shutil, "move", mover)
     assert ordena("deshacer", "--si").exit_code == 0  # el reintento devuelve la foto
     assert relativos(descargas) == antes and not [p for p in descargas.iterdir() if p.is_dir()]
+
+
+def test_ctrl_c_a_medias_guarda_lo_movido_para_deshacer(descargas, monkeypatch):
+    import shutil
+
+    from navaja.comandos import ordena as modulo
+
+    antes = relativos(descargas)
+    mover = shutil.move
+    movidos = []
+
+    def corta_en_el_segundo(origen, destino):
+        if movidos:
+            raise KeyboardInterrupt
+        movidos.append(origen)
+        return mover(origen, destino)
+
+    monkeypatch.setattr(modulo.shutil, "move", corta_en_el_segundo)
+    resultado = ordena("fecha", "-c", str(descargas))
+    assert resultado.exit_code == 130
+    assert "Cortado a medias: 1 archivo movido antes de cortar" in " ".join(resultado.output.split())
+    monkeypatch.setattr(modulo.shutil, "move", mover)  # solo esto (undo() quitaría NAVAJA_DATOS)
+    assert ordena("deshacer", "--si").exit_code == 0
+    assert relativos(descargas) == antes and not [p for p in descargas.iterdir() if p.is_dir()]
+
+
+def test_deshacer_desde_otra_carpeta_con_c_punto(descargas, tmp_path, monkeypatch):
+    antes = relativos(descargas)
+    monkeypatch.chdir(descargas)
+    assert ordena("fecha").exit_code == 0  # -c . por defecto
+    monkeypatch.chdir(tmp_path)  # en otra carpeta
+    resultado = ordena("deshacer", "--si")
+    assert resultado.exit_code == 0, resultado.output
+    assert relativos(descargas) == antes
+
+
+def test_ctrl_c_al_guardar_el_registro_no_lo_pierde(descargas, monkeypatch):
+    from navaja.comandos import ordena as modulo
+
+    antes = relativos(descargas)
+    guardar = modulo.guardar_acciones
+    llamadas = []
+
+    def corta_la_primera_vez(nombre, acciones):
+        llamadas.append(1)
+        if len(llamadas) == 1:
+            raise KeyboardInterrupt  # todo movido, justo antes de guardar
+        return guardar(nombre, acciones)
+
+    monkeypatch.setattr(modulo, "guardar_acciones", corta_la_primera_vez)
+    assert ordena("fecha", "-c", str(descargas)).exit_code == 130
+    monkeypatch.setattr(modulo, "guardar_acciones", guardar)
+    assert ordena("deshacer", "--si").exit_code == 0
+    assert relativos(descargas) == antes
+
+
+def test_ctrl_c_justo_despues_de_mover_tambien_se_apunta(descargas, monkeypatch):
+    import shutil
+
+    from navaja.comandos import ordena as modulo
+
+    antes = relativos(descargas)
+    mover = shutil.move
+
+    def mueve_y_corta(origen, destino):
+        mover(origen, destino)
+        raise KeyboardInterrupt  # movido, pero antes de apuntarlo
+
+    monkeypatch.setattr(modulo.shutil, "move", mueve_y_corta)
+    resultado = ordena("fecha", "-c", str(descargas))
+    assert resultado.exit_code == 130 and "1 archivo movido" in " ".join(resultado.output.split())
+    monkeypatch.setattr(modulo.shutil, "move", mover)
+    assert ordena("deshacer", "--si").exit_code == 0
+    assert relativos(descargas) == antes and not [p for p in descargas.iterdir() if p.is_dir()]
+
+
+def test_ctrl_c_en_el_primero_no_mueve_nada(descargas, monkeypatch):
+    from navaja.comandos import ordena as modulo
+
+    def corta(*_):
+        raise KeyboardInterrupt
+
+    antes = relativos(descargas)
+    monkeypatch.setattr(modulo.shutil, "move", corta)
+    resultado = ordena("fecha", "-c", str(descargas))
+    assert resultado.exit_code == 130 and "no se ha movido nada" in resultado.output
+    assert relativos(descargas) == antes and not [p for p in descargas.iterdir() if p.is_dir()]

@@ -1030,9 +1030,7 @@ cosas mal:
 - Tests: los de los fallos fallan con el código de antes; los demás vigilan lo que ya iba
   bien (el primer archivo que falla, un registro antiguo, reintentar el deshacer). 727
   pasando y 1 saltado.
-- Sin tocar: `lotes.expandir` (convierte, imagen, pdf…) aún toma «[» como comodín; en
-  `ordena`, Ctrl+C a mitad no guarda nada para deshacer (ya pasaba) y con `-c .` el
-  registro guarda rutas relativas (ya pasaba; las «creadas» ya van absolutas).
+- Sin tocar: `lotes.expandir` (convierte, imagen, pdf…) aún toma «[» como comodín.
 
 ### 2026-11-17 — «el-mas-nuevo» y el cambio de hora de los USB FAT32
 
@@ -1060,6 +1058,29 @@ cosas mal:
   (con copia-aparte y con el-mas-nuevo); «míralo tú» con menos de una hora; entre NTFS una
   hora justa no es la misma copia (también de punta a punta, ejecutando). README al día.
   734 pasando y 1 saltado.
+
+### 2026-11-17 — `ordena`: Ctrl+C a medias y deshacer desde otra carpeta
+
+- Con Ctrl+C a mitad de ordenar no se guardaba nada: lo ya movido no se podía deshacer.
+  Ahora se guarda, avisa («Cortado a medias: N archivos movidos antes de cortar») y sale
+  con 130, como las acciones.
+- Con `-c .` (lo de por defecto) el registro guardaba rutas relativas y `ordena deshacer`
+  desde otra carpeta no encontraba los archivos. Ahora `ordenar` empieza con rutas
+  absolutas (`os.path.abspath`); el plan se sigue enseñando igual. Los registros que ya
+  estuvieran guardados con rutas relativas se deshacen como antes (desde su carpeta).
+- Tras el revisor, los huecos del Ctrl+C:
+  - Justo después de moverlo todo y antes de guardar: el guardado va dentro de lo que
+    protege el Ctrl+C (antes se perdía el registro entero).
+  - Justo entre mover un archivo y apuntarlo: si ya está en su destino, se apunta.
+  - Mientras se recoge, otro Ctrl+C se ignora (`lotes.sin_ctrl_c`); el aviso dice también
+    los fallos de antes del corte.
+  - **`comun.guardar_acciones`** escribía vaciando el archivo primero: cortado a medias, el
+    registro quedaba roto (se leía como vacío) y el anterior ya se había perdido. Ahora a un
+    temporal y `os.replace`. Vale para todos los registros (acciones, copia, ordena…).
+- Sin arreglar: Ctrl+C a mitad de mover entre dos unidades (`-d` en un USB): `shutil.move`
+  copia y luego borra, y puede quedar el archivo a medias en el destino, o duplicado, sin
+  apuntar.
+- Los seis tests nuevos fallan con el código de antes. 740 pasando y 1 saltado.
 
 ## Decisiones técnicas
 

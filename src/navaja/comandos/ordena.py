@@ -7,12 +7,14 @@ de ``filtros.py``), enseñan «archivo → carpeta», preguntan [s/n] y mueven
 
 from __future__ import annotations
 
+import os
 import shutil
 from collections import Counter
 from collections.abc import Callable
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
+from typing import NoReturn
 
 import typer
 from rich.markup import escape
@@ -58,6 +60,7 @@ from ..filtros import (
     sin_tildes,
     tipo_de,
 )
+from ..lotes import sin_ctrl_c
 
 Carpeta = Callable[[Path], str]
 """Recibe el archivo y devuelve la subcarpeta a la que va (por ejemplo «Imagenes»)."""
@@ -138,6 +141,10 @@ def ordenar(
     si: bool,
 ) -> None:
     """El camino común: elegir → plan → confirmar → mover → guardar para deshacer."""
+    # rutas absolutas: el registro de deshacer no depende de desde dónde lo ejecutes
+    # (con «-c .», «ordena deshacer» desde otra carpeta no encontraba los archivos)
+    carpeta = Path(os.path.abspath(carpeta))
+    destino = Path(os.path.abspath(destino)) if destino is not None else None
     if not carpeta.is_dir():
         error_console.print(f"[error]La carpeta no existe:[/] {escape(str(carpeta))}", soft_wrap=True)
         raise typer.Exit(1)
@@ -174,30 +181,56 @@ def ordenar(
 
     realizados: list[dict] = []
     errores = 0
-    for movimiento in movimientos:
-        origen, destino_final = Path(movimiento["origen"]), Path(movimiento["destino"])
-        try:
-            nuevas = crear_carpetas(destino_final.parent)  # deshacer solo quitará estas
+    en_curso: dict | None = None  # el que se está moviendo (por si el Ctrl+C cae justo después)
+    try:
+        for movimiento in movimientos:
+            origen, destino_final = Path(movimiento["origen"]), Path(movimiento["destino"])
             try:
-                shutil.move(str(origen), str(destino_final))
-            except BaseException:
-                quitar_vacias(nuevas)  # que no quede vacía y sin apuntar
-                raise
-            realizados.append({"origen": str(origen), "destino": str(destino_final), "creadas": [str(c) for c in nuevas]})
-        except OSError as exc:
-            errores += 1
-            error_console.print(
-                f"[error]No se pudo mover[/] {escape(str(origen))}: {escape(str(exc))}",
-                soft_wrap=True,
-            )
+                nuevas = crear_carpetas(destino_final.parent)  # deshacer solo quitará estas
+                en_curso = {"origen": str(origen), "destino": str(destino_final), "creadas": [str(c) for c in nuevas]}
+                try:
+                    shutil.move(str(origen), str(destino_final))
+                except BaseException:
+                    quitar_vacias(nuevas)  # que no quede vacía y sin apuntar
+                    raise
+                realizados.append(en_curso)
+                en_curso = None
+            except OSError as exc:
+                en_curso = None
+                errores += 1
+                error_console.print(
+                    f"[error]No se pudo mover[/] {escape(str(origen))}: {escape(str(exc))}",
+                    soft_wrap=True,
+                )
+        if realizados:  # dentro: un Ctrl+C justo aquí no debe perder el registro
+            guardar_acciones("ordena", realizados)
+    except KeyboardInterrupt:
+        cortado(realizados, en_curso, errores)
 
-    if realizados:
-        guardar_acciones("ordena", realizados)
     console.print(f"[ok]{'Movido' if len(realizados) == 1 else 'Movidos'} {cuantos(len(realizados), 'archivo')}.[/]")
     if errores:
         console.print(f"[aviso]No se pudo mover: {cuantos(errores, 'archivo')}.[/]")
     if realizados:
         console.print(f"[pista]Para deshacerlo: {como_se_escribe('ordena deshacer')}[/]")
+
+
+def cortado(realizados: list[dict], en_curso: dict | None, errores: int) -> NoReturn:
+    """Ctrl+C a medias: guarda lo ya movido para ``ordena deshacer``, lo dice y sale con 130.
+    Mientras, otro Ctrl+C se ignora (dejaría el registro sin guardar)."""
+    with sin_ctrl_c():
+        if en_curso is not None and Path(en_curso["destino"]).exists() and not Path(en_curso["origen"]).exists():
+            realizados.append(en_curso)  # se movió, pero el Ctrl+C llegó antes de apuntarlo
+        if realizados:
+            guardar_acciones("ordena", realizados)
+            fallos = f" y {cuantos(errores, 'fallo')}" if errores else ""
+            console.print(
+                f"[aviso]Cortado a medias: {cuantos(len(realizados), 'archivo movido', 'archivos movidos')}"
+                f"{fallos} antes de cortar.[/] [pista]Para deshacerlo: {como_se_escribe('ordena deshacer')}[/]",
+                soft_wrap=True,
+            )
+        else:
+            console.print("[aviso]Cortado: no se ha movido nada.[/]")
+    raise typer.Exit(130)
 
 
 # ── A qué carpeta va cada archivo ──────────────────────────────────────────
