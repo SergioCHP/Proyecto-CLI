@@ -13,12 +13,13 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
 4. **Órdenes que ya tiene:** `listar`, `ocupa`, `limpia`, `arbol`, `busca`, `comprime`,
    `extrae`, `ordena`, `renombra`, `duplicados`, `copia`, `notas`, `convierte`, `cuenta`,
    `fondo`, `baja`, `qr`, `pdf`, `imagen`, `base`, `chmod`, `subred` (`ver`, `dividir`, `vlsm`,
-   `misma`, `practica`), `hash`, `genera`, `clave`, `doctor`,
+   `misma`, `practica`), `estudia` (`repasa`, `importa`, `estadisticas`), `foco` (`empieza`,
+   `historial`), `entregas` (`agregar`, `listar`, `hecha`, `borrar`), `chuleta`, `nuevo`, `hoy`,
+   `compara`, `hash`, `genera`, `clave`, `doctor`,
    `acciones` (`ver`, `ejecutar`, `deshacer`, `versiones`,
    `editar`, `validar`), `tema`, `config` (también `config autocompletar`, Tab en PowerShell),
    `manual` y `version`. Dentro de navaja, Tab completa y ↑ ↓ recuperan lo de antes.
-5. **Órdenes previstas:** las de estudio y proyectos (`nuevo`, `hoy`, `falsos`…), en el
-   documento de ideas.
+5. **Órdenes previstas:** se eligen una a una de la lista de ideas, según hagan falta.
 6. **Acciones:** `ordenar-descargas`, `imagenes-ia`, `instaladores-viejos`,
    `fotos-con-fecha` y la rutina `limpieza-semanal`. La que más uso es
    `ordenar-descargas`, porque me gusta tenerlo todo en orden.
@@ -67,6 +68,13 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
 | `navaja subred` | Calculadora de subredes para clase. `ver 192.168.10.200/26` (o `ver 192.168.10.200 255.255.255.192`, o solo la IP con la máscara de su clase): red, broadcast, primer y último equipo, hosts útiles, máscara, wildcard, clase, si es privada, pública, loopback o APIPA, y la IP en binario con los bits de red y de host en colores distintos. `dividir RED N` (partes iguales, FLSM), `vlsm RED 50 20 10` (por equipos, de mayor a menor; con nombre: `ventas:50`), `misma IP1 IP2` (¿se hablan sin router?) y `practica` (ejercicios al azar que corrige y explica paso a paso). Solo calcula: no toca la red ni los archivos. |
 | `navaja hash` | Huellas MD5, SHA-1 y SHA-256 de un archivo (`hash archivo ubuntu.iso`) o de un texto (`hash texto hola`). Con `--compara` dice si coincide con la que da la web (sale con 1 si no). Lee por trozos: vale para ISO de varios GB. |
 | `navaja genera` | `uuid`, `lorem` (texto de relleno) y `numero MIN MAX` (al azar; con `--sin-repetir`, un sorteo). |
+| `navaja estudia` | Tarjetas de memoria con repetición espaciada (algoritmo SM-2, como Anki), sacadas de tus apuntes en `.md`: una línea `P: pregunta` y otra `R: respuesta` (que puede seguir en las líneas de debajo). `estudia importa CARPETA -a asignatura` las guarda (si una pregunta ya estaba con otra respuesta, la cambia sin perder lo aprendido; con `--simular` solo cuenta). `estudia` (o `estudia repasa`) te pregunta las que tocan hoy: Intro para ver la respuesta y `1` otra vez, `2` difícil, `3` bien, `4` fácil, `s` salir; una fallada vuelve en la misma sesión. `estudia estadisticas`: tarjetas, pendientes, aprendidas y racha de días. Se guardan en `estudia.db`. |
+| `navaja foco` | Pomodoro con cuenta atrás grande en la terminal, aviso con sonido (el de Windows, o el pitido en Linux) e historial. Solo `foco` es un bloque de 25 minutos; `foco empieza -t 50 -d 10 -b 3 -a redes` cambia minutos de trabajo, de descanso, bloques y asignatura; con `--simular` enseña el plan sin esperar. Con Ctrl+C se para y lo que llevabas se apunta si pasó un minuto. `foco historial` suma el tiempo por asignatura. Se guarda en `foco.db`. |
+| `navaja entregas` | Deberes y exámenes con fecha: `agregar "Práctica CLI" 20/11 -a programación` (la fecha puede ser `2026-12-15`, `15/12/2026`, `15/12`, `hoy`, `mañana` o `+3`; con `--examen` es un examen), `listar` (con cuenta atrás: rojo si queda menos de 2 días, amarillo si menos de una semana, y `--todas` enseña las hechas), `hecha N` y `borrar N`. Al abrir navaja en modo interactivo, el saludo avisa de lo que vence pronto. Se guarda en `entregas.db`. |
+| `navaja chuleta [TEMA]` | Chuletas cortas y en castellano de `git`, `linux` y `powershell` (con una tabla «De Linux a PowerShell»), sin internet. Sin tema, la lista. Con `--editar`, abre tu copia en el editor (la crea copiando la de navaja, o con una plantilla si el tema es nuevo); las tuyas se guardan en `chuletas/` de la carpeta de datos y tapan a la de navaja con el mismo nombre. |
+| `navaja nuevo NOMBRE` | Crea un proyecto listo para trabajar: carpeta, `README.md`, el `.gitignore` del lenguaje y una plantilla (`-l python`: `src/main.py` y `tests/`; `-l java`: `src/Main.java`; `-l web`: `index.html`, `css/`, `js/` e `img/`), y luego `git init` (rama `main`) y el primer commit. Enseña antes lo que va a crear y pregunta `[s/n]`; `--simular` solo mira, `--sin-git` no crea repositorio y `-c CARPETA` dice dónde. Si la carpeta ya existe, crea «nombre (1)». Sin git instalado, crea los archivos y dice cómo instalarlo; si git no sabe tu nombre, explica el `git config` que falta. |
+| `navaja hoy [CARPETA]` | Tus commits de hoy en todos los repositorios git de la carpeta (mira 3 niveles hacia dentro, sin entrar en `.venv` ni `node_modules`), en todas las ramas, con hora y mensaje. Solo los tuyos (el `user.email` de cada repo); con `--todos`, los de todo el mundo. `--desde ayer`, `--desde -3` (hace 3 días), `--desde 10/11`. Con `--md`, en Markdown y sin colores para pegarlo en el diario de prácticas. |
+| `navaja compara A B` | Diferencias entre dos archivos (las líneas quitadas en rojo y las añadidas en verde, como `git diff`; `-n` líneas de contexto, `-w` sin contar espacios; avisa si solo cambian los finales de línea; de un binario dice si son iguales) o dos carpetas (qué está solo en una, solo en la otra y qué ha cambiado, sin mirar `.git` ni `node_modules`; con `--detalle`, también las líneas). No cambia nada. |
 | `navaja clave` | `nueva` (contraseña segura al azar), `frase` (palabras al azar, fácil de recordar) y `fuerza` (cómo de fuerte es la tuya: la escribes sin que se vea y no se guarda). |
 | `navaja acciones` | Tus tareas de siempre guardadas con un nombre en `acciones.json` (ordenar Descargas, copiar apuntes, quitar instaladores viejos…) para hacerlas con una orden. Con simulación, confirmación y deshacer; lo que sustituye una copia se guarda en `acciones versiones`. |
 | `navaja doctor` | Revisa que todo esté listo: Python, librerías (y las opcionales), programas de fuera (git, LibreOffice, Pandoc, FFmpeg, 7-Zip, Word, winget), la carpeta de datos, `acciones.json` y la terminal. Dice cómo arreglar lo que falta. |
@@ -90,19 +98,21 @@ menú numerado y se queda esperando órdenes hasta que escribas `salir`. Si la v
 muy estrecha (menos de 51 columnas) o la salida no es UTF-8, el saludo sale en un
 recuadro sencillo.
 
-El menú va en recuadros, uno por grupo (Archivos, Redes e informática, Programación, Lo que repites y navaja), con los
+El menú va en recuadros, uno por grupo (Archivos, Documentos e imágenes, Redes e informática, Estudio, Programación, Lo que repites y navaja), con los
 números resaltados, un icono delante de cada comando (📂 listar, 📋 copia…) y una frase
 corta que cabe en una fila (la explicación entera está en `ayuda` y en el manual).
 Los iconos salen en Windows Terminal, en la terminal de VS Code y en las de Linux y macOS;
 en la consola antigua de Windows o con una salida que no es UTF-8 se quitan solos. Trabaja en la carpeta desde
 la que entras, que se ve siempre en el prompt.
 
-El menú (y `navaja --help`) va en seis grupos. Los de **Archivos** (1-12) se usan al
+El menú (y `navaja --help`) va en siete grupos. Los de **Archivos** (1-12) se usan al
 momento: les dices qué hacer y lo hacen. **Documentos e imágenes** (13-19) convierten,
 trabajan con PDF y fotos, bajan vídeos y hacen QR, sin tocar nunca el original. **Redes e
 informática** (20-22) son calculadoras para clase: `base`, `chmod` y `subred`.
-**Programación** (23-25) es la caja de herramientas para tus proyectos: `hash`, `genera` y
-`clave`. **Lo que repites** (26) son tus acciones: recetas
+**Estudio** (23-26) es para clase y para todo lo que quieras tener a mano: `chuleta` (chuletas
+sin internet, de cualquier tema), `estudia` (tarjetas para memorizar), `foco` (pomodoro) y
+`entregas` (deberes y exámenes con cuenta atrás). **Programación** (27-32) es la caja de
+herramientas para tus proyectos: `nuevo`, `hoy`, `compara`, `hash`, `genera` y `clave`. **Lo que repites** (33) son tus acciones: recetas
 guardadas en `acciones.json` que se hacen con una palabra (`acciones ejecutar
 usb-a-pc`). Y **navaja**: colores, tu nombre y el manual.
 
@@ -463,6 +473,12 @@ navaja comprime --sin "*.log" -f tar.gz --simular
 navaja extrae practica.zip                       # enseña lo que lleva y pregunta
 navaja busca "función recursiva" ~/Documents/DAM  # ¿en qué apuntes salía esto?
 navaja doctor                                    # ¿está todo listo?
+navaja nuevo practica-redes                      # README, .gitignore, git init y primer commit
+navaja nuevo mi-web -l web -c ~/Documents/DAM     # plantilla web, en otra carpeta
+navaja hoy ~/Documents/DAM                       # tus commits de hoy en todos los repos
+navaja hoy --desde -3 --md                       # los de 3 días, en Markdown para el diario
+navaja compara v1/main.py v2/main.py             # líneas quitadas en rojo, añadidas en verde
+navaja compara entrega-vieja entrega-nueva --detalle
 
 # Documentos e imágenes
 navaja convierte trabajo.pdf a docx              # PDF a Word
@@ -500,6 +516,18 @@ navaja subred vlsm 10.0.0.0/24 ventas:100 aula:30
 navaja subred misma 192.168.1.10/24 192.168.2.5  # ¿están en la misma red?
 navaja subred practica --nivel facil             # ejercicios corregidos y explicados
 
+# Estudio
+navaja estudia importa ~/Documents/apuntes -a redes   # saca las tarjetas (líneas P: y R:)
+navaja estudia                                   # repasa las que te tocan hoy
+navaja estudia estadisticas                      # cuántas, aprendidas y racha
+navaja foco                                      # pomodoro: 25 minutos, con cuenta atrás
+navaja foco empieza -t 50 -d 10 -b 2 -a bd       # dos bloques de 50 con 10 de descanso
+navaja foco historial                            # cuánto has estudiado y de qué
+navaja entregas agregar "Práctica CLI" 20/11 -a programación
+navaja entregas agregar "Examen de redes" +10 --examen
+navaja entregas listar                           # la cuenta atrás, con colores
+navaja entregas hecha 1
+
 # Programación
 navaja hash archivo ubuntu.iso --compara 3f2a…   # ¿la descarga está bien?
 navaja genera uuid -n 3
@@ -508,6 +536,9 @@ navaja genera numero 1 30 -n 5 --sin-repetir     # un sorteo
 navaja clave nueva --largo 20
 navaja clave frase                               # nube-cobre-faro-pinza-tigre-47
 navaja clave fuerza                              # la escribes sin que se vea
+navaja chuleta                                   # los temas: git, linux, powershell y las tuyas
+navaja chuleta git                               # la chuleta de git entera
+navaja chuleta sql --editar                      # hacer una tuya (o cambiar una de navaja)
 
 # Personalizar
 navaja tema ver                 # muestra cada tema con sus colores

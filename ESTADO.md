@@ -1219,6 +1219,84 @@ cosas mal:
   adelantado, su cerrojo tarda en darse por abandonado.
 - 784 pasando y 1 saltado.
 
+### 2026-11-17 — `chuleta`: git, Linux y PowerShell sin internet
+
+- **`navaja chuleta [TEMA]`** (Programación, la 23 del menú; `hash` pasa a 24, `genera` 25,
+  `clave` 26, `acciones` 27 y navaja 28-31). Sin tema, la lista con el título de cada una y
+  si es de navaja o tuya; con tema, la chuleta entera en Markdown con los colores del tema
+  (los estilos `markdown.*` de Rich salen de `titulo`, `acento`, `pista`…).
+- **Tres chuletas** en `src/navaja/chuletas/*.md` (en el paquete con `package-data`): `git`
+  (empezar, día a día, ramas, GitHub, deshacer, stash, .gitignore), `linux` (archivos,
+  permisos, usuarios, procesos, red, apt, discos, tuberías, atajos) y `powershell` (lo mismo
+  en Windows, winget, `$PROFILE` y una tabla «De Linux a PowerShell»). SQL descartada.
+- **Las tuyas:** `chuleta NOMBRE --editar` crea `chuletas/NOMBRE.md` en la carpeta de datos
+  (copiando la de navaja o con una plantilla) y la abre en el editor; si ya existe, no la
+  pisa. Una tuya con el mismo nombre tapa a la de navaja. Una que no se puede leer o no es
+  UTF-8 se salta sin romper la lista.
+- El tema solo admite letras, números, `-` y `_` (ni barras ni `..`, ni `con`/`nul`); uno que
+  no existe sugiere el parecido («¿Querías decir git?»). Tab completa los temas.
+- Decidido (Sergio): solo se ve el tema entero, sin búsqueda dentro.
+- 10 tests en `test_chuleta.py`. 798 pasando y 1 saltado.
+
+### 2026-11-17 — Estudio: `estudia`, `foco` y `entregas`
+
+- **Sección nueva «Estudio»** en el menú y en `--help` (`ESTUDIO` en `comun.py`, con icono 🎓
+  en `interactivo.py`), entre «Redes e informática» y «Programación». Los números del menú
+  cambian: Estudio 23-25, Programación 26-29, acciones 30 y navaja 31-34.
+- **`navaja estudia`** (`comandos/estudia.py`): tarjetas con repetición espaciada, SM-2 hecho a
+  mano (`siguiente()`: 1 día, 6 días y luego intervalo × facilidad; la facilidad nunca baja de
+  1,3 y fallar no la toca). `importa` lee líneas `P:` / `R:` de los `.md` (con viñeta, la
+  pregunta o la respuesta en varias líneas) de un archivo o carpeta; si la pregunta ya estaba
+  con otra respuesta, la cambia sin perder lo aprendido; `--simular` solo cuenta. `repasa`
+  (también `navaja estudia` a secas) pregunta las de hoy: `1` otra vez, `2` difícil, `3` bien,
+  `4` fácil (calidades SM-2 1, 3, 4 y 5), `s` salir; una fallada vuelve en la misma sesión.
+  `estadisticas`: tarjetas, pendientes, sin estudiar, aprendidas (intervalo de 21 días o más),
+  repasadas hoy y racha. SQLite en `estudia.db` (`tarjetas` y `repasos`).
+- **`navaja foco`** (`comandos/foco.py`): pomodoro con cuenta atrás grande (`rich.live`, cifras
+  de 5 líneas; con `#` si la salida no es UTF-8) y sonido (`winsound` en Windows, `\a` en
+  Linux). `foco` a secas = un bloque de 25 min; `foco empieza` con `-t`, `-d`, `-b`, `-a` y
+  `--simular`; el descanso no se hace tras el último bloque. Con Ctrl+C se para y se apunta lo
+  que llevabas si pasó un minuto. `foco historial` suma por asignatura. SQLite en `foco.db`.
+- **`navaja entregas`** (`comandos/entregas.py`): `agregar`, `listar`, `hecha` y `borrar`, con
+  `--simular` en las que cambian algo. Fechas: `2026-12-15`, `15/12/2026`, `15/12` (la próxima),
+  `hoy`, `mañana` o `+3`. Rojo si queda menos de 2 días, amarillo si menos de 7. El saludo del
+  modo interactivo avisa de lo que vence pronto (`aviso_de_pendientes()`, nunca falla).
+  SQLite en `entregas.db`.
+- Decidido por mí (Sergio no lo pidió): `foco` y `estudia` sin subcomando hacen lo más común, y
+  además tienen subcomandos para que el menú numerado los ofrezca; un bloque de `foco` parado
+  antes del minuto no se apunta.
+- 69 tests nuevos (`test_entregas.py`, `test_foco.py`, `test_estudia.py`); `test_ayuda.py`
+  cuenta la sección nueva. Probado fuera de tu PC (Linux, Typer 0.29): en esa máquina hay 11
+  tests antiguos de `test_ayuda.py` y `test_interactivo.py` que fallan por la versión de
+  Typer/Click, también sin estos cambios; ejecuta toda la suite en tu equipo.
+
+### 2026-11-17 — `nuevo`, `hoy` y `compara` (Programación)
+
+- **Menú:** las tres van en Programación (los comandos sueltos salen antes que los grupos).
+  `chuleta` pasa a Estudio (Sergio: «chuleta vale para todo, no solo programación»): Estudio
+  23-26 (`chuleta`, `estudia`, `foco`, `entregas`), Programación 27-32, acciones 33 y navaja
+  34-37.
+- **`navaja nuevo NOMBRE`** (`comandos/nuevo.py`): plantillas `python` (por defecto), `java` y
+  `web` con su `.gitignore` (más uno común de sistema y editores), `README.md` con cómo se
+  ejecuta, y `git init -b main` (o `git init` con un git anterior a 2.28) + primer commit.
+  Plan y `[s/n]` (`--si`), `--simular`, `--sin-git`, `-c CARPETA` (el menú la pregunta). Nunca
+  pisa: «nombre (1)». Nombre comprobado con `problema_del_nombre`. Sin git o sin `user.name`,
+  explica qué hacer en vez de fallar.
+- **`navaja hoy [CARPETA]`** (`comandos/hoy.py`): busca repositorios hasta 3 niveles (sin entrar
+  en uno ya encontrado, ni en `.venv`, `node_modules`, `dist`…) y saca `git log --all
+  --no-merges --since` de cada uno filtrado por su `user.email` (`--fixed-strings`, para que un
+  `+` del email no sea regex). `--todos`, `--desde` (`hoy`, `ayer`, `-3`, `10/11` = la última,
+  `2026-11-10`) y `--md`. Un repo sin commits no rompe nada.
+- **`navaja compara A B`** (`comandos/compara.py`): `difflib.unified_diff` con colores del tema
+  (cada línea como `Text`, así un `[bold]` del archivo no es markup), `-n` contexto, `-w` sin
+  espacios. Lee UTF-8 o, si no, Windows-1252; binario o más de 5 MB: solo iguales/distintos;
+  como mucho 400 líneas por archivo. Carpetas con `filecmp` (contenido, no fecha), sin `.git`,
+  `.venv`, `node_modules`…; `--detalle` añade las líneas. Solo mira, nunca cambia nada.
+- 38 tests nuevos (`test_nuevo.py`, `test_hoy.py`, `test_compara.py`) con git de verdad y una
+  configuración propia (`tests/ayudantes_git.py`: `GIT_CONFIG_GLOBAL`, no toca la tuya); se
+  saltan si no hay git. Probado en Linux: sin fallos nuevos (siguen los 11 de la versión de
+  Typer/Click de esa máquina).
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.
@@ -1310,7 +1388,9 @@ cosas mal:
   - `busca`: el tope de 20 MB no se aplica a PDF ni a docx (uno de 500 MB se lee entero).
   - `qr --guardar foto.jpg` lo cambia a `foto.png` sin avisar; los mensajes con
     `error.strerror` salen en inglés en Windows («Permission denied»).
-- [ ] Fase 3 (documento de ideas): primero `nuevo`, `hoy` y `falsos`; `portada` descartada.
+- [ ] Fase 3 (documento de ideas): `chuleta`, `estudia`, `foco` y `entregas` hechas; también `nuevo`, `hoy` y `compara`. El resto, solo si hace falta (Sergio,
+  2026-11-17: «no las quiero todas»). Quedan `falsos`, `sql`, `regex` y `tiempo`; de estudio,
+  `apuntes` y `horario` (aparcadas: «pasamos ya de estudio»). `portada` descartada.
 - [ ] `baja`: no se puede probar de verdad aquí (sin internet a YouTube); probarlo en casa.
 - [ ] `convierte`: EPUB, SRT, RAR y SVG (ideas de Filee); `pdf`: varias páginas por hoja.
 - [ ] `extrae`: zip con contraseña, RAR y 7z (con 7-Zip). `arbol` y `comprime`: los

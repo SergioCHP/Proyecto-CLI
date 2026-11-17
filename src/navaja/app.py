@@ -19,21 +19,28 @@ from .comandos import (
     base,
     busca,
     chmod,
+    chuleta,
     clave,
+    compara,
     comprime,
     convierte,
     copia,
     cuenta,
     doctor,
     duplicados,
+    entregas,
+    estudia,
     extrae,
+    foco,
     fondo,
     genera,
+    hoy,
     huella,
     imagen,
     listar,
     mis_acciones,
     notas,
+    nuevo,
     ocupa,
     ordena,
     pdf,
@@ -53,7 +60,8 @@ app = typer.Typer(
         "[bold]convierte[/], [bold]cuenta[/], [bold]fondo[/], [bold]baja[/], [bold]qr[/], "
         "[bold]pdf[/], [bold]imagen[/], [bold]base[/], "
         "[bold]chmod[/], [bold]subred[/], [bold]hash[/], [bold]genera[/], "
-        "[bold]clave[/], [bold]acciones[/], [bold]doctor[/], "
+        "[bold]clave[/], [bold]chuleta[/], [bold]nuevo[/], [bold]hoy[/], [bold]compara[/], [bold]estudia[/], [bold]foco[/], "
+        "[bold]entregas[/], [bold]acciones[/], [bold]doctor[/], "
         "[bold]tema[/], [bold]config[/] y [bold]manual[/] (explica todo)."
     ),
     add_completion=False,
@@ -121,6 +129,8 @@ def principal(
             if not config["nombre"]:  # la primera vez
                 config["nombre"] = ajustes.preguntar_nombre()
             _mostrar_cabecera(config)
+            if aviso := entregas.aviso_de_pendientes():
+                console.print(aviso)
             interactivo.iniciar(app)
         else:
             _mostrar_bienvenida(config)
@@ -136,7 +146,8 @@ for modulo in (
     listar, ocupa, arbol, busca, comprime, extrae, ordena, renombra, duplicados, copia, notas,
     convierte, cuenta, fondo, baja, qr, pdf, imagen,
     base, chmod, subred,
-    huella, genera, clave,
+    estudia, foco, entregas,
+    huella, genera, clave, chuleta, nuevo, hoy, compara,
     mis_acciones, doctor, ajustes, ayuda,
 ):
     modulo.registrar(app)

@@ -38,6 +38,9 @@ nav = "navaja.app:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+navaja = ["chuletas/*.md"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
