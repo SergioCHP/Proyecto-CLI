@@ -656,6 +656,7 @@ def test_ctrl_c_si_la_vieja_no_vuelve_queda_apuntada_en_versiones(tmp_path, monk
 
     pc, usb, ruta = usb_y_pc_con_cambio(tmp_path)
     mover_de_verdad = modulo.shutil.move
+    replace_de_verdad = modulo.os.replace
     llamadas = []
 
     def replace_cortado(*args, **kwargs):
@@ -671,9 +672,9 @@ def test_ctrl_c_si_la_vieja_no_vuelve_queda_apuntada_en_versiones(tmp_path, monk
     monkeypatch.setattr(modulo.shutil, "move", move_que_falla_al_devolver)
     resultado = acciones("ejecutar", "ida", config=ruta)
     assert resultado.exit_code == 130  # Ctrl+C (con 1, el OSError de devolver taparía el corte)
-    monkeypatch.undo()
-    monkeypatch.setenv("NAVAJA_DATOS", str(tmp_path / "datos_navaja"))
-    monkeypatch.setenv("COLUMNS", "120")
+    # solo lo que cambió este test: undo() quitaría también NAVAJA_DATOS (los datos reales)
+    monkeypatch.setattr(modulo.os, "replace", replace_de_verdad)
+    monkeypatch.setattr(modulo.shutil, "move", mover_de_verdad)
     assert "a.txt" in acciones("versiones", "ver").output  # no se ha perdido
 
 
@@ -698,9 +699,7 @@ def test_ctrl_c_a_medias_guarda_lo_hecho_para_deshacer(tmp_path, monkeypatch):
     assert resultado.exit_code == 130  # Ctrl+C
     assert "Cortado a medias: 1 archivo copiado antes de cortar." in plano(resultado.output)
     assert relativos(copia) == {"a.txt"}
-    monkeypatch.undo()
-    monkeypatch.setenv("NAVAJA_DATOS", str(tmp_path / "datos_navaja"))
-    monkeypatch.setenv("COLUMNS", "120")
+    monkeypatch.setattr(modulo.shutil, "copy2", copiar_de_verdad)  # solo esto: ver arriba
     acciones("deshacer", entrada="s\n")
     assert relativos(copia) == set()
 

@@ -68,3 +68,24 @@ def test_preparar_salida_no_toca_lo_que_ya_es_utf8_ni_lo_que_no_se_puede_cambiar
     preparar_salida(flujo, {"MSYSTEM": "MINGW64"})
     assert flujo.encoding == "utf-8" and flujo.errors == "strict"
     preparar_salida(object(), {})  # sin reconfigure: no pasa nada
+
+
+def test_crear_carpetas_dice_cuales_son_nuevas(tmp_path):
+    from navaja.comun import carpetas_creadas, carpetas_supuestas, crear_carpetas, quitar_vacias
+
+    (tmp_path / "ya").mkdir()
+    nuevas = crear_carpetas(tmp_path / "ya" / "a" / "b")
+    assert nuevas == [tmp_path / "ya" / "a", tmp_path / "ya" / "a" / "b"]
+    assert crear_carpetas(tmp_path / "ya" / "a" / "b") == []  # ya existen
+    (tmp_path / "ya" / "a" / "f.txt").write_text("x")
+    quitar_vacias(nuevas)  # «b» vacía fuera; «a» tiene un archivo: se queda
+    assert (tmp_path / "ya" / "a").is_dir() and not (tmp_path / "ya" / "a" / "b").exists()
+    (tmp_path / "es-archivo").write_text("x")
+    with pytest.raises(OSError):
+        crear_carpetas(tmp_path / "es-archivo" / "dentro")  # no se puede: OSError, sin traza
+    destino = tmp_path / "x" / "y" / "f.txt"
+    assert carpetas_creadas({"creadas": []}, destino) == []
+    assert carpetas_creadas({"creadas": [str(tmp_path / "x")]}, destino) == [tmp_path / "x"]
+    assert carpetas_creadas({"creadas": None}, destino) == [] and carpetas_creadas({"creadas": "C:/"}, destino) == []
+    assert carpetas_creadas({}, destino) is None  # registro de antes de apuntarlas
+    assert carpetas_supuestas(destino) == [tmp_path / "x" / "y", tmp_path / "x"]

@@ -214,3 +214,33 @@ def test_por_letra(vacia):
     }
     ordena("deshacer", "--si")
     assert relativos(vacia) == {"Activitat.pdf", "apuntes.txt", "Boletin.pdf", "0465983.pdf"}
+
+
+def test_deshacer_no_quita_una_carpeta_vacia_que_ya_estaba(descargas):
+    (descargas / "2026").mkdir()  # tuya, vacía, de antes: ordena mete ahí «2026/09 septiembre»
+    ordena("fecha", "-c", str(descargas))
+    assert ordena("deshacer", "--si").exit_code == 0
+    assert [p.name for p in descargas.iterdir() if p.is_dir()] == ["2026"]  # las que creó, fuera
+
+
+def test_deshacer_con_un_error_se_puede_reintentar(descargas, monkeypatch):
+    import shutil
+
+    from navaja.comandos import ordena as modulo
+
+    antes = relativos(descargas)
+    ordena("fecha", "-c", str(descargas))
+    mover = shutil.move
+
+    def foto_bloqueada(origen, destino):
+        if Path(origen).name == "foto.jpg":
+            raise PermissionError(13, "Permiso denegado")  # abierta en el visor de fotos
+        return mover(origen, destino)
+
+    monkeypatch.setattr(modulo.shutil, "move", foto_bloqueada)
+    resultado = ordena("deshacer", "--si")
+    assert resultado.exit_code == 1 and "ordena deshacer" in resultado.output
+    # solo lo que cambió este test (undo() quitaría también NAVAJA_DATOS: datos reales)
+    monkeypatch.setattr(modulo.shutil, "move", mover)
+    assert ordena("deshacer", "--si").exit_code == 0  # el reintento devuelve la foto
+    assert relativos(descargas) == antes and not [p for p in descargas.iterdir() if p.is_dir()]

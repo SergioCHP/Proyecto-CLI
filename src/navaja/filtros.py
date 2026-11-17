@@ -258,7 +258,10 @@ def seleccionar(carpeta: Path, filtro: Filtro) -> list[Path]:
         if texto and texto not in archivo.name.lower():
             continue
         if inicio or fin:
-            momento = datetime.fromtimestamp(archivo.stat().st_mtime)
+            try:
+                momento = datetime.fromtimestamp(archivo.stat().st_mtime)
+            except OSError:  # ha desaparecido mientras se elegía (una descarga a medias): fuera
+                continue
             if (inicio and momento < inicio) or (fin and momento > fin):
                 continue
         elegidos.append(archivo)

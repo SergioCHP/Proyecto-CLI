@@ -996,6 +996,44 @@ cosas mal:
 - Pendiente: probar el plan B con un LibreOffice de verdad (perfil nuevo que ya trae el
   `.xcu`). Al intentarlo, el .docx de prueba ya no estaba en `~/pruebas-navaja`.
 
+### 2026-11-17 — Deshacer sin quitar carpetas tuyas; comodines de `copia`; filtro de fechas
+
+- **Deshacer** (acciones, `copia` y `ordena`) quitaba las carpetas que quedaban vacías
+  (la del archivo y la de encima) aunque ya existieran antes: podía borrar una carpeta
+  vacía tuya. Ahora `comun.crear_carpetas` crea la de destino (de una en una, con rutas
+  absolutas) y devuelve solo las que no existían; se guardan en el registro («creadas»,
+  también en `Borrar` para su carpeta de la papelera). Al deshacer se juntan las de
+  **todos** los registros (la crea el primer archivo, pero la usan los demás) y se quitan
+  si han quedado vacías. Si un archivo falla (o Ctrl+C) tras crear su carpeta, se quita en
+  el momento, y el siguiente la vuelve a crear y la apunta. Si al deshacer algo queda
+  pendiente, las carpetas que siguen ahí pasan al registro pendiente. Un registro de antes,
+  sin «creadas», se deshace como entonces (`carpetas_supuestas`, nunca una de origen).
+  (Primera versión, corregida por el revisor: apuntaba la carpeta solo en el primer
+  archivo, y si ese fallaba o no se deshacía, la carpeta se quedaba para siempre.)
+- **Comodines de `copia`**: ya no cogen ocultos ni de sistema (desktop.ini, Thumbs.db),
+  como la lista del menú (por su nombre, sí). Solo `*` y `?` son comodines: los corchetes
+  van tal cual, así que «tema[1].pdf» que no existe da «no lo encuentro» (antes cogía
+  tema1.pdf) y `*[borrador].pdf` encuentra «apuntes [borrador].pdf». `**.pdf` ya no da
+  traza en Python 3.12, y un comodín en la carpeta (`te*/a.pdf`) dice que solo valen en el
+  nombre.
+- **Filtro de fechas** (`filtros.seleccionar`): un archivo que desaparece mientras se elige
+  (una descarga a medias) se salta en vez de dar traza.
+- **`ordena deshacer`** borraba el registro aunque algún archivo no se pudiera devolver (ya
+  no se podía reintentar) y salía con 0. Ahora guarda lo pendiente, como las acciones, y
+  sale con 1 (`comun.pasar_a_pendientes`, compartida).
+- **Tests y datos reales:** `monkeypatch.undo()` deshace también el `NAVAJA_DATOS` del
+  `conftest`. Dos tests nuevos lo usaban y su segundo «deshacer» corrió sobre la carpeta de
+  datos real (no había registros de `ordena` ni `copia`: no se movió nada; comprobado que
+  notas, config y demás siguen con sus fechas). Ahora cada test devuelve solo lo que cambió;
+  quitados también los dos `undo()` de `test_acciones.py` (eran seguros porque ponían
+  `NAVAJA_DATOS` otra vez, pero frágiles). **No usar `monkeypatch.undo()` en los tests.**
+- Tests: los de los fallos fallan con el código de antes; los demás vigilan lo que ya iba
+  bien (el primer archivo que falla, un registro antiguo, reintentar el deshacer). 727
+  pasando y 1 saltado.
+- Sin tocar: `lotes.expandir` (convierte, imagen, pdf…) aún toma «[» como comodín; en
+  `ordena`, Ctrl+C a mitad no guarda nada para deshacer (ya pasaba) y con `-c .` el
+  registro guarda rutas relativas (ya pasaba; las «creadas» ya van absolutas).
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.
@@ -1043,9 +1081,6 @@ cosas mal:
 - [ ] Historial de deshacer (varias operaciones, no solo la última).
 - [x] ADR-0001 (por qué acciones.json) y `docs/prompts.md`.
 - [ ] Mejoras que dejó el revisor (de `src/navaja/motor.py`) y no he arreglado todavía:
-  - `filtros.py:256`: el `stat()` del filtro de fechas no está protegido. Si un archivo
-    desaparece mientras se elige (una descarga a medias), sale una traza. Es muy raro y
-    no hace daño: no se toca nada ni se pierde nada.
   - `motor.py:112`: `except ValueError` es demasiado amplio y el mensaje no dice qué
     campo falla. Hoy solo lo provocan plantillas de nombre malas, que ya se comprueban
     antes al validar; tocarlo ahora arriesga más de lo que arregla.
@@ -1067,11 +1102,6 @@ cosas mal:
     solo lectura falla).
 - [x] Ctrl+C en mitad de una copia: temporal, versiones y deshacer.
 - [ ] De la revisión de `copia`, sin arreglar:
-  - Deshacer quita también las carpetas que quedan vacías aunque ya existieran antes
-    (`destino.parent` y su padre). No se pierde nada, pero puede borrar una carpeta
-    vacía tuya.
-  - Los comodines cogen también los ocultos (desktop.ini, Thumbs.db) que la lista del
-    menú esconde; y «tema[1].pdf», si no existe, se toma como patrón (cogería tema1.pdf).
   - `unidades()`: una unidad de red desconectada puede tardar segundos al hacer la lista.
   - Con OneDrive, Documentos y Escritorio están en otra ruta (Known Folders de Windows):
     la lista no los encontraría.

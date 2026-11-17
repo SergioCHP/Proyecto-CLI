@@ -59,3 +59,13 @@ def test_archivos_de_sistema_se_consideran_ocultos(tmp_path):
     assert es_oculto(tmp_path / "Thumbs.db")
     assert es_oculto(tmp_path / ".oculto")
     assert not es_oculto(tmp_path / "normal.txt")
+
+
+def test_un_archivo_que_desaparece_mientras_se_elige_no_da_traza(tmp_path, monkeypatch):
+    from navaja import filtros
+
+    hay = tmp_path / "hay.txt"
+    hay.write_text("x")
+    monkeypatch.setattr(filtros, "iterar_archivos", lambda *a, **k: iter([tmp_path / "ya-no-esta.part", hay]))
+    elegidos = filtros.seleccionar(tmp_path, filtros.Filtro(desde="2000-01-01"))
+    assert elegidos == [hay]

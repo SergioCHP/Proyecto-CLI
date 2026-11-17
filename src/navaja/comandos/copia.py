@@ -10,6 +10,7 @@ progreso y el deshacer. Lo hecho se guarda en su propio registro («copia»), as
 from __future__ import annotations
 
 import os
+import re
 from enum import Enum
 from pathlib import Path
 
@@ -17,7 +18,7 @@ import typer
 from rich.markup import escape
 
 from ..acciones import Accion, AccionDeArchivos, Resultado
-from ..comun import AJUSTE, ARCHIVOS, como_se_escribe, confirmar, console, error_console
+from ..comun import AJUSTE, ARCHIVOS, como_se_escribe, confirmar, console, error_console, es_oculto
 from ..errores import NavajaError
 from ..filtros import (
     OPCION_CARPETA,
@@ -89,13 +90,24 @@ def buscar_archivos(pedidos: list[str], carpeta: Path) -> list[Path]:
     for pedido in pedidos:
         # una ruta absoluta se queda como está; «..» se resuelve (tema1/../horario.txt)
         ruta = Path(os.path.abspath(carpeta / Path(pedido).expanduser()))
-        if not ruta.exists() and any(c in pedido for c in "*?["):
+        if not ruta.exists() and any(c in str(ruta.parent) for c in "*?"):
+            raise NavajaError(
+                f"No encuentro «{pedido}»: los comodines (* y ?) solo valen en el nombre del "
+                "archivo, no en la carpeta."
+            )
+        if not ruta.exists() and any(c in ruta.name for c in "*?"):
+            # Solo * y ? son comodines: los corchetes van tal cual («[borrador].pdf» es un
+            # nombre normal en Windows; «tema[1].pdf» no debe coger tema1.pdf). Y sin los
+            # ocultos ni los de sistema (desktop.ini, Thumbs.db), como la lista del menú:
+            # quien los quiera, que los escriba por su nombre.
+            patron = re.sub(r"[\[\]]", lambda m: f"[{m.group()}]", ruta.name)
+            patron = re.sub(r"\*{2,}", "*", patron)  # «**.pdf»: en Python 3.12 glob lanza ValueError
             encontrados = sorted(
-                (p for p in ruta.parent.glob(ruta.name) if p.is_file()),
+                (p for p in ruta.parent.glob(patron) if p.is_file() and not es_oculto(p)),
                 key=lambda p: p.name.lower(),
             )
             if not encontrados:
-                raise NavajaError(f"Ningún archivo coincide con «{pedido}» en {carpeta}.")
+                raise NavajaError(f"Ningún archivo coincide con «{pedido}» en {ruta.parent}.")
             elegidos += encontrados
             continue
         if not ruta.exists():

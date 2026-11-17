@@ -19,13 +19,13 @@ import os
 import shutil
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, ClassVar
 
 from .comandos import ordena, renombra
-from .comun import carpeta_papelera, cuantos, destino_libre, ruta_libre
+from .comun import carpeta_papelera, crear_carpetas, cuantos, destino_libre, quitar_vacias, ruta_libre
 from .errores import AccionNoValida, NavajaError
 from .filtros import sin_tildes
 from .versiones import Version, apuntar, carpeta_versiones
@@ -52,6 +52,8 @@ class Resultado:
     """Copiar con «el-mas-nuevo»: el destino existe y es más viejo; se aparta y se copia."""
     apartado: Path | None = None
     """Dónde quedó (en «versiones» de los datos de navaja) la versión vieja sustituida."""
+    creadas: list[Path] = field(default_factory=list)
+    """Las carpetas que no existían y se crearon para este archivo (las únicas que deshacer quita)."""
 
 
 def relativa(archivo: Path, carpeta: Path) -> Path:
@@ -203,10 +205,20 @@ class AccionDeArchivos(Accion):
                 resultado.estado = "hecho"
             except OSError as exc:
                 resultado.estado, resultado.motivo = "fallo", exc.strerror or str(exc)
+                # la carpeta que creó para él no se queda vacía (y sin apuntar): el siguiente
+                # archivo la vuelve a crear y la apunta él
+                quitar_vacias(resultado.creadas)
+                resultado.creadas = []
+            except BaseException:  # Ctrl+C: este archivo no se apunta, su carpeta tampoco
+                quitar_vacias(resultado.creadas)
+                raise
         return plan
 
-    def para_deshacer(self, resultado: Resultado) -> dict[str, str]:
-        return {"origen": str(resultado.origen), "destino": str(resultado.destino), "como": self.como}
+    def para_deshacer(self, resultado: Resultado) -> dict[str, Any]:
+        return {
+            "origen": str(resultado.origen), "destino": str(resultado.destino), "como": self.como,
+            "creadas": [str(c) for c in resultado.creadas],  # siempre, aunque vacía: ver carpetas_creadas
+        }
 
 
 def mover(resultado: Resultado) -> None:
@@ -214,7 +226,7 @@ def mover(resultado: Resultado) -> None:
     assert resultado.destino is not None
     if resultado.destino.exists():
         resultado.destino = ruta_libre(resultado.destino)
-    resultado.destino.parent.mkdir(parents=True, exist_ok=True)
+    resultado.creadas = crear_carpetas(resultado.destino.parent)
     shutil.move(str(resultado.origen), str(resultado.destino))
 
 
@@ -395,7 +407,7 @@ class Copiar(Mover):
         if not resultado.sustituir and resultado.destino.exists():
             resultado.destino = ruta_libre(resultado.destino)
         destino = resultado.destino
-        destino.parent.mkdir(parents=True, exist_ok=True)
+        resultado.creadas = crear_carpetas(destino.parent)
         temporal = destino.with_name(f".{destino.name}.navaja-copiando")
         try:
             shutil.copy2(resultado.origen, temporal)  # copy2 conserva la fecha
@@ -432,7 +444,7 @@ class Copiar(Mover):
             ) from None
         resultado.apartado = None
 
-    def para_deshacer(self, resultado: Resultado) -> dict[str, str]:
+    def para_deshacer(self, resultado: Resultado) -> dict[str, Any]:
         registro = super().para_deshacer(resultado)
         if resultado.apartado is not None:
             registro["apartado"] = str(resultado.apartado)
@@ -595,7 +607,7 @@ class Borrar(AccionDeArchivos):
 
     def aplicar(self, resultado: Resultado) -> None:
         assert self._papelera is not None
-        self._papelera.mkdir(parents=True, exist_ok=True)
+        resultado.creadas = crear_carpetas(self._papelera)  # la de esta vez: deshacer la quita vacía
         resultado.destino = ruta_libre(self._papelera / resultado.origen.name)
         shutil.move(str(resultado.origen), str(resultado.destino))
 

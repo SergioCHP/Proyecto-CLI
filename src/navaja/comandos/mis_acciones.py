@@ -35,6 +35,8 @@ from ..comun import (
     bonita,
     cargar_acciones,
     carpeta_papelera,
+    carpetas_creadas,
+    carpetas_supuestas,
     como_se_escribe,
     confirmar,
     console,
@@ -43,6 +45,8 @@ from ..comun import (
     error_console,
     guardar_acciones,
     limpiar_acciones,
+    pasar_a_pendientes,
+    quitar_vacias,
     ruta_libre,
 )
 from ..errores import ConfigError, NavajaError
@@ -301,7 +305,7 @@ def ejecutar(
             )
         )
 
-    para_deshacer: list[dict[str, str]] = []
+    para_deshacer: list[dict[str, Any]] = []
     fallos = 0
     cancelado = False
     for numero, paso in enumerate(pasos, start=1):
@@ -354,7 +358,7 @@ def ejecutar(
 
 
 def hacer(
-    paso: AccionDeArchivos, plan: list[Resultado], registro: str, para_deshacer: list[dict[str, str]]
+    paso: AccionDeArchivos, plan: list[Resultado], registro: str, para_deshacer: list[dict[str, Any]]
 ) -> int:
     """Hace lo pendiente del plan con la barra de progreso y devuelve cuántos fallaron.
 
@@ -439,9 +443,15 @@ def deshacer_registro(nombre: str, que: str, vacio: str, si: bool) -> None:
         return
 
     hechos = errores = 0
-    pendientes: list[dict[str, str]] = []  # lo que falló: se guarda para poder reintentarlo
+    pendientes: list[dict[str, Any]] = []  # lo que falló: se guarda para poder reintentarlo
     papelera = carpeta_papelera() / datetime.now().strftime("deshacer-%Y%m%d-%H%M%S")
-    carpetas: set[Path] = set()
+    # Las carpetas que creó la operación, de todos los registros (no solo de los que se
+    # deshagan bien: la crea el primer archivo, pero la usan los demás). Solo se quitan si
+    # quedan vacías. Las «supuestas» son de registros de antes de apuntarlas.
+    apuntadas: set[Path] = set()
+    for registro in registros:
+        apuntadas.update(carpetas_creadas(registro, Path(registro["destino"])) or [])
+    supuestas: set[Path] = set()
     origenes: set[Path] = set()
     for registro in reversed(registros):
         origen, destino = Path(registro["origen"]), Path(registro["destino"])
@@ -458,7 +468,8 @@ def deshacer_registro(nombre: str, que: str, vacio: str, si: bool) -> None:
                 origen.parent.mkdir(parents=True, exist_ok=True)
                 shutil.move(str(destino), str(ruta_libre(origen)))
             hechos += 1
-            carpetas.update([destino.parent, destino.parent.parent])
+            if carpetas_creadas(registro, destino) is None:
+                supuestas.update(carpetas_supuestas(destino))
         except OSError as exc:
             errores += 1
             pendientes.append(registro)
@@ -467,14 +478,11 @@ def deshacer_registro(nombre: str, que: str, vacio: str, si: bool) -> None:
                 soft_wrap=True,
             )
 
-    # las carpetas que creó la acción y han quedado vacías (nunca una de origen)
-    for carpeta in sorted(carpetas, key=lambda c: len(c.parts), reverse=True):
-        if any(o == carpeta or carpeta in o.parents for o in origenes):
-            continue
-        try:
-            carpeta.rmdir()
-        except OSError:
-            pass
+    # las supuestas, nunca si es una de origen (podría ser tuya); las apuntadas, sí: son de navaja
+    quitar_vacias(apuntadas | {
+        c for c in supuestas if not any(o == c or c in o.parents for o in origenes)
+    })
+    pasar_a_pendientes(pendientes, apuntadas)
 
     console.print(f"[ok]Deshecho: {cuantos(hechos, 'archivo')}.[/]")
     if errores:

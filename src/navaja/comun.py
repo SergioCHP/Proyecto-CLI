@@ -13,10 +13,11 @@ import stat
 import subprocess
 import sys
 import tempfile
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from rich import box
 from rich.console import Console, Group, RenderableType
@@ -295,6 +296,71 @@ def problema_del_nombre(nombre: str) -> str:
     if nombre.split(".")[0].strip().lower() in NOMBRES_RESERVADOS:
         return f"«{nombre}» es un nombre reservado de Windows."
     return ""
+
+
+def crear_carpetas(carpeta: Path) -> list[Path]:
+    """Crea ``carpeta`` (y las de encima que falten) y devuelve las que no existían, de la más
+    alta a la más honda. Se apuntan para deshacer: así solo se quitan esas, nunca una carpeta
+    vacía tuya que ya estaba. Rutas absolutas: el deshacer no depende de dónde estés.
+
+    Se crean de una en una: si otra cosa crea una a la vez, no se apunta como nuestra. Si
+    falla a medias (o Ctrl+C), quita las que llegó a crear y vuelve a lanzar el error.
+    """
+    carpeta = Path(os.path.abspath(carpeta))
+    faltan = []
+    actual = carpeta
+    while not actual.exists() and actual.parent != actual:
+        faltan.append(actual)
+        actual = actual.parent
+    nuevas: list[Path] = []
+    try:
+        for nueva in reversed(faltan):
+            try:
+                nueva.mkdir()
+                nuevas.append(nueva)
+            except FileExistsError:
+                pass  # alguien la ha creado justo ahora: no es nuestra
+        carpeta.mkdir(parents=True, exist_ok=True)  # por si acaso; si es un archivo, lanza
+    except BaseException:  # OSError, o Ctrl+C a medias: no deja carpetas sin apuntar
+        quitar_vacias(nuevas)
+        raise
+    return nuevas
+
+
+def quitar_vacias(carpetas: Iterable[Path]) -> None:
+    """Quita las que estén vacías, de la más honda a la más alta. Las que no, se quedan."""
+    for carpeta in sorted(set(carpetas), key=lambda c: len(c.parts), reverse=True):
+        try:
+            carpeta.rmdir()  # solo funciona si está vacía
+        except OSError:
+            pass
+
+
+def carpetas_creadas(registro: dict[str, Any], destino: Path) -> list[Path] | None:
+    """Las carpetas apuntadas en «creadas» (las que creó la operación: se pueden quitar si
+    quedan vacías). None si el registro es de antes de apuntarlas: entonces se adivinan como
+    se hacía (la del archivo y la de encima, nunca una de origen); ver ``carpetas_supuestas``."""
+    if "creadas" not in registro:
+        return None
+    creadas = registro["creadas"]
+    if not isinstance(creadas, list):
+        return []  # un valor raro (lo escribe navaja, pero por si acaso): no se toca nada
+    return [Path(c) for c in creadas if isinstance(c, str)]
+
+
+def pasar_a_pendientes(pendientes: list[dict[str, Any]], apuntadas: set[Path]) -> None:
+    """Las carpetas apuntadas que siguen ahí (deshacer no pudo con todo) pasan a lo que queda
+    pendiente, para quitarlas al reintentar. Van al primero con «creadas»; si son todos
+    registros de antes de apuntarlas, no hay dónde (se quedan: no se pierde nada)."""
+    quedan = {str(c) for c in apuntadas if c.exists()}
+    con_creadas = next((r for r in pendientes if isinstance(r.get("creadas"), list)), None)
+    if quedan and con_creadas is not None:
+        con_creadas["creadas"] = sorted(set(con_creadas["creadas"]) | quedan)
+
+
+def carpetas_supuestas(destino: Path) -> list[Path]:
+    """Para un registro de antes de apuntar «creadas»: la del archivo y la de encima."""
+    return [destino.parent, destino.parent.parent]
 
 
 def ruta_libre(destino: Path) -> Path:

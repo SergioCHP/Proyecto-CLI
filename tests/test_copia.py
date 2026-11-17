@@ -393,3 +393,93 @@ def test_destino_igual_al_origen(tmp_path):
     resultado = copia("a", str(tmp_path / "USB"), "a.txt", "-c", str(tmp_path / "USB"))
     assert resultado.exit_code == 1
     assert "Ese archivo ya está en" in plano(resultado.output)
+
+
+def test_deshacer_no_quita_una_carpeta_vacia_que_ya_estaba(tmp_path):
+    crear(tmp_path / "USB" / "a.txt")
+    (tmp_path / "PC").mkdir()  # tuya, vacía, de antes
+    assert copia("a", str(tmp_path / "PC"), "--carpeta", str(tmp_path / "USB")).exit_code == 0
+    assert copia("deshacer").exit_code == 0
+    assert (tmp_path / "PC").is_dir() and not any((tmp_path / "PC").iterdir())
+
+
+def test_deshacer_quita_las_carpetas_que_creo(tmp_path):
+    crear(tmp_path / "USB" / "a.txt")
+    assert copia("a", str(tmp_path / "Nueva" / "Sub"), "--carpeta", str(tmp_path / "USB")).exit_code == 0
+    assert copia("deshacer").exit_code == 0
+    assert not (tmp_path / "Nueva").exists()
+
+
+def test_comodines_sin_ocultos_y_corchetes_tal_cual(tmp_path):
+    import pytest
+
+    from navaja.comandos.copia import buscar_archivos
+    from navaja.errores import NavajaError
+
+    for nombre in ("tema1.pdf", "apuntes [borrador].pdf", "desktop.ini", ".oculto.pdf", "Thumbs.db"):
+        crear(tmp_path / nombre)
+    nombres = lambda pedidos: [p.name for p in buscar_archivos(pedidos, tmp_path)]  # noqa: E731
+    assert nombres(["*"]) == ["apuntes [borrador].pdf", "tema1.pdf"]  # sin ocultos ni de sistema
+    assert nombres(["*[borrador].pdf"]) == ["apuntes [borrador].pdf"]  # corchetes, parte del nombre
+    crear(tmp_path / "tema[1] v2.pdf")
+    assert nombres(["tema[1]*.pdf"]) == ["tema[1] v2.pdf"]  # [1] no es «un 1»: no coge tema1.pdf
+    assert nombres(["**.pdf"]) == ["apuntes [borrador].pdf", "tema1.pdf", "tema[1] v2.pdf"]  # sin traza en 3.12
+    with pytest.raises(NavajaError, match="solo valen en el nombre"):
+        buscar_archivos(["te*/a.pdf"], tmp_path)
+    assert nombres(["desktop.ini", "apuntes [borrador].pdf"]) == ["desktop.ini", "apuntes [borrador].pdf"]
+
+
+def test_si_el_primero_falla_deshacer_quita_igual_la_carpeta(tmp_path, monkeypatch):
+    """El primer archivo está abierto en Word y falla; los demás se copian a «Nueva»."""
+    import shutil
+
+    from navaja import acciones
+
+    crear(tmp_path / "USB" / "a.txt")
+    crear(tmp_path / "USB" / "b.txt")
+    copiar = shutil.copy2
+
+    def abierto_en_word(origen, destino, *a, **k):
+        if Path(origen).name == "a.txt":
+            raise PermissionError(13, "Permiso denegado")
+        return copiar(origen, destino, *a, **k)
+
+    monkeypatch.setattr(acciones.shutil, "copy2", abierto_en_word)
+    resultado = copia("a", str(tmp_path / "Nueva"), "--carpeta", str(tmp_path / "USB"))
+    assert (tmp_path / "Nueva" / "b.txt").exists(), resultado.output
+    assert copia("deshacer").exit_code == 0
+    assert not (tmp_path / "Nueva").exists()
+
+
+def test_un_registro_de_antes_se_deshace_como_entonces(tmp_path):
+    from navaja.comun import guardar_acciones
+
+    crear(tmp_path / "USB" / "a.txt")
+    crear(tmp_path / "Vieja" / "a.txt")  # copiada con un navaja de antes: sin «creadas»
+    guardar_acciones("copia", [{"origen": str(tmp_path / "USB" / "a.txt"),
+                                "destino": str(tmp_path / "Vieja" / "a.txt"), "como": "copiado"}])
+    assert copia("deshacer").exit_code == 0
+    assert not (tmp_path / "Vieja").exists() and (tmp_path / "USB" / "a.txt").exists()
+
+
+def test_deshacer_a_medias_quita_la_carpeta_al_reintentar(tmp_path, monkeypatch):
+    """«a» (que apuntó «Nueva») se deshace; «b» falla. Al reintentar, «Nueva» se quita."""
+    from navaja.comandos import mis_acciones
+
+    crear(tmp_path / "USB" / "a.txt")
+    crear(tmp_path / "USB" / "b.txt")
+    assert copia("a", str(tmp_path / "Nueva"), "--carpeta", str(tmp_path / "USB")).exit_code == 0
+    deshacer = mis_acciones.deshacer_copia
+
+    def b_bloqueado(origen, destino, *resto):
+        if destino.name == "b.txt":
+            raise PermissionError(13, "Permiso denegado")
+        return deshacer(origen, destino, *resto)
+
+    monkeypatch.setattr(mis_acciones, "deshacer_copia", b_bloqueado)
+    assert copia("deshacer").exit_code == 1
+    assert (tmp_path / "Nueva" / "b.txt").exists()
+    # solo lo que cambió este test (undo() quitaría también NAVAJA_DATOS: datos reales)
+    monkeypatch.setattr(mis_acciones, "deshacer_copia", deshacer)
+    assert copia("deshacer").exit_code == 0
+    assert not (tmp_path / "Nueva").exists()

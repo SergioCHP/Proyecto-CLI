@@ -22,6 +22,9 @@ from ..comun import (
     ARCHIVOS,
     AJUSTE,
     cargar_acciones,
+    carpetas_creadas,
+    carpetas_supuestas,
+    crear_carpetas,
     confirmar,
     cuantos,
     console,
@@ -30,6 +33,8 @@ from ..comun import (
     error_console,
     guardar_acciones,
     limpiar_acciones,
+    pasar_a_pendientes,
+    quitar_vacias,
     como_se_escribe,
     ruta_libre,
 )
@@ -172,9 +177,13 @@ def ordenar(
     for movimiento in movimientos:
         origen, destino_final = Path(movimiento["origen"]), Path(movimiento["destino"])
         try:
-            destino_final.parent.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(origen), str(destino_final))
-            realizados.append({"origen": str(origen), "destino": str(destino_final)})
+            nuevas = crear_carpetas(destino_final.parent)  # deshacer solo quitará estas
+            try:
+                shutil.move(str(origen), str(destino_final))
+            except BaseException:
+                quitar_vacias(nuevas)  # que no quede vacía y sin apuntar
+                raise
+            realizados.append({"origen": str(origen), "destino": str(destino_final), "creadas": [str(c) for c in nuevas]})
         except OSError as exc:
             errores += 1
             error_console.print(
@@ -417,8 +426,14 @@ def deshacer(si: bool = OPCION_SI) -> None:
         return
 
     devueltos = errores = 0
-    creadas: set[Path] = set()
+    # las que creó ordena, de todos los registros (la crea el primer archivo y la usan los
+    # demás); las «supuestas», de registros de antes de apuntarlas
+    apuntadas: set[Path] = set()
+    for accion in acciones:
+        apuntadas.update(carpetas_creadas(accion, Path(accion["destino"])) or [])
+    supuestas: set[Path] = set()
     origenes: set[Path] = set()
+    pendientes: list[dict] = []  # lo que no se pudo devolver: se guarda para reintentarlo
     for accion in reversed(acciones):
         origen, destino = Path(accion["origen"]), Path(accion["destino"])
         origenes.add(origen.parent)
@@ -428,19 +443,29 @@ def deshacer(si: bool = OPCION_SI) -> None:
             origen.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(str(destino), str(ruta_libre(origen)))
             devueltos += 1
-            creadas.update([destino.parent, destino.parent.parent])
+            if carpetas_creadas(accion, destino) is None:
+                supuestas.update(carpetas_supuestas(destino))
         except OSError as exc:
             errores += 1
+            pendientes.append(accion)
             error_console.print(
                 f"[error]No se pudo devolver[/] {escape(str(destino))}: {escape(str(exc))}",
                 soft_wrap=True,
             )
 
-    _borrar_carpetas_vacias(creadas, origenes)
-    limpiar_acciones("ordena")
+    quitar_vacias(apuntadas)  # son de ordena seguro
+    _borrar_carpetas_vacias(supuestas, origenes)  # estas, nunca una de origen
     console.print(f"[ok]{'Devuelto' if devueltos == 1 else 'Devueltos'} {cuantos(devueltos, 'archivo')}.[/]")
-    if errores:
-        console.print(f"[aviso]No se pudo devolver: {cuantos(errores, 'archivo')}.[/]")
+    if errores:  # antes se borraba el registro igual y ya no se podía reintentar
+        pasar_a_pendientes(pendientes, apuntadas)
+        guardar_acciones("ordena", list(reversed(pendientes)))
+        console.print(
+            f"[aviso]No se pudo devolver: {cuantos(errores, 'archivo')}.[/] "
+            f"[pista]Se guardan para probar otra vez con {como_se_escribe('ordena deshacer')}.[/]",
+            soft_wrap=True,
+        )
+        raise typer.Exit(1)
+    limpiar_acciones("ordena")
 
 
 def registrar(app: typer.Typer) -> None:
