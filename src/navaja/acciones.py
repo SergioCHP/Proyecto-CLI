@@ -26,8 +26,8 @@ from typing import Any, ClassVar
 
 from .comandos import ordena, renombra
 from .comun import (
-    carpeta_papelera, crear_carpetas, cuantos, destino_libre, hora_dudosa, poner_solo_lectura, quitar_solo_lectura,
-    quitar_vacias, ruta_libre,
+    carpeta_papelera, crear_carpetas, cuantos, destino_libre, hora_dudosa, mover_seguro, poner_solo_lectura,
+    quitar_solo_lectura, quitar_vacias, ruta_libre,
 )
 from .errores import AccionNoValida, NavajaError
 from .filtros import sin_tildes
@@ -232,7 +232,7 @@ def mover(resultado: Resultado) -> None:
     if resultado.destino.exists():
         resultado.destino = ruta_libre(resultado.destino)
     resultado.creadas = crear_carpetas(resultado.destino.parent)
-    shutil.move(str(resultado.origen), str(resultado.destino))
+    mover_seguro(resultado.origen, resultado.destino)  # a otra unidad, nunca a medias
 
 
 TOLERANCIA = 2
@@ -273,25 +273,14 @@ def apartar(archivo: Path, papelera: Path) -> Path:
     """Lleva ``archivo`` a ``papelera`` (una carpeta de navaja) sin pisar nada y dice dónde
     ha quedado.
 
-    Sin el «solo lectura»: de un USB a C: mover es copiar y borrar, y en Windows un archivo de
-    solo lectura no se deja borrar (la copia entera fallaba). La versión guardada se queda sin
-    él, para poder devolverla o borrarla después.
+    Con ``mover_seguro``: de un USB a C: (copiar y borrar) también con el «solo lectura» (en
+    Windows no se dejaba borrar y la copia entera fallaba), y si algo falla a medias no deja
+    una copia suelta aquí (sin apuntar en el índice, nunca caducaría). Ni pisa nada: si el
+    destino apareciera justo ahora, falla sin tocarlo.
     """
     papelera.mkdir(parents=True, exist_ok=True)
     destino = ruta_libre(papelera / archivo.name)
-    era_solo_lectura = quitar_solo_lectura(archivo)
-    try:
-        shutil.move(str(archivo), str(destino))
-    except BaseException:
-        # De otra unidad, mover es copiar y borrar: si el borrado falla (abierto en otro
-        # programa), la copia de aquí sobra (el original sigue donde estaba) y, sin apuntar
-        # en el índice, nunca caducaría
-        if archivo.exists() and destino.exists():
-            with contextlib.suppress(OSError):
-                destino.unlink()
-        if era_solo_lectura and archivo.exists():
-            poner_solo_lectura(archivo)
-        raise
+    mover_seguro(archivo, destino)
     return destino
 
 
@@ -499,7 +488,7 @@ class Copiar(Mover):
             return
         assert resultado.destino is not None
         try:
-            shutil.move(str(apartado), str(resultado.destino))
+            mover_seguro(apartado, resultado.destino)  # nunca pisa ni deja a medias
         except OSError as exc:
             raise OSError(
                 exc.errno,
@@ -674,7 +663,7 @@ class Borrar(AccionDeArchivos):
         assert self._papelera is not None
         resultado.creadas = crear_carpetas(self._papelera)  # la de esta vez: deshacer la quita vacía
         resultado.destino = ruta_libre(self._papelera / resultado.origen.name)
-        shutil.move(str(resultado.origen), str(resultado.destino))
+        mover_seguro(resultado.origen, resultado.destino)  # desde un USB, la papelera está en C:
 
 
 class Rutina(Accion):

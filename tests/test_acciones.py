@@ -599,20 +599,20 @@ def test_si_tampoco_vuelve_la_vieja_dice_donde_esta(tmp_path, monkeypatch):
     import navaja.acciones as modulo
 
     pc, usb, ruta = usb_y_pc_con_cambio(tmp_path)
-    mover_de_verdad = modulo.shutil.move
+    mover_de_verdad = modulo.mover_seguro
     llamadas = []
 
     def replace_que_falla(*args, **kwargs):
         raise OSError(13, "Acceso denegado")
 
-    def move_que_falla_al_devolver(origen, destino, *args, **kwargs):
+    def falla_al_devolver(origen, destino):
         llamadas.append(origen)
         if len(llamadas) > 1:  # la 1.ª aparta la vieja; la 2.ª intenta devolverla
             raise OSError(13, "Acceso denegado")
         return mover_de_verdad(origen, destino)
 
     monkeypatch.setattr(modulo.os, "replace", replace_que_falla)
-    monkeypatch.setattr(modulo.shutil, "move", move_que_falla_al_devolver)
+    monkeypatch.setattr(modulo, "mover_seguro", falla_al_devolver)
     resultado = acciones("ejecutar", "ida", config=ruta)
     assert resultado.exit_code == 1
     texto = plano(resultado.output)
@@ -655,26 +655,26 @@ def test_ctrl_c_si_la_vieja_no_vuelve_queda_apuntada_en_versiones(tmp_path, monk
     import navaja.acciones as modulo
 
     pc, usb, ruta = usb_y_pc_con_cambio(tmp_path)
-    mover_de_verdad = modulo.shutil.move
+    mover_de_verdad = modulo.mover_seguro
     replace_de_verdad = modulo.os.replace
     llamadas = []
 
     def replace_cortado(*args, **kwargs):
         raise KeyboardInterrupt
 
-    def move_que_falla_al_devolver(origen, destino, *args, **kwargs):
+    def falla_al_devolver(origen, destino):
         llamadas.append(origen)
         if len(llamadas) > 1:  # la 1.ª aparta la vieja; la 2.ª intenta devolverla
             raise OSError(13, "Acceso denegado")
         return mover_de_verdad(origen, destino)
 
     monkeypatch.setattr(modulo.os, "replace", replace_cortado)
-    monkeypatch.setattr(modulo.shutil, "move", move_que_falla_al_devolver)
+    monkeypatch.setattr(modulo, "mover_seguro", falla_al_devolver)
     resultado = acciones("ejecutar", "ida", config=ruta)
     assert resultado.exit_code == 130  # Ctrl+C (con 1, el OSError de devolver taparía el corte)
     # solo lo que cambió este test: undo() quitaría también NAVAJA_DATOS (los datos reales)
     monkeypatch.setattr(modulo.os, "replace", replace_de_verdad)
-    monkeypatch.setattr(modulo.shutil, "move", mover_de_verdad)
+    monkeypatch.setattr(modulo, "mover_seguro", mover_de_verdad)
     assert "a.txt" in acciones("versiones", "ver").output  # no se ha perdido
 
 
@@ -738,22 +738,22 @@ def test_deshacer_que_falla_guarda_el_registro_para_reintentarlo(tmp_path, monke
 
     pc, usb, ruta = usb_y_pc_con_cambio(tmp_path)
     assert acciones("ejecutar", "ida", config=ruta).exit_code == 0
-    mover_de_verdad = modulo.shutil.move
+    mover_de_verdad = modulo.mover_seguro
     llamadas = []
 
-    def move_que_falla_al_devolver(origen, destino, *args, **kwargs):
+    def falla_al_devolver_la_vieja(origen, destino):
         llamadas.append(origen)
-        if len(llamadas) == 2:  # 1.ª: la copia a la papelera; 2.ª: devolver la vieja
+        if len(llamadas) == 1:  # 1.ª: devolver la vieja (la copia ya fue a la papelera)
             raise OSError(13, "Acceso denegado")
-        return mover_de_verdad(origen, destino)
+        return mover_de_verdad(origen, destino)  # 2.ª: vuelve la copia
 
-    monkeypatch.setattr(modulo.shutil, "move", move_que_falla_al_devolver)
+    monkeypatch.setattr(modulo, "mover_seguro", falla_al_devolver_la_vieja)
     resultado = acciones("deshacer", entrada="s\n")
     assert resultado.exit_code == 1
     assert "sigue en" in plano(resultado.output)
     assert (usb / "a.txt").read_text(encoding="utf-8") == "nuevo"  # queda como estaba
     assert cargar_acciones("acciones")  # el registro sigue: se puede volver a intentar
-    monkeypatch.setattr(modulo.shutil, "move", mover_de_verdad)  # (undo() quitaría también NAVAJA_DATOS)
+    monkeypatch.setattr(modulo, "mover_seguro", mover_de_verdad)  # (undo() quitaría también NAVAJA_DATOS)
     otra_vez = acciones("deshacer", entrada="s\n")
     assert otra_vez.exit_code == 0, otra_vez.output
     assert (usb / "a.txt").read_text(encoding="utf-8") == "viejo", otra_vez.output
@@ -1352,18 +1352,37 @@ def test_sin_guardar_que_falla_deja_la_vieja_como_estaba(tmp_path, monkeypatch):
 
 
 def test_apartar_que_falla_a_medias_no_deja_copias_sueltas(tmp_path, monkeypatch):
-    import shutil
-
     from navaja import acciones as modulo
 
     vieja = crear(tmp_path / "USB" / "a.txt", "viejo")
     papelera = tmp_path / "versiones"
 
-    def copia_y_no_puede_borrar(origen, destino):
-        shutil.copy2(origen, destino)
-        raise PermissionError(32, "abierto en otro programa")
+    from navaja import comun
 
-    monkeypatch.setattr(modulo.shutil, "move", copia_y_no_puede_borrar)
+    monkeypatch.setattr(comun, "misma_unidad", lambda a, b: False)  # del USB a C:: copiar y borrar
+    borrar = Path.unlink
+
+    def abierta_en_otro_programa(self, *a, **k):
+        if self == vieja:
+            raise PermissionError(32, "abierto en otro programa")
+        return borrar(self, *a, **k)
+
+    monkeypatch.setattr(Path, "unlink", abierta_en_otro_programa)
     with pytest.raises(PermissionError):
         modulo.apartar(vieja, papelera)
+    monkeypatch.setattr(Path, "unlink", borrar)  # solo esto (undo() quitaría NAVAJA_DATOS)
     assert vieja.read_text(encoding="utf-8") == "viejo" and list(papelera.iterdir()) == []
+
+
+def test_apartar_no_borra_un_archivo_que_aparece_a_la_vez(tmp_path, monkeypatch):
+    """Si el destino aparece entre elegir el nombre y mover (otro navaja), antes la limpieza de
+    apartar borraba ese archivo, que no era suyo."""
+    from navaja import acciones as modulo
+
+    vieja = crear(tmp_path / "USB" / "a.txt", "viejo")
+    ajeno = crear(tmp_path / "versiones" / "a.txt", "de otro navaja")
+    monkeypatch.setattr(modulo, "ruta_libre", lambda ruta: ajeno)  # «libre» cuando se miró
+    with pytest.raises(FileExistsError):
+        modulo.apartar(vieja, tmp_path / "versiones")
+    assert vieja.read_text(encoding="utf-8") == "viejo"
+    assert ajeno.read_text(encoding="utf-8") == "de otro navaja"

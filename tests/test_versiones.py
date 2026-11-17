@@ -236,3 +236,74 @@ def test_borrar_una_sin_indice_y_de_solo_lectura(sustituidas):
     resultado = ordenes("acciones", "versiones", "borrar", str(numero), "--si")
     assert resultado.exit_code == 0, resultado.output
     assert not suelta.exists()
+
+
+def test_dos_navaja_a_la_vez_no_se_pisan_el_indice():
+    """Antes, con dos apuntando a la vez, ganaba el último: las del otro se quedaban sin sitio."""
+    import threading
+
+    raiz = versiones.carpeta_versiones()
+
+    def apunta(quien: str) -> None:
+        for n in range(15):
+            archivo = crear(raiz / f"20261117-1000{n:02}" / f"{quien}{n}.txt", "viejo")
+            versiones.apuntar([versiones.Version(archivo, Path(f"C:/sitio/{quien}{n}.txt"), quien, datetime.now())])
+
+    hilos = [threading.Thread(target=apunta, args=(q,)) for q in ("a", "b")]
+    for hilo in hilos:
+        hilo.start()
+    for hilo in hilos:
+        hilo.join()
+    lista = versiones.cargar()
+    assert len(lista) == 30 and all(v.sitio_conocido for v in lista)  # todas, y con su sitio
+    assert not (raiz / versiones.CERROJO).exists()
+
+
+def test_cerrojo_abandonado_y_ocupado():
+    raiz = versiones.carpeta_versiones()
+    raiz.mkdir(parents=True)
+    cerrojo = raiz / versiones.CERROJO
+    cerrojo.write_text("")
+    hace_un_rato = datetime.now().timestamp() - 3600
+    os.utime(cerrojo, (hace_un_rato, hace_un_rato))  # de un navaja que se cortó
+    versiones.olvidar([])  # lo quita y sigue
+    assert not cerrojo.exists()
+    cerrojo.write_text("")  # ahora, de otro navaja que está trabajando
+    with pytest.raises(OSError, match="otro navaja"):
+        with versiones._cerrojo(espera=0.2):
+            pass
+    assert cerrojo.exists()  # el del otro no se toca
+
+
+def test_cerrojo_con_ctrl_c_dentro_no_se_queda_puesto():
+    cerrojo = versiones.carpeta_versiones() / versiones.CERROJO
+    with pytest.raises(KeyboardInterrupt):
+        with versiones._cerrojo():
+            assert cerrojo.exists()
+            raise KeyboardInterrupt
+    assert not cerrojo.exists()
+
+
+def test_cerrojo_espera_si_windows_dice_permiso_denegado(monkeypatch):
+    """Con el cerrojo a medio borrar, Windows da PermissionError (no FileExistsError)."""
+    abrir = os.open
+    veces = []
+
+    def ocupado_la_primera(*a, **k):
+        veces.append(1)
+        if len(veces) == 1:
+            raise PermissionError(13, "Permiso denegado")
+        return abrir(*a, **k)
+
+    monkeypatch.setattr(os, "open", ocupado_la_primera)
+    with versiones._cerrojo(espera=2):
+        pass
+    monkeypatch.setattr(os, "open", abrir)  # solo esto (undo() quitaría NAVAJA_DATOS)
+    assert len(veces) == 2
+
+
+def test_un_navaja_lento_no_quita_el_cerrojo_de_otro():
+    cerrojo = versiones.carpeta_versiones() / versiones.CERROJO
+    with versiones._cerrojo():
+        cerrojo.write_text("otro-navaja 9999999999.0", encoding="utf-8")  # se lo quitaron y puso el suyo
+    assert cerrojo.read_text(encoding="utf-8") == "otro-navaja 9999999999.0"  # el del otro, intacto

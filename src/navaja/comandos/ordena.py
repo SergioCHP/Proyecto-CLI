@@ -35,6 +35,7 @@ from ..comun import (
     error_console,
     guardar_acciones,
     limpiar_acciones,
+    mover_seguro,
     pasar_a_pendientes,
     quitar_vacias,
     como_se_escribe,
@@ -189,7 +190,7 @@ def ordenar(
                 nuevas = crear_carpetas(destino_final.parent)  # deshacer solo quitará estas
                 en_curso = {"origen": str(origen), "destino": str(destino_final), "creadas": [str(c) for c in nuevas]}
                 try:
-                    shutil.move(str(origen), str(destino_final))
+                    mover_seguro(origen, destino_final)  # a otra unidad (-d en un USB), nunca a medias
                 except BaseException:
                     quitar_vacias(nuevas)  # que no quede vacía y sin apuntar
                     raise
@@ -199,7 +200,7 @@ def ordenar(
                 en_curso = None
                 errores += 1
                 error_console.print(
-                    f"[error]No se pudo mover[/] {escape(str(origen))}: {escape(str(exc))}",
+                    f"[error]No se pudo mover[/] {escape(str(origen))}: {escape(exc.strerror or str(exc))}",
                     soft_wrap=True,
                 )
         if realizados:  # dentro: un Ctrl+C justo aquí no debe perder el registro
@@ -474,7 +475,7 @@ def deshacer(si: bool = OPCION_SI) -> None:
             continue
         try:
             origen.parent.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(destino), str(ruta_libre(origen)))
+            mover_seguro(destino, ruta_libre(origen))  # a otra unidad, nunca a medias ni duplicado
             devueltos += 1
             if carpetas_creadas(accion, destino) is None:
                 supuestas.update(carpetas_supuestas(destino))
@@ -482,7 +483,7 @@ def deshacer(si: bool = OPCION_SI) -> None:
             errores += 1
             pendientes.append(accion)
             error_console.print(
-                f"[error]No se pudo devolver[/] {escape(str(destino))}: {escape(str(exc))}",
+                f"[error]No se pudo devolver[/] {escape(str(destino))}: {escape(exc.strerror or str(exc))}",
                 soft_wrap=True,
             )
 

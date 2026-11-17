@@ -9,7 +9,6 @@ y se sale con su código (1 al ejecutar, 3 si acciones.json está mal).
 from __future__ import annotations
 
 import json
-import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Any, NoReturn
@@ -46,6 +45,7 @@ from ..comun import (
     error_console,
     guardar_acciones,
     limpiar_acciones,
+    mover_seguro,
     pasar_a_pendientes,
     quitar_vacias,
     ruta_libre,
@@ -482,7 +482,7 @@ def deshacer_registro(nombre: str, que: str, vacio: str, si: bool) -> None:
                 destino.rename(origen)
             else:
                 origen.parent.mkdir(parents=True, exist_ok=True)
-                shutil.move(str(destino), str(ruta_libre(origen)))
+                mover_seguro(destino, ruta_libre(origen))  # a otra unidad, nunca a medias ni duplicado
             hechos += 1
             if carpetas_creadas(registro, destino) is None:
                 supuestas.update(carpetas_supuestas(destino))
@@ -543,9 +543,9 @@ def deshacer_copia(origen: Path, destino: Path, apartado: str | None, papelera: 
     quitada = apartar(destino, papelera)
     if vieja is not None:
         try:
-            shutil.move(str(vieja), str(destino))
+            mover_seguro(vieja, destino)  # nunca pisa ni deja a medias
         except OSError as exc:
-            shutil.move(str(quitada), str(destino))  # vuelve la copia: queda como estaba
+            mover_seguro(quitada, destino)  # vuelve la copia: queda como estaba
             raise OSError(
                 exc.errno, f"no se pudo devolver la versión vieja; sigue en {vieja}"
             ) from None

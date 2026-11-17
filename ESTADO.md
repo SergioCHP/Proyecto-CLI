@@ -993,8 +993,9 @@ cosas mal:
   existe (docx2pdf se traga a veces el error de Word); el test de la barra de docx2pdf no
   comprobaba nada (buscaba «it/s» en un texto con «s/it»).
 - Tests: 717 pasando y 1 saltado.
-- Pendiente: probar el plan B con un LibreOffice de verdad (perfil nuevo que ya trae el
-  `.xcu`). Al intentarlo, el .docx de prueba ya no estaba en `~/pruebas-navaja`.
+- Plan B probado con LibreOffice de verdad (2026-11-17, un .docx hecho en la carpeta
+  temporal): 3 de 3 con un perfil nuevo que ya trae el `.xcu` (9 s el primero, 3,5 s los
+  demás; sin carpeta `updates`).
 
 ### 2026-11-17 — Deshacer sin quitar carpetas tuyas; comodines de `copia`; filtro de fechas
 
@@ -1078,9 +1079,8 @@ cosas mal:
   - **`comun.guardar_acciones`** escribía vaciando el archivo primero: cortado a medias, el
     registro quedaba roto (se leía como vacío) y el anterior ya se había perdido. Ahora a un
     temporal y `os.replace`. Vale para todos los registros (acciones, copia, ordena…).
-- Sin arreglar: Ctrl+C a mitad de mover entre dos unidades (`-d` en un USB): `shutil.move`
-  copia y luego borra, y puede quedar el archivo a medias en el destino, o duplicado, sin
-  apuntar.
+- Ctrl+C a mitad de mover entre dos unidades: arreglado con `comun.mover_seguro` (ver
+  «Los fallos poco probables»).
 - Los seis tests nuevos fallan con el código de antes. 740 pasando y 1 saltado.
 
 ### 2026-11-17 — Comodines iguales en todas las órdenes
@@ -1166,11 +1166,58 @@ cosas mal:
     `recuperar`).
   - `sin_indice`: sin traza si un archivo desaparece mientras se mira; en una carpeta sin
     fecha en el nombre, la fecha de la carpeta (no la del archivo, que conserva la original).
-- Sin arreglar: dos navaja escribiendo el índice a la vez (gana el último; las del otro se
-  quedan sin sitio); `versiones borrar` deja borrar una que necesita un deshacer pendiente
+- Sin arreglar: `versiones borrar` deja borrar una que necesita un deshacer pendiente
   (pregunta antes; el deshacer luego deja la copia); archivos sueltos en la raíz de
   `versiones` no se listan.
 - Los tests nuevos fallan con el código de antes. 769 pasando y 1 saltado.
+
+### 2026-11-17 — Los fallos poco probables
+
+- **Mover a otra unidad, sin nada a medias** (`comun.mover_seguro`, en `ordena`, las acciones
+  mover y borrar, y al apartar versiones): en el mismo disco renombra; a otro (un USB),
+  `shutil.move` copiaba y luego borraba, y un Ctrl+C a mitad dejaba el archivo a medias en
+  el destino o en los dos sitios, sin apuntar. Ahora: copia a un temporal oculto, le pone el
+  nombre de golpe y solo entonces borra el original; si se corta copiando, fuera el temporal;
+  si se corta (o no se puede) al borrar el original, fuera la copia. Nunca en dos sitios.
+- **La lista de unidades no se frena con una de red desconectada** (`interactivo.responden`):
+  las de red se miran todas a la vez, cada una en su hilo, con medio segundo en total; la
+  que no contesta no sale. Comprobado en este PC: sale «USB (D:)» al momento.
+- **Dos navaja a la vez con el índice de versiones** (`versiones._cerrojo`, `indice.lock`
+  creado con `O_EXCL`): solo uno lee-cambia-escribe; el otro espera hasta 5 s, y un cerrojo
+  de hace más de un minuto (de uno que se cortó) se quita. Comprobado sin cerrojo: con dos
+  hilos se perdían versiones (17, 2 o 16 de 30); con cerrojo, las 30.
+- **Plan B de LibreOffice** probado de verdad (ver la entrada de LibreOffice).
+- Tras el revisor (lo más serio: **se podía perder el archivo**):
+  - En `mover_seguro`, un Ctrl+C justo al volver de borrar el original hacía que la limpieza
+    quitara también la copia: el archivo desaparecía de los dos sitios. Ahora la limpieza
+    **mira qué hay en el disco** en vez de suponer en qué paso iba: quita el temporal, y la
+    copia solo si el original sigue ahí; si ya no está, el archivo está movido y no se toca.
+  - Nunca pisa: si el destino ya existe, `FileExistsError` (`ordena` ya no pisa un archivo que
+    aparezca entre el plan y el mover). En el mismo disco, `os.rename` (`shutil.move` copiaba
+    si no podía renombrar, p. ej. abierto en Word, y lo dejaba en dos sitios).
+  - Deshacer (`ordena` y acciones) también con `mover_seguro`: un archivo de solo lectura
+    movido a otra unidad ya se puede deshacer.
+  - Cerrojo: espera también con `PermissionError` (Windows, a medio borrar); dentro va una
+    marca y la hora del que lo pone, y cada uno quita solo el suyo (un navaja lento ya no
+    borra el del siguiente); se quita con Ctrl+C a cualquier altura; uno vacío (cortado al
+    ponerlo) caduca por la fecha del archivo.
+  - La lista de unidades mira también los discos (un disco USB dormido también la frenaba).
+- Segunda vuelta del revisor:
+  - `apartar` tenía su propia limpieza (de antes de `mover_seguro`) que, si el destino
+    aparecía justo entonces (otro navaja), **borraba ese archivo ajeno**. Quitada:
+    `mover_seguro` ya limpia, y mirando el disco.
+  - Lo que quedaba con `shutil.move` (devolver la versión vieja tras un fallo, y el deshacer
+    de copias) usa también `mover_seguro`: nunca pisa ni deja a medias.
+  - `ordena` decía «[Errno 17] … 'C:\\…'»: ahora el motivo en castellano (`exc.strerror`).
+  - Los tests que simulan fallos parchean `os.rename` o `mover_seguro` (con la misma firma).
+- Sin arreglar (raro): el temporal `.nombre.navaja-moviendo` alarga el nombre (con rutas al
+  límite de Windows, mover a otra unidad puede fallar donde uno directo no); una unidad de
+  red lenta pero conectada (más de medio segundo) no sale en la lista; en Linux/macOS, un
+  archivo que aparezca justo entre comprobar y renombrar se pisaría. El cerrojo tiene dos
+  carreras mínimas (quitar uno abandonado justo cuando otro pone el suyo) que solo arregla un
+  bloqueo del sistema (`msvcrt.locking`/`fcntl`); con los datos en red y un PC con el reloj
+  adelantado, su cerrojo tarda en darse por abandonado.
+- 784 pasando y 1 saltado.
 
 ## Decisiones técnicas
 
@@ -1242,7 +1289,6 @@ cosas mal:
     USB no esté; para que no ocupen, caducan y hay `guardar_viejas: false`.
 - [x] Ctrl+C en mitad de una copia: temporal, versiones y deshacer.
 - [ ] De la revisión de `copia`, sin arreglar:
-  - `unidades()`: una unidad de red desconectada puede tardar segundos al hacer la lista.
   - Con OneDrive, Documentos y Escritorio están en otra ruta (Known Folders de Windows):
     la lista no los encontraría.
   - Nombres repetidos sin normalizar Unicode (NFC/NFD en macOS).

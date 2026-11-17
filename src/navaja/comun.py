@@ -235,6 +235,56 @@ def quitar_solo_lectura(ruta: Path) -> bool:
     return False
 
 
+def misma_unidad(a: Path, b: Path) -> bool:
+    """¿Están en el mismo disco? (Entonces mover es solo renombrar.) ``b`` puede no existir:
+    se mira su carpeta más cercana que exista."""
+    while not b.exists() and b.parent != b:
+        b = b.parent
+    try:
+        return a.stat().st_dev == b.stat().st_dev
+    except OSError:
+        return False
+
+
+def mover_seguro(origen: Path, destino: Path) -> None:
+    """Mueve sin dejar nunca un archivo a medias, ni duplicado, ni perdido; tampoco con Ctrl+C.
+
+    - Nunca pisa: si ``destino`` ya existe, ``FileExistsError`` (sin tocar nada).
+    - En el mismo disco, ``os.rename`` (instantáneo; si falla, no ha hecho nada: ``shutil.move``
+      copiaba y dejaba el archivo en dos sitios si estaba abierto en otro programa).
+    - A otro (un USB): copia a un temporal oculto, le pone el nombre bueno de golpe y solo
+      entonces borra el original.
+
+    Si algo falla o se corta, se arregla mirando **qué hay en el disco**, no suponiendo en qué
+    paso iba: fuera el temporal; la copia, solo si el original sigue ahí (si ya no está, el
+    archivo está movido: no se toca nada, y quien llama lo ve en su sitio nuevo).
+    """
+    if destino.exists() or destino.is_symlink():
+        raise FileExistsError(17, "ya existe un archivo con ese nombre", str(destino))
+    if misma_unidad(origen, destino.parent):
+        os.rename(origen, destino)
+        return
+    temporal = destino.with_name(f".{destino.name}.navaja-moviendo")
+    era_solo_lectura = False
+    try:
+        shutil.copy2(origen, temporal)
+        os.replace(temporal, destino)
+        era_solo_lectura = quitar_solo_lectura(origen)  # en Windows, si no, no se deja borrar
+        origen.unlink()
+    except BaseException:
+        quitar_solo_lectura(temporal)
+        with suppress(OSError):
+            temporal.unlink(missing_ok=True)
+        if origen.exists():  # el original sigue: la copia sobra (no estaba antes: se comprobó)
+            if destino.exists():
+                quitar_solo_lectura(destino)
+                with suppress(OSError):
+                    destino.unlink()
+            if era_solo_lectura:
+                poner_solo_lectura(origen)
+        raise
+
+
 def poner_solo_lectura(ruta: Path) -> None:
     """Le vuelve a poner el «solo lectura» (lo contrario de ``quitar_solo_lectura``)."""
     try:

@@ -492,3 +492,22 @@ def test_sin_acciones_json_no_pregunta_que_accion_ejecutar(tmp_path, capsys, mon
     assert "No encuentro acciones.json" in texto
     assert "Nombre de la acción" not in texto  # no pregunta: no hay nada que elegir
     assert "volver: a la pregunta anterior" not in texto
+
+
+def test_una_unidad_de_red_que_no_contesta_no_frena_la_lista(tmp_path):
+    import time
+
+    def colgada(ruta):
+        if ruta.name == "colgada":
+            time.sleep(3)  # una unidad de red desconectada
+        return True
+
+    rutas = [tmp_path / "rapida", tmp_path / "colgada"]
+    empieza = time.monotonic()
+    assert interactivo.responden(rutas, segundos=0.3, existe=colgada) == {tmp_path / "rapida"}
+    assert time.monotonic() - empieza < 1.5  # no espera a la colgada
+
+    def da_error(ruta):
+        raise OSError("la red no responde")
+
+    assert interactivo.responden([tmp_path], existe=da_error) == set()

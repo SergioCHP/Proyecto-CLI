@@ -8,6 +8,8 @@ import os
 import re
 import shlex
 import sys
+import threading
+import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -859,6 +861,32 @@ def interpretar_carpeta(texto: str, dentro: Path, traducir: bool = True) -> Path
     return Path(os.path.abspath(dentro / ruta))
 
 
+ESPERA_RED = 0.5
+"""Segundos que se espera, como mucho, a que contesten las unidades de red (todas a la vez)."""
+
+
+def responden(
+    rutas: list[Path], segundos: float = ESPERA_RED, existe: Callable[[Path], bool] = Path.exists
+) -> set[Path]:
+    """Las rutas que existen y lo dicen a tiempo. Se miran todas a la vez, cada una en su hilo
+    (que no frena la salida si se queda colgado); la que no conteste, como si no estuviera."""
+    contestadas: dict[Path, bool] = {}
+
+    def mirar(ruta: Path) -> None:
+        try:
+            contestadas[ruta] = existe(ruta)
+        except OSError:
+            contestadas[ruta] = False
+
+    hilos = [threading.Thread(target=mirar, args=(ruta,), daemon=True) for ruta in rutas]
+    for hilo in hilos:
+        hilo.start()
+    limite = time.monotonic() + segundos
+    for hilo in hilos:
+        hilo.join(max(0.0, limite - time.monotonic()))
+    return {ruta for ruta in rutas if contestadas.get(ruta)}
+
+
 def unidades() -> list[tuple[str, Path]]:
     """Los otros discos y los USB conectados («USB (E:)»), sin el del sistema. En Linux y
     macOS, lo montado en /media/<usuario> y /Volumes."""
@@ -872,11 +900,18 @@ def unidades() -> list[tuple[str, Path]]:
         except (AttributeError, OSError):
             return []
         sistema = os.environ.get("SystemDrive", "C:").upper()
+        candidatas = []
         for letra in letras:
             if letra.upper().startswith(sistema):
                 continue
             tipo = tipo_de(letra)  # 2 extraíble, 3 disco, 4 de red, 5 CD
-            if tipo in (2, 3, 4) and Path(letra).exists():
+            if tipo in (2, 3, 4):
+                candidatas.append((letra, tipo))
+        # Una unidad de red desconectada (o un disco USB dormido) puede tardar segundos en
+        # contestar: se miran todas a la vez y la que no conteste a tiempo no sale
+        estan = responden([Path(letra) for letra, _ in candidatas])
+        for letra, tipo in candidatas:
+            if Path(letra) in estan:
                 nombre = {2: "USB", 3: "Disco", 4: "Red"}[tipo]
                 encontradas.append((f"{nombre} ({letra.rstrip(chr(92))})", Path(letra)))
         return encontradas

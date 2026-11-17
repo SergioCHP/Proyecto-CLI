@@ -15,6 +15,9 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import time
+import uuid
+from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -180,19 +183,93 @@ def guardar(versiones: list[Version]) -> None:
         raise
 
 
+CERROJO = "indice.lock"
+ESPERA_CERROJO = 5.0
+"""Segundos que se espera a que otro navaja termine con el índice."""
+CERROJO_ABANDONADO = 60.0
+"""Un cerrojo más viejo que esto es de un navaja que se cortó a medias: se quita."""
+
+
+def _quitar_si_abandonado(ruta: Path) -> bool:
+    """Si el cerrojo es de un navaja que se cortó (más de ``CERROJO_ABANDONADO`` segundos),
+    lo quita y devuelve True. La hora va dentro, con el reloj de quien lo puso (la del archivo
+    la pone el disco, que en red puede ir con otra hora). Solo se quita si sigue siendo el mismo
+    que se ha leído: si otro acaba de poner el suyo, no se toca."""
+    try:
+        contenido = ruta.read_text(encoding="utf-8")
+    except OSError:
+        return False  # no se deja leer (se está borrando…): se espera
+    try:
+        puesto = float(contenido.rsplit(" ", 1)[-1])
+    except ValueError:  # vacío (se cortó al ponerlo) o de otra versión: la fecha del archivo
+        try:
+            puesto = ruta.stat().st_mtime
+        except OSError:
+            return False
+    if time.time() - puesto <= CERROJO_ABANDONADO:
+        return False
+    try:
+        if ruta.read_text(encoding="utf-8") == contenido:
+            ruta.unlink()
+            return True
+    except OSError:
+        pass
+    return False
+
+
+@contextlib.contextmanager
+def _cerrojo(espera: float = ESPERA_CERROJO) -> Iterator[None]:
+    """Solo un navaja a la vez cambia el índice (leer, cambiar y escribir). Sin esto, con dos
+    copiando a la vez ganaba el último y las versiones del otro se quedaban sin sitio.
+    ``OSError`` si otro lo tiene ocupado más de ``espera`` segundos.
+
+    Dentro va una marca propia y la hora: al terminar, cada uno quita solo el suyo (si a un
+    navaja muy lento le quitaron el cerrojo por abandonado, no borra el del siguiente)."""
+    carpeta_versiones().mkdir(parents=True, exist_ok=True)
+    ruta = carpeta_versiones() / CERROJO
+    mio = f"{os.getpid()}-{uuid.uuid4().hex} {time.time()}"
+    limite = time.monotonic() + espera
+    puesto = False
+    try:  # desde aquí: con Ctrl+C a cualquier altura, el «finally» quita el nuestro
+        while True:
+            try:
+                descriptor = os.open(ruta, os.O_CREAT | os.O_EXCL | os.O_WRONLY)  # solo uno lo consigue
+            except (FileExistsError, PermissionError):  # Windows: PermissionError si se está borrando
+                if _quitar_si_abandonado(ruta):
+                    continue
+                if time.monotonic() > limite:
+                    raise OSError("otro navaja está usando el índice de versiones") from None
+                time.sleep(0.05)
+                continue
+            puesto = True
+            try:
+                os.write(descriptor, mio.encode("utf-8"))
+            finally:
+                os.close(descriptor)
+            break
+        yield
+    finally:
+        if puesto:
+            with contextlib.suppress(OSError):
+                if ruta.read_text(encoding="utf-8") in (mio, ""):  # el nuestro (o sin escribir aún)
+                    ruta.unlink()
+
+
 def apuntar(nuevas: list[Version]) -> None:
     """Añade al índice las versiones que acaba de apartar una acción. Solo con lo que se sabe:
     las «sin índice» no se escriben (se encuentran solas en la carpeta). ``OSError`` si el
     índice no se puede leer o escribir: entonces se quedan «sin índice», pero no se pierden."""
     if nuevas:
         nuevas_claves = {_clave(v.guardada) for v in nuevas}
-        guardar([v for v in _apuntadas() if _clave(v.guardada) not in nuevas_claves] + nuevas)
+        with _cerrojo():
+            guardar([v for v in _apuntadas() if _clave(v.guardada) not in nuevas_claves] + nuevas)
 
 
 def olvidar(quitadas: list[Version]) -> None:
     """Quita del índice estas versiones (ya recuperadas o borradas). ``OSError`` si no se puede."""
     fuera = {_clave(v.guardada) for v in quitadas}
-    guardar([v for v in _apuntadas() if _clave(v.guardada) not in fuera])
+    with _cerrojo():
+        guardar([v for v in _apuntadas() if _clave(v.guardada) not in fuera])
 
 
 def caducar(dias: int, ahora: datetime | None = None) -> tuple[int, int]:

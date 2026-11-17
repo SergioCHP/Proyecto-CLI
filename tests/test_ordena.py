@@ -224,48 +224,40 @@ def test_deshacer_no_quita_una_carpeta_vacia_que_ya_estaba(descargas):
 
 
 def test_deshacer_con_un_error_se_puede_reintentar(descargas, monkeypatch):
-    import shutil
-
-    from navaja.comandos import ordena as modulo
-
     antes = relativos(descargas)
     ordena("fecha", "-c", str(descargas))
-    mover = shutil.move
+    mover = os.rename  # mover_seguro, en el mismo disco, renombra
 
-    def foto_bloqueada(origen, destino):
+    def foto_bloqueada(origen, destino, *a, **k):
         if Path(origen).name == "foto.jpg":
             raise PermissionError(13, "Permiso denegado")  # abierta en el visor de fotos
-        return mover(origen, destino)
+        return mover(origen, destino, *a, **k)
 
-    monkeypatch.setattr(modulo.shutil, "move", foto_bloqueada)
+    monkeypatch.setattr(os, "rename", foto_bloqueada)
     resultado = ordena("deshacer", "--si")
     assert resultado.exit_code == 1 and "ordena deshacer" in resultado.output
     # solo lo que cambió este test (undo() quitaría también NAVAJA_DATOS: datos reales)
-    monkeypatch.setattr(modulo.shutil, "move", mover)
+    monkeypatch.setattr(os, "rename", mover)
     assert ordena("deshacer", "--si").exit_code == 0  # el reintento devuelve la foto
     assert relativos(descargas) == antes and not [p for p in descargas.iterdir() if p.is_dir()]
 
 
 def test_ctrl_c_a_medias_guarda_lo_movido_para_deshacer(descargas, monkeypatch):
-    import shutil
-
-    from navaja.comandos import ordena as modulo
-
     antes = relativos(descargas)
-    mover = shutil.move
+    mover = os.rename  # mover_seguro, en el mismo disco, renombra
     movidos = []
 
-    def corta_en_el_segundo(origen, destino):
+    def corta_en_el_segundo(origen, destino, *a, **k):
         if movidos:
             raise KeyboardInterrupt
         movidos.append(origen)
-        return mover(origen, destino)
+        return mover(origen, destino, *a, **k)
 
-    monkeypatch.setattr(modulo.shutil, "move", corta_en_el_segundo)
+    monkeypatch.setattr(os, "rename", corta_en_el_segundo)
     resultado = ordena("fecha", "-c", str(descargas))
     assert resultado.exit_code == 130
     assert "Cortado a medias: 1 archivo movido antes de cortar" in " ".join(resultado.output.split())
-    monkeypatch.setattr(modulo.shutil, "move", mover)  # solo esto (undo() quitaría NAVAJA_DATOS)
+    monkeypatch.setattr(os, "rename", mover)  # solo esto (undo() quitaría NAVAJA_DATOS)
     assert ordena("deshacer", "--si").exit_code == 0
     assert relativos(descargas) == antes and not [p for p in descargas.iterdir() if p.is_dir()]
 
@@ -301,33 +293,72 @@ def test_ctrl_c_al_guardar_el_registro_no_lo_pierde(descargas, monkeypatch):
 
 
 def test_ctrl_c_justo_despues_de_mover_tambien_se_apunta(descargas, monkeypatch):
-    import shutil
-
-    from navaja.comandos import ordena as modulo
-
     antes = relativos(descargas)
-    mover = shutil.move
+    mover = os.rename  # mover_seguro, en el mismo disco, renombra
 
-    def mueve_y_corta(origen, destino):
-        mover(origen, destino)
+    def mueve_y_corta(origen, destino, *a, **k):
+        mover(origen, destino, *a, **k)
         raise KeyboardInterrupt  # movido, pero antes de apuntarlo
 
-    monkeypatch.setattr(modulo.shutil, "move", mueve_y_corta)
+    monkeypatch.setattr(os, "rename", mueve_y_corta)
     resultado = ordena("fecha", "-c", str(descargas))
     assert resultado.exit_code == 130 and "1 archivo movido" in " ".join(resultado.output.split())
-    monkeypatch.setattr(modulo.shutil, "move", mover)
+    monkeypatch.setattr(os, "rename", mover)
     assert ordena("deshacer", "--si").exit_code == 0
     assert relativos(descargas) == antes and not [p for p in descargas.iterdir() if p.is_dir()]
 
 
 def test_ctrl_c_en_el_primero_no_mueve_nada(descargas, monkeypatch):
-    from navaja.comandos import ordena as modulo
-
     def corta(*_):
         raise KeyboardInterrupt
 
     antes = relativos(descargas)
-    monkeypatch.setattr(modulo.shutil, "move", corta)
+    monkeypatch.setattr(os, "rename", corta)
     resultado = ordena("fecha", "-c", str(descargas))
     assert resultado.exit_code == 130 and "no se ha movido nada" in resultado.output
     assert relativos(descargas) == antes and not [p for p in descargas.iterdir() if p.is_dir()]
+
+
+def test_ctrl_c_ordenando_a_otra_unidad_no_deja_nada_a_medias(descargas, tmp_path, monkeypatch):
+    """Con -d en un USB, mover es copiar y borrar: cortado a mitad no queda nada a medias ni
+    duplicado, y deshacer devuelve lo que sí se movió."""
+    import shutil
+
+    from navaja import comun
+
+    antes = relativos(descargas)
+    usb = tmp_path / "USB"
+    monkeypatch.setattr(comun, "misma_unidad", lambda a, b: False)
+    copiar = shutil.copy2
+    copias = []
+
+    def corta_en_la_segunda(de, a, *r, **k):
+        copias.append(de)
+        if len(copias) == 2:
+            Path(a).write_text("a medias", encoding="utf-8")
+            raise KeyboardInterrupt
+        return copiar(de, a, *r, **k)
+
+    monkeypatch.setattr(shutil, "copy2", corta_en_la_segunda)
+    assert ordena("fecha", "-c", str(descargas), "-d", str(usb)).exit_code == 130
+    monkeypatch.setattr(shutil, "copy2", copiar)  # solo esto (undo() quitaría NAVAJA_DATOS)
+    en_usb = {p.name for p in usb.rglob("*") if p.is_file()}
+    assert len(en_usb) == 1 and not any(".navaja" in n for n in en_usb)  # solo la primera, entera
+    assert len(antes - relativos(descargas)) == 1  # y no está en los dos sitios
+    assert ordena("deshacer", "--si").exit_code == 0
+    assert relativos(descargas) == antes
+
+
+def test_ordenar_a_otra_unidad_uno_de_solo_lectura_y_deshacer(descargas, tmp_path, monkeypatch):
+    """copy2 copia el «solo lectura»: antes, deshacer entre unidades no podía borrarlo y lo
+    dejaba en los dos sitios."""
+    import stat
+
+    from navaja import comun
+
+    antes = relativos(descargas)
+    os.chmod(descargas / "foto.jpg", stat.S_IREAD)
+    monkeypatch.setattr(comun, "misma_unidad", lambda a, b: False)
+    assert ordena("fecha", "-c", str(descargas), "-d", str(tmp_path / "USB")).exit_code == 0
+    assert ordena("deshacer", "--si").exit_code == 0
+    assert relativos(descargas) == antes and not list((tmp_path / "USB").rglob("*.jpg"))
