@@ -24,13 +24,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, ClassVar
 
-from .comandos import ordena, renombra
+from .comandos import cuenta, ordena, renombra
 from .comun import (
     carpeta_papelera, crear_carpetas, cuantos, destino_libre, hora_dudosa, mover_seguro, poner_solo_lectura,
     quitar_solo_lectura, quitar_vacias, ruta_libre,
 )
-from .errores import AccionNoValida, NavajaError
+from .errores import AccionNoValida, IANoDisponible, NavajaError, RespuestaIARara
 from .filtros import sin_tildes
+from .proveedor_ia import ProveedorIA
 from .versiones import Version, apuntar, carpeta_versiones
 
 
@@ -79,6 +80,8 @@ class Accion(ABC):
     """Campos propios de este tipo → si son obligatorios."""
     usa_archivos: ClassVar[bool] = False
     """Si lleva «carpeta» y «filtro»."""
+    usa_ia: ClassVar[bool] = False
+    """Si necesita la IA (y por tanto la clave de Gemini y conexión)."""
 
     _registro: ClassVar[dict[str, type[Accion]]] = {}
 
@@ -613,12 +616,17 @@ class Renombrar(AccionDeArchivos):
         return plan
 
     def aplicar(self, resultado: Resultado) -> None:
-        assert resultado.destino is not None
-        origen, destino = resultado.origen, resultado.destino
-        solo_mayusculas = str(origen).lower() == str(destino).lower()
-        if destino.exists() and not (solo_mayusculas and destino.samefile(origen)):
-            raise FileExistsError(17, "ya existe un archivo con ese nombre")
-        origen.rename(destino)
+        cambiar_nombre(resultado)
+
+
+def cambiar_nombre(resultado: Resultado) -> None:
+    """Le pone el nombre nuevo sin pisar nunca otro archivo (sí deja cambiar solo mayúsculas)."""
+    assert resultado.destino is not None
+    origen, destino = resultado.origen, resultado.destino
+    solo_mayusculas = str(origen).lower() == str(destino).lower()
+    if destino.exists() and not (solo_mayusculas and destino.samefile(origen)):
+        raise FileExistsError(17, "ya existe un archivo con ese nombre")
+    origen.rename(destino)
 
 
 class Borrar(AccionDeArchivos):
@@ -687,3 +695,241 @@ class Rutina(Accion):
     @property
     def pasos(self) -> list[str]:
         return list(self.datos["pasos"])
+
+
+# ── Los tipos con IA ───────────────────────────────────────────────────────
+
+
+def limpiar_nombre(respuesta: str) -> str:
+    """De lo que contesta la IA a un nombre de archivo que vale en Windows, Linux y macOS:
+    «"Factura Movistar – octubre 2026.pdf"» → «factura-movistar-octubre-2026».
+
+    Minúsculas, sin tildes, palabras con guiones y como mucho 60 letras (cortando entre
+    palabras). ``RespuestaIARara`` si no queda nada.
+    """
+    linea = next((l for l in respuesta.splitlines() if l.strip()), "")
+    linea = linea.strip().strip("`\"'«»“”*").strip()
+    linea = linea.split(":", 1)[1] if linea.lower().startswith("nombre:") else linea
+    base = Path(linea).stem if Path(linea).suffix.lower() in cuenta.LEIBLES else linea
+    texto = sin_tildes(base).lower()
+    palabras = [p for p in "".join(c if c.isalnum() else " " for c in texto).split() if p.isascii()]
+    nombre = ""
+    for palabra in palabras:
+        siguiente = f"{nombre}-{palabra}" if nombre else palabra
+        if len(siguiente) > 60:
+            break
+        nombre = siguiente
+    if not nombre:
+        raise RespuestaIARara(f"la IA no ha propuesto un nombre que sirva («{respuesta.strip()[:40]}»)")
+    return nombre
+
+
+class AccionConIA(AccionDeArchivos):
+    """Una acción que le pide algo a la IA por cada archivo.
+
+    El proveedor (Gemini) se pide la primera vez que hace falta, así que «acciones ver» y
+    «validar» funcionan sin clave. Si la IA deja de estar disponible a medias (se va
+    internet, se acaba el cupo), no se le vuelve a preguntar: lo que queda sale como «sin
+    IA» y lo ya hecho se queda hecho (y se puede deshacer).
+    """
+
+    usa_ia = True
+    MAXIMO_TEXTO: ClassVar[int] = 12000
+    """Letras del documento que se le mandan como mucho (el principio, que es lo que más dice)."""
+
+    def __init__(self, datos: dict[str, Any]) -> None:
+        super().__init__(datos)
+        self._proveedor: ProveedorIA | None = None
+        self._sin_ia = ""
+        """Por qué ya no se puede usar la IA en esta ejecución (vacío si se puede)."""
+
+    @property
+    def proveedor(self) -> ProveedorIA:
+        """El de ``ProveedorIA.desde_entorno``. ``IANoDisponible`` si no hay clave."""
+        if self._proveedor is None:
+            self._proveedor = ProveedorIA.desde_entorno()
+        return self._proveedor
+
+    def asegurar_ia(self) -> None:
+        """Antes del plan: si no hay clave (o la IA está apagada), ``IANoDisponible`` ya, en
+        vez de un error por cada archivo."""
+        self.proveedor  # noqa: B018 (pedirlo es lo que lo comprueba)
+
+    @classmethod
+    def comprobar_valores(cls, datos: dict[str, Any]) -> None:
+        if "instrucciones" in datos:
+            instrucciones = datos["instrucciones"]
+            if not isinstance(instrucciones, str) or not instrucciones.strip():
+                raise AccionNoValida(
+                    datos["nombre"], "instrucciones",
+                    'tiene que ser un texto para la IA: "pon la asignatura delante"',
+                )
+            if len(instrucciones) > 500:
+                raise AccionNoValida(
+                    datos["nombre"], "instrucciones",
+                    f"es muy larga ({len(instrucciones)} letras); como mucho 500",
+                )
+
+    @property
+    def instrucciones(self) -> str:
+        extra = self.datos.get("instrucciones", "").strip()
+        return f"\nAdemás: {extra}" if extra else ""
+
+    def texto(self, archivo: Path) -> str:
+        """El texto del documento (el principio). ``NavajaError`` si no se sabe leer o está
+        vacío: ese archivo se salta, sin preguntar a la IA."""
+        if archivo.suffix.lower() not in cuenta.LEIBLES:
+            raise NavajaError(f"no sé leer los {archivo.suffix.lower() or 'archivos sin extensión'}")
+        try:
+            texto = " ".join(cuenta.texto_de(archivo).split())
+        except NavajaError as error:
+            raise NavajaError(str(error).rstrip(".")) from None
+        except OSError as exc:
+            raise NavajaError(f"no se puede leer: {exc.strerror or exc}") from None
+        if len(texto) < 20:
+            raise NavajaError("no tiene texto (¿un PDF escaneado?)")
+        return texto[: self.MAXIMO_TEXTO]
+
+    def pedir(self, instrucciones: str, texto: str) -> str:
+        """Le pregunta a la IA; si ya se sabe que no está, ni lo intenta."""
+        if self._sin_ia:  # el motivo entero ya salió con el primero
+            raise IANoDisponible("sin IA: no se le ha preguntado (mira el motivo en el primero)")
+        try:
+            return self.proveedor.preguntar(instrucciones, texto)
+        except IANoDisponible as error:
+            self._sin_ia = str(error)
+            raise
+
+
+class RenombrarIA(AccionConIA):
+    tipo = "renombrar-ia"
+    explicacion = (
+        "La IA lee el principio de cada documento (PDF, Word, ODT, texto) y le pone un nombre "
+        "que dice lo que es: factura-movistar-octubre-2026.pdf. Necesita la clave de Gemini."
+    )
+    campos = {"instrucciones": False}
+    verbo = "Renombrar"
+    participio = ("renombrado", "renombrados")
+    para = "para renombrar"
+    columna = "Nombre nuevo"
+    MAXIMO_TEXTO = 3000  # para el nombre basta con el principio
+
+    PETICION = (
+        "Propón un nombre de archivo corto que diga qué es este documento, según su contenido. "
+        "En castellano, de 2 a 6 palabras, empezando por lo más importante (qué es y de qué o "
+        "de quién). Si tiene una fecha clara, ponla al final como 2026-10-26 o 2026-10. "
+        "Responde SOLO con el nombre, sin extensión, sin comillas y sin explicar nada."
+    )
+
+    def proponer(self, archivo: Path) -> str:
+        texto = self.texto(archivo)
+        peticion = f"{self.PETICION}{self.instrucciones}\nSe llama ahora: {archivo.name}"
+        return limpiar_nombre(self.pedir(peticion, texto))
+
+    def planificar(self, archivos: list[Path], carpeta: Path) -> list[Resultado]:
+        """Pregunta el nombre de cada uno (por eso tarda un poco), pero no toca nada: esto
+        es lo que enseña --simular. Sin IA desde el principio, ``IANoDisponible``."""
+        if archivos:
+            self.asegurar_ia()
+        reservados: set[str] = set()
+        plan = []
+        for archivo in archivos:
+            try:
+                nombre = self.proponer(archivo)
+            except IANoDisponible as error:  # se ha ido la red o el cupo a medias
+                if not any(r.estado == "pendiente" for r in plan):
+                    raise  # ni uno: que lo diga y ya
+                plan.append(Resultado(archivo, None, "saltado", str(error)))
+                continue
+            except NavajaError as error:  # no se sabe leer, o la IA contestó algo raro
+                plan.append(Resultado(archivo, None, "saltado", str(error)))
+                continue
+            deseado = archivo.with_name(nombre + archivo.suffix.lower())
+            if deseado.name.lower() == archivo.name.lower():
+                continue  # ya se llama así
+            plan.append(Resultado(archivo, destino_libre(deseado, reservados)))
+        return plan
+
+    def aplicar(self, resultado: Resultado) -> None:
+        cambiar_nombre(resultado)
+
+
+class ResumirIA(AccionConIA):
+    tipo = "resumir-ia"
+    explicacion = (
+        "La IA lee cada documento y escribe al lado su resumen en Markdown "
+        "(«tema5.resumen.md»): la idea principal y los puntos clave. El original no se toca. "
+        "Necesita la clave de Gemini."
+    )
+    campos = {"destino": False, "instrucciones": False}
+    verbo = "Resumir"
+    participio = ("resumido", "resumidos")
+    para = "para resumir"
+    columna = "Resumen en"
+    como = "creado"
+    FINAL = ".resumen.md"
+
+    PETICION = (
+        "Resume este documento en castellano y en Markdown: un título con # que diga de qué "
+        "trata, un párrafo de 2 o 3 frases con la idea principal y, después, los puntos clave "
+        "en una lista (como mucho 8). No inventes nada que no esté en el texto."
+    )
+
+    def base(self, carpeta: Path) -> Path:
+        destino = self.datos.get("destino")
+        return self.ruta(destino, carpeta) if destino else carpeta
+
+    def excluir(self, carpeta: Path) -> Path | None:
+        return self.base(carpeta) if self.datos.get("destino") else None
+
+    def destino_comun(self, carpeta: Path) -> Path | None:
+        return self.base(carpeta) if self.datos.get("destino") else None
+
+    def pregunta(self, n: int) -> str:
+        return f"¿Resumir {cuantos(n, 'archivo')} con IA?"
+
+    def planificar(self, archivos: list[Path], carpeta: Path) -> list[Resultado]:
+        """Dónde iría cada resumen. Aquí aún no se pregunta a la IA (eso es al hacerlo),
+        pero sí se mira que haya clave. El que ya tiene resumen se salta: así la segunda
+        vez solo se resume lo nuevo."""
+        if archivos:
+            self.asegurar_ia()
+        base = self.base(carpeta)
+        reservados: set[str] = set()
+        plan = []
+        for archivo in archivos:
+            if archivo.name.lower().endswith(self.FINAL):
+                continue  # un resumen no se resume
+            deseado = base / relativa(archivo, carpeta).parent / f"{archivo.stem}{self.FINAL}"
+            if archivo.suffix.lower() not in cuenta.LEIBLES:
+                plan.append(Resultado(archivo, None, "saltado", f"no sé leer los {archivo.suffix.lower() or 'archivos sin extensión'}"))
+            elif deseado.exists():
+                plan.append(Resultado(archivo, deseado, "saltado", "ya tiene resumen"))
+            else:
+                plan.append(Resultado(archivo, destino_libre(deseado, reservados)))
+        return plan
+
+    def resumen(self, archivo: Path) -> str:
+        texto = self.texto(archivo)
+        respuesta = self.pedir(f"{self.PETICION}{self.instrucciones}\nDocumento: {archivo.name}", texto)
+        proveedor = self.proveedor
+        cuando = datetime.now().strftime("%d/%m/%Y")
+        return (
+            f"{respuesta.strip()}\n\n---\n\n"
+            f"_Resumen de «{archivo.name}» hecho con IA ({proveedor.nombre}, {proveedor.modelo}) "
+            f"el {cuando}. Puede equivocarse: compruébalo con el original._\n"
+        )
+
+    def aplicar(self, resultado: Resultado) -> None:
+        """Escribe el resumen. Lo que no sale bien (no se lee, la IA no está o contesta algo
+        raro) es un fallo de ese archivo, como un error del disco: los demás siguen."""
+        assert resultado.destino is not None
+        try:
+            contenido = self.resumen(resultado.origen)
+        except NavajaError as error:
+            raise OSError(0, str(error).rstrip(".")) from None
+        if resultado.destino.exists():
+            resultado.destino = ruta_libre(resultado.destino)
+        resultado.creadas = crear_carpetas(resultado.destino.parent)
+        with resultado.destino.open("x", encoding="utf-8", newline="\n") as archivo:  # «x»: nunca pisa
+            archivo.write(contenido)

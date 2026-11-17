@@ -103,7 +103,7 @@ def test_cada_comando_tiene_su_seccion_y_no_se_reordena():
     assert [n for n, _ in secciones[3][1]] == ["chuleta", "estudia", "foco", "entregas"]
     assert [n for n, _ in secciones[4][1]] == ["nuevo", "hoy", "compara", "falsos", "sql", "hash", "genera", "clave"]
     assert [n for n, _ in secciones[5][1]] == ["acciones"]
-    assert [n for n, _ in secciones[6][1]] == ["doctor", "tema", "config", "manual"]
+    assert [n for n, _ in secciones[6][1]] == ["doctor", "comprobar-ia", "tema", "config", "manual"]
 
 
 def test_un_submenu_no_tiene_secciones():

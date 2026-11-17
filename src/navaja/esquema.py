@@ -46,12 +46,14 @@ DOC_CAMPOS = [
     ("nombre", "obligatorio", "Con el que la ejecutas: minúsculas, números y guiones, sin "
      "espacios (ordenar-descargas). No se puede repetir."),
     ("descripcion", "obligatorio", "Qué hace, en una frase. Sale en «acciones ver»."),
-    ("tipo", "obligatorio", "mover, copiar, ordenar, renombrar, borrar o rutina."),
+    ("tipo", "obligatorio", "mover, copiar, ordenar, renombrar, borrar, rutina, o con IA: "
+     "renombrar-ia o resumir-ia."),
     ("carpeta", "opcional", "Dónde trabaja (~/Downloads). Sin ella, en la carpeta actual. "
      "Al ejecutar puedes darle otra."),
     ("filtro", "opcional", "Qué archivos de la carpeta se tocan (abajo). Sin filtro, todos."),
     ("destino", "mover, copiar", "A qué carpeta van. Si no existe, se crea. En «ordenar» es "
-     "opcional: dónde se crean las subcarpetas. Al ejecutar puedes darle otro (--destino)."),
+     "opcional: dónde se crean las subcarpetas; en «resumir-ia», dónde se guardan los "
+     "resúmenes (sin él, al lado de cada documento). Al ejecutar puedes darle otro (--destino)."),
     ("si_cambia", "copiar, opcional", "Si allí ya hay uno distinto con el mismo nombre: "
      "copia-aparte (por defecto: guarda «nombre (1)» al lado) o el-mas-nuevo (se queda el más "
      "reciente; el viejo se guarda y «acciones versiones» lo devuelve o lo borra)."),
@@ -62,6 +64,8 @@ DOC_CAMPOS = [
     ("plantilla", "renombrar", "El nombre nuevo con huecos: {fecha:%Y-%m-%d}, {n:03}, {nombre} "
      "y {ext}."),
     ("orden", "renombrar", "En qué orden se cuenta {n}: nombre (por defecto) o fecha."),
+    ("instrucciones", "renombrar-ia, resumir-ia, opcional", "Lo que le pides a la IA además "
+     "(hasta 500 letras): \"pon la asignatura delante\", \"resúmelo para estudiar\"."),
     ("pasos", "rutina", "Las acciones que hace, en orden: [\"ordenar-descargas\", \"…\"]."),
     ("_lo-que-sea", "opcional", "Lo que empieza por _ es una nota para ti: navaja no lo lee."),
 ]

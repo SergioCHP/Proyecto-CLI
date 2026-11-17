@@ -19,7 +19,7 @@ import typer
 from rich.markup import escape
 from rich.text import Text
 
-from .. import __version__, esquema
+from .. import __version__, esquema, proveedor_ia
 from ..comun import NAVAJA, console, directorio_datos, es_utf8, recuadro, tabla_ligera
 from ..errores import NavajaError
 from ..lotes import como_instalar
@@ -167,6 +167,18 @@ def revisar_acciones() -> Revision:
     return Revision("navaja", "acciones.json", "ok", f"{len(acciones)} acciones · {ruta}")
 
 
+def revisar_ia() -> Revision:
+    """Solo mira si hay clave (sin llamar a nadie): probarla de verdad es «comprobar-ia»."""
+    datos = proveedor_ia.configuracion()
+    if datos.apagada:
+        return Revision("navaja", "IA (Gemini)", "aviso", f"apagada con {proveedor_ia.ENV_SIN_IA}")
+    if not datos.clave:
+        return Revision("navaja", "IA (Gemini)", "aviso", "sin clave (solo hace falta para renombrar-ia y resumir-ia)",
+                        f"Pon {proveedor_ia.ENV_CLAVE} en .env (copia .env.example)")
+    return Revision("navaja", "IA (Gemini)", "ok", f"clave en {datos.origen} · {datos.modelo}",
+                    "navaja comprobar-ia la prueba")
+
+
 def revisar_terminal() -> Revision:
     if es_utf8(console):
         return Revision("navaja", "Terminal", "ok", f"UTF-8 · {platform.system()} {platform.release()}")
@@ -181,6 +193,7 @@ def revisar_todo() -> list[Revision]:
         *revisar_programas(),
         revisar_datos(),
         revisar_acciones(),
+        revisar_ia(),
         revisar_terminal(),
     ]
 

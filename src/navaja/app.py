@@ -37,6 +37,7 @@ from .comandos import (
     genera,
     hoy,
     huella,
+    ia,
     imagen,
     listar,
     mis_acciones,
@@ -66,7 +67,7 @@ app = typer.Typer(
         "[bold]pdf[/], [bold]imagen[/], [bold]base[/], "
         "[bold]chmod[/], [bold]red[/], [bold]puertos[/], [bold]sistema[/], [bold]subred[/], [bold]hash[/], [bold]genera[/], "
         "[bold]clave[/], [bold]chuleta[/], [bold]nuevo[/], [bold]hoy[/], [bold]compara[/], [bold]falsos[/], [bold]sql[/], [bold]estudia[/], [bold]foco[/], "
-        "[bold]entregas[/], [bold]acciones[/], [bold]doctor[/], "
+        "[bold]entregas[/], [bold]acciones[/], [bold]doctor[/], [bold]comprobar-ia[/], "
         "[bold]tema[/], [bold]config[/] y [bold]manual[/] (explica todo)."
     ),
     add_completion=False,
@@ -165,7 +166,7 @@ for modulo in (
     base, chmod, red, puertos, sistema, subred,
     estudia, foco, entregas,
     huella, genera, clave, chuleta, nuevo, hoy, compara, falsos, sql,
-    mis_acciones, doctor, ajustes, ayuda,
+    mis_acciones, doctor, ia, ajustes, ayuda,
 ):
     modulo.registrar(app)
 

@@ -1359,6 +1359,54 @@ cosas mal:
   tarjetas («Wi-Fi», «Ethernet 2», «vEthernet (WSL)»), `puertos` sin ser administrador y la
   batería del portátil.
 
+### 2026-11-17 — Menú compacto
+
+- Si el menú no cabe en la altura de la ventana, se reparte en dos columnas (con sus frases) y
+  el rótulo grande deja su sitio al sencillo. Los submenús y la salida sin terminal no cambian.
+  11 tests en `test_menu_compacto.py`.
+- Arreglos de los tests en Windows: con la salida capturada por pytest, Rich cree que es la
+  consola antigua (`legacy_windows`) y cambia `╭` por `┌`; los tests lo fijan a `False`.
+  `test_iconos_solo_con_utf8_y_terminal_moderna` mira `legacy_windows` y no `WT_SESSION`.
+- `ayuda.tipo_texto`: una opción con `min=`/`max=` (tipo «int range») sale como «número».
+
+### 2026-11-17 — Capa de IA: `renombrar-ia`, `resumir-ia` y `comprobar-ia`
+
+- **Decisión** (Sergio): Gemini, con la clave en `.env`; Ollama no (no lo tiene en casa). Las
+  dos acciones con IA son las que propone el profesor: renombrar por contenido y resumir.
+  Por qué y alternativas: [ADR-0002](docs/adr/0002-capa-ia.md).
+- **`proveedor_ia.py`**: `ProveedorIA` (fábrica `desde_entorno`, `preguntar`, `comprobar`) y
+  `Gemini` (API REST con `urllib`, sin dependencias nuevas; clave en la cabecera
+  `x-goog-api-key`, nunca en la URL). La clave sale de `GEMINI_API_KEY`, del `.env` de la
+  carpeta actual o del de los datos (por ese orden). `NAVAJA_MODELO` (por defecto
+  `gemini-flash-lite-latest`: probado en casa, contesta en 0,9 s; `gemini-flash-latest` pasaba
+  de 60 s) y `NAVAJA_SIN_IA`. `.env.example` documentado.
+- **Errores** (`errores.py`): `IANoDisponible` (código 4: sin clave, sin red, clave mala, cupo
+  gastado, modelo que no existe, Gemini caído o un proxy que lo bloquea; cada uno con su
+  mensaje) y `RespuestaIARara` (bloqueada, vacía o un nombre imposible: solo falla ese archivo).
+- **Acciones** (`acciones.py`): `AccionConIA` (lee el texto con `cuenta.texto_de`, como mucho
+  12 000 letras; si la IA deja de estar a medias, no se le vuelve a preguntar) y dos tipos:
+  `renombrar-ia` (pregunta en el plan: `--simular` enseña los nombres; `limpiar_nombre` deja
+  minúsculas, sin tildes y con guiones, hasta 60 letras) y `resumir-ia` (escribe
+  `nombre.resumen.md` al lado o en `destino`, con una nota de que lo ha hecho la IA; se salta
+  el que ya tiene resumen; `deshacer` lo manda a la papelera: registro `como: "creado"`). Las
+  dos admiten `instrucciones`. `Renombrar.aplicar` pasa a la función `cambiar_nombre`, que
+  usan las dos.
+- **Sin IA, lo demás sigue:** una acción con IA sin clave lo dice en una línea y sale con 4;
+  en una rutina, ese paso se salta con aviso y se hacen los demás (sale con 1). `acciones
+  validar` avisa si hay acciones con IA y no hay clave; `doctor` dice si hay clave (sin
+  llamar). En el plan, un archivo saltado sin destino ya no sale como «papelera de navaja».
+- **`navaja comprobar-ia`** (`comandos/ia.py`, en la sección navaja tras `doctor`): proveedor,
+  modelo, de dónde sale la clave (solo las 4 últimas letras) y una pregunta mínima;
+  `--sin-llamar` no gasta cupo.
+- **acciones.json**: `nombres-claros` (renombrar-ia en Descargas, última semana),
+  `resumir-apuntes` (resumir-ia en `ESTUDIO/DAM`, recursivo, última semana) y la rutina
+  `descargas-con-ia`. Las mismas en `pruebas/acciones-prueba.json`.
+- 42 tests nuevos (`test_ia.py`) que nunca llaman a Gemini: un proveedor `Falso` para las
+  acciones y `urlopen` cambiado para los errores de red. `conftest.py` quita la clave y los
+  `.env` reales en todos los tests.
+- Pendiente de probar en casa con la clave de verdad: `comprobar-ia`, `nombres-claros
+  --simular` y `resumir-apuntes` con un PDF de apuntes.
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.
@@ -1472,6 +1520,7 @@ cosas mal:
 - [ ] La barra de `ocupa` con `#` y `-` (salida sin UTF-8) no se ha probado a mano: desde Git
   Bash navaja siempre escribe en UTF-8.
 - [ ] Linter/formateador (ruff) y CI (GitHub Actions).
+- [ ] IA: Ollama o el servidor del centro como otro proveedor (una subclase de `ProveedorIA`).
 - [ ] Empaquetado y publicación (pipx / PyPI).
 
 ## Cómo comprobar el estado
