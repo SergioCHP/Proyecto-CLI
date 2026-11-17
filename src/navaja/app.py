@@ -31,6 +31,7 @@ from .comandos import (
     entregas,
     estudia,
     extrae,
+    falsos,
     foco,
     fondo,
     genera,
@@ -46,6 +47,7 @@ from .comandos import (
     pdf,
     qr,
     renombra,
+    sql,
     subred,
 )
 from .comun import aplicar_tema, cargar_config, console, nombre_para_saludar, preparar_salida
@@ -60,7 +62,7 @@ app = typer.Typer(
         "[bold]convierte[/], [bold]cuenta[/], [bold]fondo[/], [bold]baja[/], [bold]qr[/], "
         "[bold]pdf[/], [bold]imagen[/], [bold]base[/], "
         "[bold]chmod[/], [bold]subred[/], [bold]hash[/], [bold]genera[/], "
-        "[bold]clave[/], [bold]chuleta[/], [bold]nuevo[/], [bold]hoy[/], [bold]compara[/], [bold]estudia[/], [bold]foco[/], "
+        "[bold]clave[/], [bold]chuleta[/], [bold]nuevo[/], [bold]hoy[/], [bold]compara[/], [bold]falsos[/], [bold]sql[/], [bold]estudia[/], [bold]foco[/], "
         "[bold]entregas[/], [bold]acciones[/], [bold]doctor[/], "
         "[bold]tema[/], [bold]config[/] y [bold]manual[/] (explica todo)."
     ),
@@ -147,7 +149,7 @@ for modulo in (
     convierte, cuenta, fondo, baja, qr, pdf, imagen,
     base, chmod, subred,
     estudia, foco, entregas,
-    huella, genera, clave, chuleta, nuevo, hoy, compara,
+    huella, genera, clave, chuleta, nuevo, hoy, compara, falsos, sql,
     mis_acciones, doctor, ajustes, ayuda,
 ):
     modulo.registrar(app)

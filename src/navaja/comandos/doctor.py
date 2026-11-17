@@ -49,6 +49,7 @@ OPCIONALES = [
     ("openpyxl", "convierte: Excel ↔ CSV", "documentos"),
     ("yt-dlp", "baja: descargar vídeos", "baja"),
     ("rembg", "fondo: quitar el fondo (pesa)", "fondo"),
+    ("Faker", "falsos: datos de prueba", "falsos"),
 ]
 
 PROGRAMAS = [

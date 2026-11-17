@@ -15,7 +15,7 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
    `fondo`, `baja`, `qr`, `pdf`, `imagen`, `base`, `chmod`, `subred` (`ver`, `dividir`, `vlsm`,
    `misma`, `practica`), `estudia` (`repasa`, `importa`, `estadisticas`), `foco` (`empieza`,
    `historial`), `entregas` (`agregar`, `listar`, `hecha`, `borrar`), `chuleta`, `nuevo`, `hoy`,
-   `compara`, `hash`, `genera`, `clave`, `doctor`,
+   `compara`, `falsos`, `sql`, `hash`, `genera`, `clave`, `doctor`,
    `acciones` (`ver`, `ejecutar`, `deshacer`, `versiones`,
    `editar`, `validar`), `tema`, `config` (también `config autocompletar`, Tab en PowerShell),
    `manual` y `version`. Dentro de navaja, Tab completa y ↑ ↓ recuperan lo de antes.
@@ -75,6 +75,8 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
 | `navaja nuevo NOMBRE` | Crea un proyecto listo para trabajar: carpeta, `README.md`, el `.gitignore` del lenguaje y una plantilla (`-l python`: `src/main.py` y `tests/`; `-l java`: `src/Main.java`; `-l web`: `index.html`, `css/`, `js/` e `img/`), y luego `git init` (rama `main`) y el primer commit. Enseña antes lo que va a crear y pregunta `[s/n]`; `--simular` solo mira, `--sin-git` no crea repositorio y `-c CARPETA` dice dónde. Si la carpeta ya existe, crea «nombre (1)». Sin git instalado, crea los archivos y dice cómo instalarlo; si git no sabe tu nombre, explica el `git config` que falta. |
 | `navaja hoy [CARPETA]` | Tus commits de hoy en todos los repositorios git de la carpeta (mira 3 niveles hacia dentro, sin entrar en `.venv` ni `node_modules`), en todas las ramas, con hora y mensaje. Solo los tuyos (el `user.email` de cada repo); con `--todos`, los de todo el mundo. `--desde ayer`, `--desde -3` (hace 3 días), `--desde 10/11`. Con `--md`, en Markdown y sin colores para pegarlo en el diario de prácticas. |
 | `navaja compara A B` | Diferencias entre dos archivos (las líneas quitadas en rojo y las añadidas en verde, como `git diff`; `-n` líneas de contexto, `-w` sin contar espacios; avisa si solo cambian los finales de línea; de un binario dice si son iguales) o dos carpetas (qué está solo en una, solo en la otra y qué ha cambiado, sin mirar `.git` ni `node_modules`; con `--detalle`, también las líneas). No cambia nada. |
+| `navaja falsos` | Datos de prueba realistas en español (Faker, extra `falsos`): `id`, `nombre`, `apellidos`, `email` (sacado del nombre y sin repetir), `dni` (con la letra bien calculada), `telefono`, `ciudad`… y más con `--campos` (`--lista` los enseña todos). `-n` filas; `-f tabla` (para ver), `csv` (con `;` para Excel), `json` o `sql` (`CREATE TABLE` + `INSERT`, tabla con `-t`); `--guardar archivo` (el formato sale de la extensión; nunca pisa); `--semilla` para que salgan siempre los mismos. |
+| `navaja sql BASE [CONSULTA]` | Abre una base SQLite. Sin consulta, sus tablas y vistas con columnas, clave, obligatorias y cuántas filas tienen. Un `SELECT` sale en una tabla (`-n` filas; `--csv` lo guarda entero), siempre con la base en solo lectura. Un `INSERT`, `UPDATE`, `DELETE`, `CREATE`… enseña antes las sentencias y pregunta `[s/n]`; guarda una copia de la base (las 5 últimas, en `sql-copias` de tus datos) y lo hace todo o nada. `--simular` lo prueba y lo deshace (dice cuántas filas cambiaría). `--archivo datos.sql` ejecuta un script (como el de `falsos`) y `--crear` crea la base si no existe. |
 | `navaja clave` | `nueva` (contraseña segura al azar), `frase` (palabras al azar, fácil de recordar) y `fuerza` (cómo de fuerte es la tuya: la escribes sin que se vea y no se guarda). |
 | `navaja acciones` | Tus tareas de siempre guardadas con un nombre en `acciones.json` (ordenar Descargas, copiar apuntes, quitar instaladores viejos…) para hacerlas con una orden. Con simulación, confirmación y deshacer; lo que sustituye una copia se guarda en `acciones versiones`. |
 | `navaja doctor` | Revisa que todo esté listo: Python, librerías (y las opcionales), programas de fuera (git, LibreOffice, Pandoc, FFmpeg, 7-Zip, Word, winget), la carpeta de datos, `acciones.json` y la terminal. Dice cómo arreglar lo que falta. |
@@ -111,8 +113,8 @@ trabajan con PDF y fotos, bajan vídeos y hacen QR, sin tocar nunca el original.
 informática** (20-22) son calculadoras para clase: `base`, `chmod` y `subred`.
 **Estudio** (23-26) es para clase y para todo lo que quieras tener a mano: `chuleta` (chuletas
 sin internet, de cualquier tema), `estudia` (tarjetas para memorizar), `foco` (pomodoro) y
-`entregas` (deberes y exámenes con cuenta atrás). **Programación** (27-32) es la caja de
-herramientas para tus proyectos: `nuevo`, `hoy`, `compara`, `hash`, `genera` y `clave`. **Lo que repites** (33) son tus acciones: recetas
+`entregas` (deberes y exámenes con cuenta atrás). **Programación** (27-34) es la caja de
+herramientas para tus proyectos: `nuevo`, `hoy`, `compara`, `falsos`, `sql`, `hash`, `genera` y `clave`. **Lo que repites** (35) son tus acciones: recetas
 guardadas en `acciones.json` que se hacen con una palabra (`acciones ejecutar
 usb-a-pc`). Y **navaja**: colores, tu nombre y el manual.
 
@@ -529,6 +531,13 @@ navaja entregas listar                           # la cuenta atrás, con colores
 navaja entregas hecha 1
 
 # Programación
+navaja falsos -n 5                               # 5 personas de prueba en una tabla
+navaja falsos -n 100 -c nombre,email,dni -g alumnos.csv
+navaja falsos -n 50 -t alumnos -g alumnos.sql    # CREATE TABLE + INSERT
+navaja sql clase.db -a alumnos.sql --crear       # mete esos datos en una base nueva
+navaja sql clase.db                              # sus tablas y columnas
+navaja sql clase.db "SELECT ciudad, COUNT(*) FROM alumnos GROUP BY ciudad"
+navaja sql clase.db "DELETE FROM alumnos WHERE id > 40" --simular
 navaja hash archivo ubuntu.iso --compara 3f2a…   # ¿la descarga está bien?
 navaja genera uuid -n 3
 navaja genera lorem --palabras 80 --parrafos 2

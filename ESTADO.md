@@ -1297,6 +1297,29 @@ cosas mal:
   saltan si no hay git. Probado en Linux: sin fallos nuevos (siguen los 11 de la versión de
   Typer/Click de esa máquina).
 
+### 2026-11-17 — `falsos` y `sql` (Programación)
+
+- **Menú:** Programación 27-34 (`nuevo`, `hoy`, `compara`, `falsos`, `sql`, `hash`, `genera`,
+  `clave`), acciones 35 y navaja 36-39.
+- **`navaja falsos`** (`comandos/falsos.py`): Faker `es_ES` como extra opcional `falsos` (también
+  en `todo` y `dev`; `doctor` lo revisa; sin él, dice cómo instalarlo). 17 campos (`--lista`);
+  el DNI con la letra calculada a mano (número mod 23) y sin repetir, el email sacado del nombre
+  sin tildes y sin repetir. Formatos `tabla` (50 filas como mucho), `csv` (`;`, con BOM al
+  guardar para Excel), `json` y `sql` (`CREATE TABLE IF NOT EXISTS` + un `INSERT` por fila, con
+  `'` escapado). `--guardar` elige el formato por la extensión y nunca pisa; `--semilla`,
+  `--simular`. Hasta 10.000 filas.
+- **`navaja sql BASE [CONSULTA]`** (`comandos/sql.py`): sin consulta, tablas y vistas con sus
+  columnas. Las sentencias se parten con `sqlite3.complete_statement` (un `;` entre comillas no
+  corta). Si alguna empieza por `INSERT`, `UPDATE`, `DELETE`, `CREATE`, `DROP`, `ALTER`…, es un
+  cambio: enseña el SQL con colores, pregunta `[s/n]`, copia la base con la API de backup de
+  SQLite (quedan 5 en `sql-copias`) y lo hace en una transacción (todo o nada). `--simular`
+  hace lo mismo y `ROLLBACK`. Todo lo demás se abre en solo lectura (`mode=ro`): un `WITH …
+  DELETE` o un error de escritura no pueden cambiar nada. Nunca crea una base por mirar (solo
+  con `--crear`). `--csv` guarda el resultado entero; `--archivo` lee un `.sql`.
+- Pendiente: formatear SQL desordenado (necesitaría `sqlparse`).
+- 37 tests nuevos (`test_falsos.py`, `test_sql.py`, uno de `falsos` + `sql` juntos). Sin
+  fallos nuevos en Linux. Al añadir el extra, `uv` actualiza `uv.lock` la primera vez.
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.
@@ -1389,7 +1412,7 @@ cosas mal:
   - `qr --guardar foto.jpg` lo cambia a `foto.png` sin avisar; los mensajes con
     `error.strerror` salen en inglés en Windows («Permission denied»).
 - [ ] Fase 3 (documento de ideas): `chuleta`, `estudia`, `foco` y `entregas` hechas; también `nuevo`, `hoy` y `compara`. El resto, solo si hace falta (Sergio,
-  2026-11-17: «no las quiero todas»). Quedan `falsos`, `sql`, `regex` y `tiempo`; de estudio,
+  2026-11-17: «no las quiero todas»). `falsos` y `sql` también. Quedan `regex` y `tiempo`; de estudio,
   `apuntes` y `horario` (aparcadas: «pasamos ya de estudio»). `portada` descartada.
 - [ ] `baja`: no se puede probar de verdad aquí (sin internet a YouTube); probarlo en casa.
 - [ ] `convierte`: EPUB, SRT, RAR y SVG (ideas de Filee); `pdf`: varias páginas por hoja.

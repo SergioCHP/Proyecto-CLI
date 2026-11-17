@@ -101,7 +101,7 @@ def test_cada_comando_tiene_su_seccion_y_no_se_reordena():
     assert [n for n, _ in secciones[1][1]] == ["convierte", "cuenta", "fondo", "baja", "qr", "pdf", "imagen"]
     assert [n for n, _ in secciones[2][1]] == ["base", "chmod", "subred"]
     assert [n for n, _ in secciones[3][1]] == ["chuleta", "estudia", "foco", "entregas"]
-    assert [n for n, _ in secciones[4][1]] == ["nuevo", "hoy", "compara", "hash", "genera", "clave"]
+    assert [n for n, _ in secciones[4][1]] == ["nuevo", "hoy", "compara", "falsos", "sql", "hash", "genera", "clave"]
     assert [n for n, _ in secciones[5][1]] == ["acciones"]
     assert [n for n, _ in secciones[6][1]] == ["doctor", "tema", "config", "manual"]
 
