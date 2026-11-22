@@ -154,6 +154,7 @@ def test_convierte_con_asterisco_en_una_carpeta_de_windows(tmp_path):
     assert "foto.png" in salida.output and "desktop" not in salida.output
 
 
+@pytest.mark.skipif(os.name != "nt", reason="unidades (C:) y recursos de red (\\\\servidor): rutas de Windows")
 def test_comodin_con_unidad_recurso_de_red_y_prefijo():
     from navaja.comun import patron_glob, tiene_comodin
 

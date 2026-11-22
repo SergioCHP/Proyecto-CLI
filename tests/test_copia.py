@@ -2,6 +2,7 @@ import os
 import time
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from navaja.app import app
@@ -207,6 +208,7 @@ def test_por_menu_destino_de_la_lista_y_bajando_por_carpetas(tmp_path, capsys, m
     assert relativos(casa / "Documents" / "ESTUDIO" / "DAM") == {"apuntes.md"}
 
 
+@pytest.mark.skipif(os.name != "nt", reason="«documentos\\ESTUDIO» con \\ solo es una ruta en Windows")
 def test_por_menu_documentos_escrito_y_carpeta_nueva(tmp_path, capsys, monkeypatch):
     casa = tmp_path / "casa"
     (casa / "Documents" / "ESTUDIO").mkdir(parents=True)

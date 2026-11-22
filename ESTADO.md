@@ -1407,6 +1407,14 @@ cosas mal:
 - Pendiente de probar en casa con la clave de verdad: `comprobar-ia`, `nombres-claros
   --simular` y `resumir-apuntes` con un PDF de apuntes.
 
+### 2026-11-17 — GitHub Actions: tests en Ubuntu, Windows y macOS
+
+- `.github/workflows/tests.yml`: en cada push y PR, con `uv sync --frozen --extra dev` (las
+  versiones de `uv.lock`), `compileall`, `pytest` y `navaja --help`, en los tres sistemas
+  (`fail-fast: false`: si falla uno, se ven los otros). Insignia en el README.
+- Los dos tests que solo tienen sentido en Windows (`test_copia` con `documentos\ESTUDIO` y
+  `test_lotes` con `C:` y `\\servidor`) se saltan fuera de Windows en vez de fallar.
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.
@@ -1519,7 +1527,7 @@ cosas mal:
   de Rich; se podría dejar una columna de margen.
 - [ ] La barra de `ocupa` con `#` y `-` (salida sin UTF-8) no se ha probado a mano: desde Git
   Bash navaja siempre escribe en UTF-8.
-- [ ] Linter/formateador (ruff) y CI (GitHub Actions).
+- [ ] Linter/formateador (ruff). (CI con GitHub Actions: hecho.)
 - [ ] IA: Ollama o el servidor del centro como otro proveedor (una subclase de `ProveedorIA`).
 - [ ] Empaquetado y publicación (pipx / PyPI).
 
