@@ -45,7 +45,7 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
    - 3: `acciones.json` no existe o está mal escrito.
    - 4: la IA no se puede usar ahora (sin clave, sin internet, clave mala o sin cupo).
 10. **Instalación:** con una orden desde GitHub,
-    `uv tool install "navaja[todo] @ git+https://github.com/SergioCHP/Proyecto-CLI@v1.1.0"`
+    `uv tool install "navaja[todo] @ git+https://github.com/SergioCHP/Proyecto-CLI@v1.2.0"`
     (más detalles en [Instalación](#instalación)). Cuando falta una librería opcional,
     navaja dice la orden que toca según cómo la instalaste: desde GitHub o desde la carpeta
     del proyecto (`--editable`).
@@ -437,14 +437,14 @@ uv se encarga de todo lo demás, también de Python 3.12.
 **Con una orden, desde GitHub** (no hace falta clonar nada):
 
 ```bash
-uv tool install "navaja[todo] @ git+https://github.com/SergioCHP/Proyecto-CLI@v1.1.0"
+uv tool install "navaja[todo] @ git+https://github.com/SergioCHP/Proyecto-CLI@v1.2.0"
 navaja --help
 ```
 
 Queda el comando `navaja` (y su atajo `nav`) en cualquier carpeta. Si dice «orden no
-encontrada», ejecuta `uv tool update-shell` y abre otra terminal. Sin `@v1.1.0` al final se
+encontrada», ejecuta `uv tool update-shell` y abre otra terminal. Sin `@v1.2.0` al final se
 instala lo último de `main`; para actualizar, `uv tool upgrade navaja`; para quitarlo,
-`uv tool uninstall navaja`. Con pipx también vale: `pipx install "navaja[todo] @ git+https://github.com/SergioCHP/Proyecto-CLI@v1.1.0"`.
+`uv tool uninstall navaja`. Con pipx también vale: `pipx install "navaja[todo] @ git+https://github.com/SergioCHP/Proyecto-CLI@v1.2.0"`.
 
 Instalada así, navaja guarda tus cosas en su carpeta de datos (`navaja config ver` te dice
 cuál es; en Windows, `%LOCALAPPDATA%\navaja`; en Linux, `~/.local/share/navaja`). Ahí van tu `acciones.json` (créalo con
@@ -456,7 +456,7 @@ Las órdenes de documentos e imágenes usan librerías opcionales, para no insta
 uses. `[todo]` las trae todas menos la de quitar fondos, que pesa unos 300 MB más:
 
 ```bash
-uv tool install "navaja[todo,fondo] @ git+https://github.com/SergioCHP/Proyecto-CLI@v1.1.0"
+uv tool install "navaja[todo,fondo] @ git+https://github.com/SergioCHP/Proyecto-CLI@v1.2.0"
 ```
 
 Siempre todos juntos en el mismo comando: `uv tool install` deja solo los extras que le
@@ -468,7 +468,7 @@ dices, así que instalar después solo `[fondo]` quitaría los de `todo`.
 sudo apt update && sudo apt install -y curl git   # git: navaja se instala desde GitHub
 curl -LsSf https://astral.sh/uv/install.sh | sh
 source ~/.local/bin/env        # o abre otra terminal
-uv tool install "navaja[todo] @ git+https://github.com/SergioCHP/Proyecto-CLI@v1.1.0"
+uv tool install "navaja[todo] @ git+https://github.com/SergioCHP/Proyecto-CLI@v1.2.0"
 navaja doctor
 ```
 
