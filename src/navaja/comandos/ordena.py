@@ -8,7 +8,6 @@ de ``filtros.py``), enseñan «archivo → carpeta», preguntan [s/n] y mueven
 from __future__ import annotations
 
 import os
-import shutil
 from collections import Counter
 from collections.abc import Callable
 from datetime import datetime
