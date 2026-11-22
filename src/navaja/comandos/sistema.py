@@ -66,12 +66,18 @@ def nivel(porcentaje: float, invertido: bool = False) -> str:
 
 
 def barra(porcentaje: float, ancho: int = ANCHO_BARRA, utf8: bool = True, invertido: bool = False) -> str:
-    """Una barra con markup del tema: «[ok]██████[/][pista]░░░░[/] 30 %»."""
+    """Una barra fina, como la de ``ocupa``: lo usado en el color de su nivel y lo libre en
+    gris, con media celda de precisión («╸»): «[ok]━━━━━╸[/][borde]━━━━[/]  28 %».
+    Sin UTF-8 (la consola antigua de Windows), «#» y «-»."""
     porcentaje = max(0.0, min(100.0, porcentaje))
-    llenos = round(porcentaje / 100 * ancho)
-    lleno, vacio = ("█", "░") if utf8 else ("#", "-")
     estilo = nivel(porcentaje, invertido)
-    return f"[{estilo}]{lleno * llenos}[/][pista]{vacio * (ancho - llenos)}[/] {porcentaje:3.0f} %"
+    if not utf8:
+        llenos = round(porcentaje / 100 * ancho)
+        return f"[{estilo}]{'#' * llenos}[/][borde]{'-' * (ancho - llenos)}[/] {porcentaje:3.0f} %"
+    mitades = round(porcentaje / 100 * ancho * 2)
+    llenos, medio = divmod(mitades, 2)
+    usado = "━" * llenos + "╸" * medio
+    return f"[{estilo}]{usado}[/][borde]{'━' * (ancho - llenos - medio)}[/] {porcentaje:3.0f} %"
 
 
 def tiempo_encendido(segundos: float) -> str:
