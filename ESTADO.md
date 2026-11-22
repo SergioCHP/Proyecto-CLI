@@ -5,7 +5,7 @@ Bitácora de lo implementado y de lo que queda pendiente.
 ## Resumen
 
 - **Producto:** `navaja`, CLI de utilidades de terminal.
-- **Versión:** 1.0.0 (ver [CHANGELOG.md](CHANGELOG.md)).
+- **Versión:** 1.1.0 (ver [CHANGELOG.md](CHANGELOG.md)).
 - **Stack:** Python 3.12+, Typer, Rich, prompt_toolkit, SQLite (stdlib), setuptools, uv.
 - **Estado:** funcional; tests y ruff en verde en Ubuntu, Windows y macOS (GitHub Actions).
 
@@ -1501,6 +1501,28 @@ cosas mal:
 - Repaso de las preguntas del guiado que nombraban opciones (`--algo`): `qr` y
   `acciones versiones borrar` cambiadas a castellano normal; `copia a` tiene sus preguntas.
 - 3 tests en `test_interactivo.py`.
+
+### 2026-11-22 — El cerrojo del índice de versiones en Windows
+
+- En GitHub Actions (Windows) fallaba a veces `test_dos_navaja_a_la_vez_no_se_pisan_el_indice`:
+  11 de 30 versiones en el índice. Al terminar, cada navaja borra su cerrojo, pero en
+  Windows no se puede borrar mientras otro lo está leyendo (para ver si está abandonado); el
+  error se ignoraba y el cerrojo se quedaba puesto, y los demás se rendían a los 5 s.
+- `_quitar_el_mio` reintenta unos 2 s. Test nuevo que simula tres fallos al borrar.
+
+### 2026-11-22 — Carpetas personales de Linux en español
+
+- `carpeta_personal` (en `comun.py`): `~/Downloads` que no existe → la de
+  `XDG_DOWNLOAD_DIR` en `~/.config/user-dirs.dirs` (`~/Descargas`). Igual con Documents,
+  Pictures, Desktop, Music y Videos. La usan `Motor.carpeta` y las rutas absolutas de
+  destino de las acciones. Si el archivo no está (Windows, macOS), la ruta tal cual.
+- Tests en `test_comun.py` con una carpeta personal falsa en `tmp_path`.
+
+### 2026-11-22 — Versión 1.1.0
+
+- `pyproject.toml`, `__version__` y `uv.lock` a 1.1.0. En el CHANGELOG, lo de «Sin publicar»
+  pasa a `[1.1.0]`. README: instalación con `@v1.1.0` y cómo instalar en Ubuntu desde cero.
+- Etiqueta `v1.1.0` y Release en GitHub con las notas del CHANGELOG.
 
 ## Decisiones técnicas
 

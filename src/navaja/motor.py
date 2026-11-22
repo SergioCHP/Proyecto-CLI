@@ -15,7 +15,7 @@ from typing import Any
 
 from .acciones import Accion, AccionDeArchivos, Resultado, Rutina
 from .comandos.duplicados import a_bytes
-from .comun import como_se_escribe, directorio_datos
+from .comun import carpeta_personal, como_se_escribe, directorio_datos
 from .errores import NavajaError
 from .esquema import carpetas_excluidas
 from .filtros import Filtro
@@ -57,6 +57,7 @@ class Motor:
     def carpeta(accion: AccionDeArchivos, elegida: Path | None = None) -> Path:
         """La que se pasa al ejecutar; si no, la de la acción; si no, la actual."""
         carpeta = (elegida or accion.carpeta or Path(".")).expanduser()
+        carpeta = carpeta_personal(carpeta.absolute())  # ~/Downloads → ~/Descargas en Linux
         if not carpeta.is_dir():
             que = "no es una carpeta" if carpeta.exists() else "no existe"
             raise NavajaError(f"La carpeta {carpeta} {que} (acción «{accion.nombre}»).")

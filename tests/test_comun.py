@@ -225,3 +225,45 @@ def test_mover_seguro_en_el_mismo_disco_no_copia_si_no_puede_renombrar(tmp_path,
         mover_seguro(origen, tmp_path / "Nueva" / "a.docx")
     monkeypatch.setattr(os, "rename", renombrar)
     assert origen.exists() and list((tmp_path / "Nueva").iterdir()) == []
+
+
+def _ubuntu_en_espanol(tmp_path, monkeypatch):
+    """Una carpeta personal como la de un Ubuntu en español: Descargas, y su user-dirs.dirs."""
+    casa = tmp_path / "casa"
+    (casa / "Descargas").mkdir(parents=True)
+    (casa / ".config").mkdir()
+    (casa / ".config" / "user-dirs.dirs").write_text(
+        '# comentario\nXDG_DOWNLOAD_DIR="$HOME/Descargas"\nXDG_DESKTOP_DIR="$HOME/"\n', encoding="utf-8"
+    )
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: casa))
+    monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
+    return casa
+
+
+def test_carpeta_personal_downloads_es_descargas_en_ubuntu(tmp_path, monkeypatch):
+    from navaja.comun import carpeta_personal
+
+    casa = _ubuntu_en_espanol(tmp_path, monkeypatch)
+    assert carpeta_personal(casa / "Downloads") == casa / "Descargas"
+    assert carpeta_personal(casa / "Downloads" / "fotos") == casa / "Descargas" / "fotos"  # lo de dentro, igual
+
+
+def test_carpeta_personal_deja_las_rutas_que_no_toca(tmp_path, monkeypatch):
+    from navaja.comun import carpeta_personal
+
+    casa = _ubuntu_en_espanol(tmp_path, monkeypatch)
+    (casa / "Downloads").mkdir()
+    assert carpeta_personal(casa / "Downloads") == casa / "Downloads"  # si existe, es esa
+    assert carpeta_personal(casa / "Desktop") == casa / "Desktop"  # apunta a la casa entera: no
+    assert carpeta_personal(casa / "Proyectos") == casa / "Proyectos"  # no es de las del sistema
+    assert carpeta_personal(tmp_path / "fuera" / "Downloads") == tmp_path / "fuera" / "Downloads"
+    assert carpeta_personal(Path("Downloads")) == Path("Downloads")  # relativa
+
+
+def test_carpeta_personal_sin_user_dirs_la_deja_igual(tmp_path, monkeypatch):
+    """Windows, macOS o un Linux sin ese archivo: la ruta tal cual (y luego «no existe»)."""
+    from navaja.comun import carpeta_personal
+
+    casa = _ubuntu_en_espanol(tmp_path, monkeypatch)
+    (casa / ".config" / "user-dirs.dirs").unlink()
+    assert carpeta_personal(casa / "Downloads") == casa / "Downloads"

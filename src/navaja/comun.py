@@ -175,6 +175,45 @@ def tamano_legible(numero: float) -> str:
     return f"{numero:.1f} PB"
 
 
+CARPETAS_XDG = {
+    "downloads": "XDG_DOWNLOAD_DIR",
+    "documents": "XDG_DOCUMENTS_DIR",
+    "pictures": "XDG_PICTURES_DIR",
+    "desktop": "XDG_DESKTOP_DIR",
+    "music": "XDG_MUSIC_DIR",
+    "videos": "XDG_VIDEOS_DIR",
+}
+"""Las carpetas personales que en Linux (Ubuntu en español) se llaman de otra manera."""
+
+
+def carpeta_personal(ruta: Path) -> Path:
+    """``~/Downloads`` en un Ubuntu en español es ``~/Descargas``: si la ruta no existe y
+    empieza por una de esas carpetas, la del sistema (la de ``~/.config/user-dirs.dirs``).
+    Así el mismo acciones.json vale en Windows y en Linux. Si no, la ruta tal cual."""
+    casa = Path.home()
+    if ruta.exists() or not ruta.is_absolute():
+        return ruta
+    try:
+        primera, *resto = ruta.relative_to(casa).parts
+    except ValueError:
+        return ruta  # no está en tu carpeta personal
+    variable = CARPETAS_XDG.get(primera.lower())
+    configuracion = Path(os.environ.get("XDG_CONFIG_HOME") or casa / ".config") / "user-dirs.dirs"
+    if variable is None:
+        return ruta
+    try:
+        lineas = configuracion.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeDecodeError):
+        return ruta  # Windows, macOS o un Linux sin ese archivo
+    for linea in lineas:
+        nombre, _, valor = linea.partition("=")
+        if nombre.strip() == variable:
+            local = Path(valor.strip().strip('"').replace("$HOME", str(casa)))
+            if local.is_dir() and local != casa:
+                return local.joinpath(*resto)
+    return ruta
+
+
 def directorio_datos() -> Path:
     """Carpeta donde Navaja guarda su estado (notas, deshacer, etc.).
 

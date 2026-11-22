@@ -7,11 +7,16 @@ Lo que cambia en cada versión de navaja. El formato sigue
 
 ## [Sin publicar]
 
+## [1.1.0] - 2026-11-22
+
 ### Añadido
 
 - IA con Ollama, LM Studio o el servidor de modelos del centro: cualquier servidor
   compatible con la API de OpenAI, con `NAVAJA_IA_URL` (y `NAVAJA_IA_CLAVE` si la pide) en
   el `.env`. Gemini sigue siendo el de por defecto.
+- Linux en español: una acción con `~/Downloads` (o Documents, Pictures, Desktop, Music,
+  Videos) usa `~/Descargas`, `~/Documentos`… si la primera no existe (lo lee de
+  `~/.config/user-dirs.dirs`). Así el mismo `acciones.json` vale en Windows y en Ubuntu.
 
 ### Cambiado
 
@@ -22,7 +27,6 @@ Lo que cambia en cada versión de navaja. El formato sigue
 - `sistema`: barras finas como las de `ocupa`, con media celda de precisión.
 - `doctor` y los avisos de librerías opcionales dicen la orden para instalarlas según cómo
   se instaló navaja (desde GitHub o desde la carpeta con `--editable`).
-
 - GitHub Actions pasa también ruff (el linter) en cada push y PR; la configuración está en
   `pyproject.toml` (solo fallos de verdad y código sin usar, no el estilo).
 
@@ -106,4 +110,6 @@ uv tool install "navaja[todo] @ git+https://github.com/SergioCHP/Proyecto-CLI@v1
 - README con la spec, todas las órdenes, el esquema de `acciones.json`, la IA y la
   instalación. Arquitectura en `docs/arquitectura.md` y decisiones en `docs/adr/`.
 
+[Sin publicar]: https://github.com/SergioCHP/Proyecto-CLI/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/SergioCHP/Proyecto-CLI/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/SergioCHP/Proyecto-CLI/releases/tag/v1.0.0
