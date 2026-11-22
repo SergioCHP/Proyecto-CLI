@@ -1,4 +1,4 @@
-# Pasa los tests de navaja en Linux, Windows y macOS en cada push y en cada PR.
+# Pasa ruff (el linter) y los tests de navaja en Linux, Windows y macOS en cada push y PR.
 # Así se ve en GitHub (pestaña Actions y la marca verde de cada commit) que sigue funcionando
 # en los tres sistemas, no solo en mi PC.
 name: Tests
@@ -8,6 +8,19 @@ on:
   pull_request:
 
 jobs:
+  ruff:
+    name: ruff (linter)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Bajar el código
+        uses: actions/checkout@v5
+
+      - name: Instalar uv
+        uses: astral-sh/setup-uv@v8.1.0
+
+      - name: Buscar fallos con ruff (la configuración está en pyproject.toml)
+        run: uvx ruff@0.17.6 check src tests
+
   pytest:
     name: pytest en ${{ matrix.os }}
     runs-on: ${{ matrix.os }}

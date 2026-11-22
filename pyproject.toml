@@ -48,3 +48,17 @@ navaja = ["chuletas/*.md"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+# Solo lo que es un fallo de verdad o código muerto: nombres sin definir, imports y
+# variables sin usar, errores de sintaxis. El estilo (largo de línea, comillas…) no se
+# revisa: el código ya sigue uno y cambiarlo todo no aporta nada.
+select = ["F", "E9", "PLE"]
+
+[tool.ruff.lint.per-file-ignores]
+# pytest pasa los fixtures importados (git_aislado) como parámetro: no es redefinir nada
+"tests/*" = ["F811"]

@@ -19,6 +19,9 @@ Lo que cambia en cada versión de navaja. El formato sigue
 - `doctor` y los avisos de librerías opcionales dicen la orden para instalarlas según cómo
   se instaló navaja (desde GitHub o desde la carpeta con `--editable`).
 
+- GitHub Actions pasa también ruff (el linter) en cada push y PR; la configuración está en
+  `pyproject.toml` (solo fallos de verdad y código sin usar, no el estilo).
+
 ### Arreglado
 
 - Modo guiado: un número opcional vacío ya no se escribe como `""` (`puertos` con Intro

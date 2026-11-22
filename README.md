@@ -695,9 +695,16 @@ navaja config ver
 uv run --extra dev pytest
 ```
 
-En cada `push` y en cada PR, [GitHub Actions](.github/workflows/tests.yml) pasa los mismos
-tests en Ubuntu, Windows y macOS (la insignia de arriba dice si están en verde). Los tests
-trabajan siempre en carpetas temporales y nunca llaman a Gemini.
+Y el linter, que busca fallos sin ejecutar nada (nombres sin definir, imports o variables
+que no se usan); su configuración está en `pyproject.toml`:
+
+```bash
+uvx ruff check src tests
+```
+
+En cada `push` y en cada PR, [GitHub Actions](.github/workflows/tests.yml) pasa ruff y los
+mismos tests en Ubuntu, Windows y macOS (la insignia de arriba dice si están en verde). Los
+tests trabajan siempre en carpetas temporales y nunca llaman a Gemini.
 
 La estructura está en `src/navaja/` y cada utilidad vive en `src/navaja/comandos/`.
 
