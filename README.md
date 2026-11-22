@@ -42,8 +42,11 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
    - 2: uso incorrecto (falta un argumento o una opción no existe).
    - 3: `acciones.json` no existe o está mal escrito.
    - 4: la IA no se puede usar ahora (sin clave, sin internet, clave mala o sin cupo).
-10. **Instalación:** `uv tool install --editable .` desde la carpeta del repo (más
-    detalles en [Instalación](#instalación)).
+10. **Instalación:** con una orden desde GitHub,
+    `uv tool install "navaja[todo] @ git+https://github.com/SergioCHP/Proyecto-CLI@v1.0.0"`
+    (más detalles en [Instalación](#instalación)). Cuando falta una librería opcional,
+    navaja dice la orden que toca según cómo la instalaste: desde GitHub o desde la carpeta
+    del proyecto (`--editable`).
 
 ## Utilidades
 

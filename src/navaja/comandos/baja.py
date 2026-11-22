@@ -20,9 +20,7 @@ from rich.progress import BarColumn, DownloadColumn, Progress, TextColumn, Trans
 from ..comun import AJUSTE, DOCUMENTOS, bonita, confirmar, console, cuantos, error_console, tabla_ligera, tamano_legible
 from ..errores import NavajaError
 from ..filtros import OPCION_SI, OPCION_SIMULAR
-from ..lotes import buscar_programa, fallar, libreria
-
-ACTUALIZAR = 'uv tool install --editable ".[todo]" --reinstall-package yt-dlp'
+from ..lotes import buscar_programa, como_instalar, fallar, libreria
 
 
 def yt_dlp() -> Any:
@@ -124,7 +122,7 @@ def motivo(error: Exception) -> str:
         return "esa web no está entre las que se pueden bajar."
     if "Private" in texto or "unavailable" in texto.lower():
         return "el vídeo es privado o ya no está."
-    return (texto.splitlines() or ["no se puede"])[0][:160] + f" (si pasa con todos, actualiza yt-dlp: {ACTUALIZAR})"
+    return (texto.splitlines() or ["no se puede"])[0][:160] + f" (si pasa con todos, actualiza yt-dlp: {como_instalar()} --reinstall-package yt-dlp)"
 
 
 def baja(

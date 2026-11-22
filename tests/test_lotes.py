@@ -42,8 +42,17 @@ def test_si_una_falla_las_demas_siguen(tmp_path):
     assert (tmp_path / "a.out").exists() and not (tmp_path / "b.out").exists()  # lo roto se quita
 
 
+def instalada_desde(monkeypatch, origen: dict) -> None:
+    """Hace como si navaja se hubiera instalado así (lo que uv deja en direct_url.json)."""
+    monkeypatch.setattr(lotes, "origen_instalacion", lambda: origen)
+
+
+EDITABLE = {"url": "file:///C:/Users/ana/Proyecto-CLI", "dir_info": {"editable": True}}
+
+
 def test_falta_libreria_o_programa(monkeypatch):
-    with pytest.raises(FaltaAlgo, match=r'uv tool install --editable "\.\[todo\]"'):
+    instalada_desde(monkeypatch, EDITABLE)
+    with pytest.raises(FaltaAlgo, match=r'Desde la carpeta de navaja: uv tool install --editable "\.\[todo\]"'):
         libreria("no_existe_xyz", "noexiste", "cosa", "probar")
     # siempre todos juntos: instalar solo uno quitaría los demás
     assert lotes.como_instalar("fondo") == 'uv tool install --editable ".[todo,fondo]"'
@@ -51,6 +60,38 @@ def test_falta_libreria_o_programa(monkeypatch):
     monkeypatch.setattr(lotes, "WINDOWS", True)
     with pytest.raises(FaltaAlgo, match="winget install Gyan.FFmpeg"):
         programa("ffmpeg", "convertir vídeo")
+
+
+def test_instalada_desde_github_dice_la_orden_de_github_con_su_version(monkeypatch):
+    """Quien la instaló con la orden del README no tiene la carpeta: --editable no le vale."""
+    instalada_desde(monkeypatch, {
+        "url": "https://github.com/SergioCHP/Proyecto-CLI",
+        "vcs_info": {"vcs": "git", "requested_revision": "v1.0.0", "commit_id": "eb0ff90"},
+    })
+    assert lotes.como_instalar("fondo") == (
+        'uv tool install --force "navaja[todo,fondo] @ git+https://github.com/SergioCHP/Proyecto-CLI@v1.0.0"'
+    )
+    with pytest.raises(FaltaAlgo, match="Instálalo con: uv tool install --force") as error:
+        libreria("no_existe_xyz", "noexiste", "cosa", "probar")
+    assert "--editable" not in str(error.value) and "carpeta de navaja" not in str(error.value)
+
+
+def test_desde_github_sin_version_o_sin_saber_de_donde_usa_main(monkeypatch):
+    instalada_desde(monkeypatch, {"url": "https://github.com/SergioCHP/Proyecto-CLI", "vcs_info": {"vcs": "git"}})
+    assert lotes.como_instalar() == 'uv tool install --force "navaja[todo] @ git+https://github.com/SergioCHP/Proyecto-CLI"'
+    instalada_desde(monkeypatch, {})  # ni editable ni de git: la orden del README
+    assert lotes.como_instalar() == f'uv tool install --force "navaja[todo] @ git+{lotes.REPO}"'
+
+
+def test_doctor_sugiere_la_orden_segun_como_se_instalo(monkeypatch):
+    from navaja.comandos import doctor
+
+    monkeypatch.setattr(doctor, "version_de", lambda paquete: None)  # falta todo
+    instalada_desde(monkeypatch, {"url": "https://github.com/SergioCHP/Proyecto-CLI", "vcs_info": {"vcs": "git"}})
+    arreglos = {r.arreglo for r in doctor.revisar_librerias()}
+    assert all("git+https://github.com/SergioCHP/Proyecto-CLI" in a for a in arreglos)
+    instalada_desde(monkeypatch, EDITABLE)
+    assert all("--editable" in r.arreglo for r in doctor.revisar_librerias())
 
 
 def test_ctrl_c_no_empieza_mas_y_no_deja_nada_a_medias(tmp_path, monkeypatch):

@@ -22,6 +22,7 @@ from rich.text import Text
 
 from ..comun import AJUSTE, DOCUMENTOS, console, error_console, recuadro, resumen, tabla_ligera
 from ..errores import NavajaError
+from ..lotes import como_instalar, donde_instalar
 
 PALABRA = re.compile(r"[^\W_]+(?:['’\-][^\W_]+)*")
 """Letras o números seguidos; «bien-estar» y «l'aigua» cuentan como una."""
@@ -38,7 +39,6 @@ LEIBLES = TEXTO_PLANO | {".html", ".htm", ".docx", ".odt", ".pdf"}
 """Lo que ``texto_de`` sabe leer (lo usan también las acciones con IA)."""
 W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 TEXTO_ODT = "{urn:oasis:names:tc:opendocument:xmlns:text:1.0}"
-INSTALAR_PDF = 'uv tool install --editable ".[todo]"  (desde la carpeta de navaja)'
 
 
 @dataclass
@@ -152,7 +152,7 @@ def leer_pdf(ruta: Path) -> str:
         from pypdf import PdfReader
         from pypdf.errors import DependencyError
     except ImportError:
-        raise NavajaError(f"Para contar un PDF hace falta pypdf. Instálalo con: {INSTALAR_PDF}") from None
+        raise NavajaError(f"Para contar un PDF hace falta pypdf. {donde_instalar()}: {como_instalar()}") from None
     try:
         lector = PdfReader(str(ruta))
         # protegido solo contra copia o impresión (sin contraseña para abrirlo): se lee igual
@@ -162,7 +162,9 @@ def leer_pdf(ruta: Path) -> str:
     except NavajaError:
         raise
     except DependencyError:
-        raise NavajaError(f"{ruta.name} está cifrado y para abrirlo hace falta cryptography: {INSTALAR_PDF}") from None
+        raise NavajaError(
+            f"{ruta.name} está cifrado y para abrirlo hace falta cryptography. {donde_instalar()}: {como_instalar()}"
+        ) from None
     except NotImplementedError:
         raise NavajaError(f"{ruta.name} está cifrado de una forma que no se sabe abrir.") from None
     except Exception:  # pypdf lanza de todo con un PDF roto (PdfReadError, KeyError, ValueError…)
