@@ -47,7 +47,7 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
 10. **Instalación:** con una línea y sin tener nada instalado:
     `irm https://raw.githubusercontent.com/SergioCHP/Proyecto-CLI/main/instalar.ps1 | iex`
     en Windows o `curl -LsSf …/instalar.sh | sh` en Linux y macOS. Si ya tienes uv,
-    `uv tool install "navaja[todo] @ git+https://github.com/SergioCHP/Proyecto-CLI@v1.2.0"`
+    `uv tool install "navaja[todo] @ git+https://github.com/SergioCHP/Proyecto-CLI@v1.2.1"`
     (más detalles en [Instalación](#instalación)). Cuando falta una librería opcional,
     navaja dice la orden que toca según cómo la instalaste: desde GitHub o desde la carpeta
     del proyecto (`--editable`).
@@ -446,25 +446,25 @@ curl -LsSf https://raw.githubusercontent.com/SergioCHP/Proyecto-CLI/main/instala
 ```
 
 El instalador ([instalar.ps1](instalar.ps1), [instalar.sh](instalar.sh)) instala
-[uv](https://docs.astral.sh/uv/) si no lo tienes y, con él, navaja 1.2.0 desde el `.zip`
+[uv](https://docs.astral.sh/uv/) si no lo tienes y, con él, navaja 1.2.1 desde el `.zip`
 de la versión en GitHub. uv trae su propio Python 3.12 y lo deja todo dentro de tu usuario,
 sin tocar el Python que tengas. Al acabar enseña la versión; escribe `navaja` (en Linux, en
 una terminal nueva). Para otra versión o los extras de quitar fondos:
-`NAVAJA_VERSION=1.2.0 NAVAJA_EXTRAS=todo,fondo` delante de `sh` (en PowerShell,
+`NAVAJA_VERSION=1.2.1 NAVAJA_EXTRAS=todo,fondo` delante de `sh` (en PowerShell,
 `$env:NAVAJA_EXTRAS = "todo,fondo"` antes). En Linux, si no está `curl`: `sudo apt install curl`.
 
 **Con uv, desde GitHub** (si ya tienes [uv](https://docs.astral.sh/uv/) y git):
 
 ```bash
-uv tool install "navaja[todo] @ git+https://github.com/SergioCHP/Proyecto-CLI@v1.2.0"
+uv tool install "navaja[todo] @ git+https://github.com/SergioCHP/Proyecto-CLI@v1.2.1"
 navaja --help
 ```
 
 uv se instala con `winget install astral-sh.uv` (Windows) o
 `curl -LsSf https://astral.sh/uv/install.sh | sh` (Linux y macOS). Queda el comando
 `navaja` (y su atajo `nav`) en cualquier carpeta. Si dice «orden no encontrada», ejecuta
-`uv tool update-shell` y abre otra terminal. Sin `@v1.2.0` al final se instala lo último de
-`main`. Con pipx también vale: `pipx install "navaja[todo] @ git+https://github.com/SergioCHP/Proyecto-CLI@v1.2.0"`.
+`uv tool update-shell` y abre otra terminal. Sin `@v1.2.1` al final se instala lo último de
+`main`. Con pipx también vale: `pipx install "navaja[todo] @ git+https://github.com/SergioCHP/Proyecto-CLI@v1.2.1"`.
 
 Instales como instales: para actualizar, vuelve a ejecutar el instalador (o
 `uv tool upgrade navaja`); para quitarlo, `uv tool uninstall navaja`.
@@ -479,7 +479,7 @@ Las órdenes de documentos e imágenes usan librerías opcionales, para no insta
 uses. `[todo]` las trae todas menos la de quitar fondos, que pesa unos 300 MB más:
 
 ```bash
-uv tool install "navaja[todo,fondo] @ git+https://github.com/SergioCHP/Proyecto-CLI@v1.2.0"
+uv tool install "navaja[todo,fondo] @ git+https://github.com/SergioCHP/Proyecto-CLI@v1.2.1"
 ```
 
 Siempre todos juntos en el mismo comando: `uv tool install` deja solo los extras que le

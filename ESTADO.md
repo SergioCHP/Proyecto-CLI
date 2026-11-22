@@ -5,7 +5,7 @@ Bitácora de lo implementado y de lo que queda pendiente.
 ## Resumen
 
 - **Producto:** `navaja`, CLI de utilidades de terminal.
-- **Versión:** 1.2.0 (ver [CHANGELOG.md](CHANGELOG.md)).
+- **Versión:** 1.2.1 (ver [CHANGELOG.md](CHANGELOG.md)).
 - **Stack:** Python 3.12+, Typer, Rich, prompt_toolkit, SQLite (stdlib), setuptools, uv.
 - **Estado:** funcional; tests y ruff en verde en Ubuntu, Windows y macOS (GitHub Actions).
 
@@ -1574,6 +1574,14 @@ cosas mal:
   `--force`, otra versión y extras, y si uv falla sale con 1).
 - GitHub Actions: trabajo «instalador» en Ubuntu, Windows (PowerShell 5.1) y macOS que
   instala de verdad desde el .zip de ese commit. Probado aquí con un .zip local.
+
+### 2026-11-22 — Versión 1.2.1
+
+- La etiqueta `v1.2.0` era de antes del instalador: quien instalaba con él tenía un `doctor`
+  sin la orden del `.zip`. La 1.2.1 lo lleva.
+- `pyproject.toml`, `__version__`, `uv.lock`, `instalar.ps1` e `instalar.sh` a 1.2.1. En el
+  CHANGELOG, lo de «Sin publicar» pasa a `[1.2.1]`. README con `@v1.2.1`.
+- Etiqueta `v1.2.1` y Release en GitHub con las notas del CHANGELOG.
 
 ## Decisiones técnicas
 
