@@ -259,6 +259,25 @@ def test_dos_navaja_a_la_vez_no_se_pisan_el_indice():
     assert not (raiz / versiones.CERROJO).exists()
 
 
+def test_cerrojo_se_quita_aunque_windows_no_deje_a_la_primera(monkeypatch):
+    """En Windows no se puede borrar un archivo mientras otro lo lee: antes el cerrojo se
+    quedaba puesto y el siguiente navaja esperaba hasta rendirse (fallaba en GitHub Actions)."""
+    original = Path.unlink
+    fallos = []
+
+    def unlink_ocupado(self, *args, **kwargs):
+        if self.name == versiones.CERROJO and len(fallos) < 3:
+            fallos.append(self)
+            raise PermissionError("otro lo está leyendo")
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "unlink", unlink_ocupado)
+    with versiones._cerrojo():
+        pass
+    assert len(fallos) == 3  # falló tres veces...
+    assert not (versiones.carpeta_versiones() / versiones.CERROJO).exists()  # ...y aun así se quitó
+
+
 def test_cerrojo_abandonado_y_ocupado():
     raiz = versiones.carpeta_versiones()
     raiz.mkdir(parents=True)

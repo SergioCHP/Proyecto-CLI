@@ -15,6 +15,10 @@ Lo que cambia en cada versión de navaja. El formato sigue
 
 ### Cambiado
 
+- Modo guiado de `falsos`: pregunta filas, columnas (enseñando las que hay y avisando de
+  las que no existen) y formato, y solo si hace falta el archivo, la tabla del SQL o el
+  separador del CSV. Antes eran 8 preguntas siempre, algunas en «idioma de terminal».
+- Las preguntas de `qr` y `acciones versiones borrar` ya no hablan de `--wifi` ni `--hasta`.
 - `sistema`: barras finas como las de `ocupa`, con media celda de precisión.
 - `doctor` y los avisos de librerías opcionales dicen la orden para instalarlas según cómo
   se instaló navaja (desde GitHub o desde la carpeta con `--editable`).
@@ -24,6 +28,8 @@ Lo que cambia en cada versión de navaja. El formato sigue
 
 ### Arreglado
 
+- El cerrojo del índice de versiones se quedaba puesto en Windows si otro navaja lo estaba
+  leyendo al quitarlo; ahora se reintenta (fallaba a veces en GitHub Actions).
 - Modo guiado: un número opcional vacío ya no se escribe como `""` (`puertos` con Intro
   fallaba).
 - Modo guiado: `nuevo` preguntaba la carpeta dos veces («¿En qué carpeta?» y «Dónde

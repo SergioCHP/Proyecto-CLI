@@ -555,3 +555,32 @@ def test_ls_en_una_pregunta_de_archivo_ensena_la_carpeta_y_vuelve_a_preguntar(ca
     assert interactivo._preguntar_argumento(primero, lector("ls", "apuntes.pdf"), []) == ["apuntes.pdf"]
     texto = salida(capsys)
     assert "apuntes.pdf" in texto and "sub/" in texto  # lo que hay, con las carpetas marcadas
+
+
+def test_falsos_guiado_con_tabla_no_pregunta_lo_que_no_toca(carpeta, capsys):
+    """Con «tabla» solo hacen falta filas, columnas y formato: ni archivo, ni tabla del SQL,
+    ni separador del CSV, ni la semilla (antes salían las 8 preguntas)."""
+    pytest.importorskip("faker")
+    interactivo.iniciar(app, lector(numero_de("falsos"), "3", "nombre,dni", "", eco=True))
+    texto = " ".join(salida(capsys).split())
+    assert "Columnas que hay:" in texto and "telefono" in texto  # enseña lo que se puede pedir
+    assert "falsos --cantidad 3 --campos nombre,dni" in texto
+    for pregunta in ("En qué archivo", "Nombre de la tabla", "¿Qué separador?", "mismo número", "Con --lista"):
+        assert pregunta not in texto
+
+
+def test_falsos_guiado_en_sql_pregunta_archivo_y_tabla_pero_no_separador(carpeta, capsys):
+    pytest.importorskip("faker")
+    interactivo.iniciar(app, lector(numero_de("falsos"), "", "nombre", "4", "", "clientes", eco=True))
+    texto = " ".join(salida(capsys).split())
+    assert "En qué archivo" in texto and "Nombre de la tabla" in texto and "¿Qué separador?" not in texto
+    sql = (carpeta / "datos.sql").read_text(encoding="utf-8")  # Intro = datos.sql
+    assert "CREATE TABLE" in sql and "clientes" in sql
+
+
+def test_falsos_guiado_avisa_de_una_columna_que_no_existe(carpeta, capsys):
+    pytest.importorskip("faker")
+    interactivo.iniciar(app, lector(numero_de("falsos"), "", "nombre,edad", "nombre", ""))
+    texto = " ".join(salida(capsys).split())
+    assert "No hay campo «edad»" in texto  # avisa y vuelve a preguntar
+    assert "falsos --campos nombre" in texto
