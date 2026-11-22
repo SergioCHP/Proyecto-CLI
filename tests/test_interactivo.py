@@ -546,3 +546,12 @@ def test_en_que_carpeta_entiende_cd(carpeta):
     """Por costumbre de la terminal se escribe «cd ..»: vale igual que «..»."""
     assert interactivo.preguntar_carpeta(lector("cd sub")) == ["--carpeta", "sub"]
     assert interactivo.preguntar_carpeta(lector('cd "sub"'), como_opcion=False) == ["sub"]
+
+
+def test_ls_en_una_pregunta_de_archivo_ensena_la_carpeta_y_vuelve_a_preguntar(carpeta, capsys):
+    """En «compara», «El primer archivo…: ls» se tomaba como un archivo llamado «ls»."""
+    comando = typer.main.get_command(app).commands["compara"]
+    primero = next(p for p in comando.params if p.name == "a")
+    assert interactivo._preguntar_argumento(primero, lector("ls", "apuntes.pdf"), []) == ["apuntes.pdf"]
+    texto = salida(capsys)
+    assert "apuntes.pdf" in texto and "sub/" in texto  # lo que hay, con las carpetas marcadas
