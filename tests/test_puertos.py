@@ -147,7 +147,10 @@ def test_de_verdad_ve_y_cierra_un_servidor(tmp_path):
                 nuestros |= {h.pid for h in psutil.Process(servidor.pid).children(recursive=True)}
             except psutil.NoSuchProcess:
                 pass
-            escucha = next((e for e in puertos.recoger(False, numero) if e.pid in nuestros), None)
+            try:
+                escucha = next((e for e in puertos.recoger(False, numero) if e.pid in nuestros), None)
+            except NavajaError:  # macOS no deja ver las conexiones sin sudo (ni en GitHub Actions)
+                pytest.skip("el sistema no deja ver las conexiones sin permisos de administrador")
             if escucha:
                 break
             time.sleep(0.1)

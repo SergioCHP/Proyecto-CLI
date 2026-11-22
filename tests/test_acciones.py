@@ -547,7 +547,9 @@ def test_el_plan_dice_el_destino_una_vez_y_la_columna_va_corta(tmp_path):
         accion("traer", "copiar", carpeta=str(usb), destino=str(pc), filtro={"recursivo": True}),
     )
     salida = acciones("ejecutar", "traer", "--simular", config=ruta).output
-    assert salida.count("DESTINOPC") == 1  # en el recuadro («A …»), no en cada fila
+    # sin espacios ni bordes: en macOS la carpeta temporal es tan larga que la ruta se parte
+    seguido = "".join(salida.split()).replace("│", "")
+    assert seguido.count("DESTINOPC") == 1  # en el recuadro («A …»), no en cada fila
     assert "2 archivos para copiar" in salida
 
 
