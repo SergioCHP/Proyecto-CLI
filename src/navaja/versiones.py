@@ -250,9 +250,23 @@ def _cerrojo(espera: float = ESPERA_CERROJO) -> Iterator[None]:
         yield
     finally:
         if puesto:
-            with contextlib.suppress(OSError):
-                if ruta.read_text(encoding="utf-8") in (mio, ""):  # el nuestro (o sin escribir aún)
-                    ruta.unlink()
+            _quitar_el_mio(ruta, mio)
+
+
+def _quitar_el_mio(ruta: Path, mio: str) -> None:
+    """Quita el cerrojo si sigue siendo el nuestro (o está sin escribir aún). En Windows no se
+    puede borrar mientras otro navaja lo está leyendo (para ver si está abandonado): se
+    reintenta un momento. Antes se daba por quitado y se quedaba puesto: los demás esperaban
+    hasta rendirse y sus versiones se quedaban sin índice."""
+    for _ in range(40):  # unos 2 segundos como mucho
+        try:
+            if ruta.read_text(encoding="utf-8") in (mio, ""):
+                ruta.unlink()
+            return
+        except FileNotFoundError:
+            return
+        except OSError:
+            time.sleep(0.05)
 
 
 def apuntar(nuevas: list[Version]) -> None:

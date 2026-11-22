@@ -28,6 +28,8 @@ Lo que cambia en cada versión de navaja. El formato sigue
 
 ### Arreglado
 
+- El cerrojo del índice de versiones se quedaba puesto en Windows si otro navaja lo estaba
+  leyendo al quitarlo; ahora se reintenta (fallaba a veces en GitHub Actions).
 - Modo guiado: un número opcional vacío ya no se escribe como `""` (`puertos` con Intro
   fallaba).
 - Modo guiado: `nuevo` preguntaba la carpeta dos veces («¿En qué carpeta?» y «Dónde
