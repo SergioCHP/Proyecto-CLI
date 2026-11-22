@@ -30,6 +30,7 @@ from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
 from .comun import (
     bonita, buscar_con_comodin, confirmar, console, cuantos, error_console, ruta_libre, tabla_ligera, tiene_comodin,
 )
+from . import __version__
 from .errores import NavajaError
 
 WINDOWS = sys.platform == "win32"
@@ -41,7 +42,9 @@ REPO = "https://github.com/SergioCHP/Proyecto-CLI"
 def origen_instalacion() -> dict:
     """Cómo se instaló navaja, según el ``direct_url.json`` que deja uv (o pip):
     ``{"dir_info": {"editable": true}}`` desde una carpeta con --editable, o
-    ``{"url": "https://github.com/…", "vcs_info": {…}}`` desde GitHub. Vacío si no se sabe."""
+    ``{"url": "https://github.com/…", "vcs_info": {…}}`` desde GitHub con git, o
+    ``{"url": "…/v1.2.0.zip", "archive_info": {…}}`` desde el .zip de una versión (lo que
+    hace el instalador, ``instalar.ps1`` / ``instalar.sh``). Vacío si no se sabe."""
     try:
         texto = importlib.metadata.distribution("navaja").read_text("direct_url.json")
         datos = json.loads(texto) if texto else {}
@@ -67,10 +70,19 @@ def como_instalar(extra: str = "todo") -> str:
     if instalada_editable():
         return f'uv tool install --editable ".[{extras}]"'
     origen = origen_instalacion()
+    url = origen.get("url")
     vcs = origen.get("vcs_info") or {}
-    url = origen.get("url") if vcs.get("vcs") == "git" and origen.get("url") else REPO
-    version = vcs.get("requested_revision")
-    return f'uv tool install --force "navaja[{extras}] @ git+{url}{"@" + version if version else ""}"'
+    if url and vcs.get("vcs") == "git":
+        version = vcs.get("requested_revision")
+        return f'uv tool install --force "navaja[{extras}] @ git+{url}{"@" + version if version else ""}"'
+    if not (url and "archive_info" in origen):  # no se sabe: el .zip de esta versión (sin git)
+        url = zip_de_version()
+    return f'uv tool install --force "navaja[{extras}] @ {url}"'
+
+
+def zip_de_version(version: str = __version__) -> str:
+    """El .zip de una versión en GitHub: se instala sin tener git (es lo que usa el instalador)."""
+    return f"{REPO}/archive/refs/tags/v{version}.zip"
 
 
 def donde_instalar() -> str:

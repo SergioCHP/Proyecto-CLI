@@ -2,6 +2,7 @@ import os
 
 import pytest
 
+import navaja
 from navaja import lotes
 from navaja.errores import NavajaError
 from navaja.lotes import FaltaAlgo, Tarea, al_lado, expandir, hacer_todo, libreria, programa
@@ -79,8 +80,19 @@ def test_instalada_desde_github_dice_la_orden_de_github_con_su_version(monkeypat
 def test_desde_github_sin_version_o_sin_saber_de_donde_usa_main(monkeypatch):
     instalada_desde(monkeypatch, {"url": "https://github.com/SergioCHP/Proyecto-CLI", "vcs_info": {"vcs": "git"}})
     assert lotes.como_instalar() == 'uv tool install --force "navaja[todo] @ git+https://github.com/SergioCHP/Proyecto-CLI"'
-    instalada_desde(monkeypatch, {})  # ni editable ni de git: la orden del README
-    assert lotes.como_instalar() == f'uv tool install --force "navaja[todo] @ git+{lotes.REPO}"'
+    instalada_desde(monkeypatch, {})  # ni editable ni de git: el .zip de esta versión (sin git)
+    assert lotes.como_instalar() == (
+        f'uv tool install --force "navaja[todo] @ {lotes.REPO}/archive/refs/tags/v{navaja.__version__}.zip"'
+    )
+
+
+def test_instalada_con_el_instalador_dice_la_orden_con_su_zip(monkeypatch):
+    """El instalador (instalar.ps1 / instalar.sh) instala desde el .zip de la versión: el
+    arreglo de «doctor» tiene que usar ese mismo .zip, no git (que quizá no tiene)."""
+    zip_ = "https://github.com/SergioCHP/Proyecto-CLI/archive/refs/tags/v1.2.0.zip"
+    instalada_desde(monkeypatch, {"url": zip_, "archive_info": {}})
+    assert lotes.como_instalar("fondo") == f'uv tool install --force "navaja[todo,fondo] @ {zip_}"'
+    assert "git+" not in lotes.como_instalar()
 
 
 def test_doctor_sugiere_la_orden_segun_como_se_instalo(monkeypatch):

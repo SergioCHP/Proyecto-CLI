@@ -44,7 +44,9 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
    - 2: uso incorrecto (falta un argumento o una opción no existe).
    - 3: `acciones.json` no existe o está mal escrito.
    - 4: la IA no se puede usar ahora (sin clave, sin internet, clave mala o sin cupo).
-10. **Instalación:** con una orden desde GitHub,
+10. **Instalación:** con una línea y sin tener nada instalado:
+    `irm https://raw.githubusercontent.com/SergioCHP/Proyecto-CLI/main/instalar.ps1 | iex`
+    en Windows o `curl -LsSf …/instalar.sh | sh` en Linux y macOS. Si ya tienes uv,
     `uv tool install "navaja[todo] @ git+https://github.com/SergioCHP/Proyecto-CLI@v1.2.0"`
     (más detalles en [Instalación](#instalación)). Cuando falta una librería opcional,
     navaja dice la orden que toca según cómo la instalaste: desde GitHub o desde la carpeta
@@ -430,27 +432,48 @@ pequeño en local, los nombres y los resúmenes salen algo peores que con Gemini
 
 ## Instalación
 
-Hace falta [uv](https://docs.astral.sh/uv/) (Linux, macOS y Windows). En Windows se instala con
-`winget install astral-sh.uv`; en Linux y macOS, con `curl -LsSf https://astral.sh/uv/install.sh | sh`.
-uv se encarga de todo lo demás, también de Python 3.12.
+**Con una línea, sin tener nada instalado** (ni Python ni git; sin permisos de administrador).
+En Windows, en PowerShell:
 
-**Con una orden, desde GitHub** (no hace falta clonar nada):
+```powershell
+irm https://raw.githubusercontent.com/SergioCHP/Proyecto-CLI/main/instalar.ps1 | iex
+```
+
+En Linux (Ubuntu…) y macOS, en la terminal:
+
+```bash
+curl -LsSf https://raw.githubusercontent.com/SergioCHP/Proyecto-CLI/main/instalar.sh | sh
+```
+
+El instalador ([instalar.ps1](instalar.ps1), [instalar.sh](instalar.sh)) instala
+[uv](https://docs.astral.sh/uv/) si no lo tienes y, con él, navaja 1.2.0 desde el `.zip`
+de la versión en GitHub. uv trae su propio Python 3.12 y lo deja todo dentro de tu usuario,
+sin tocar el Python que tengas. Al acabar enseña la versión; escribe `navaja` (en Linux, en
+una terminal nueva). Para otra versión o los extras de quitar fondos:
+`NAVAJA_VERSION=1.2.0 NAVAJA_EXTRAS=todo,fondo` delante de `sh` (en PowerShell,
+`$env:NAVAJA_EXTRAS = "todo,fondo"` antes). En Linux, si no está `curl`: `sudo apt install curl`.
+
+**Con uv, desde GitHub** (si ya tienes [uv](https://docs.astral.sh/uv/) y git):
 
 ```bash
 uv tool install "navaja[todo] @ git+https://github.com/SergioCHP/Proyecto-CLI@v1.2.0"
 navaja --help
 ```
 
-Queda el comando `navaja` (y su atajo `nav`) en cualquier carpeta. Si dice «orden no
-encontrada», ejecuta `uv tool update-shell` y abre otra terminal. Sin `@v1.2.0` al final se
-instala lo último de `main`; para actualizar, `uv tool upgrade navaja`; para quitarlo,
-`uv tool uninstall navaja`. Con pipx también vale: `pipx install "navaja[todo] @ git+https://github.com/SergioCHP/Proyecto-CLI@v1.2.0"`.
+uv se instala con `winget install astral-sh.uv` (Windows) o
+`curl -LsSf https://astral.sh/uv/install.sh | sh` (Linux y macOS). Queda el comando
+`navaja` (y su atajo `nav`) en cualquier carpeta. Si dice «orden no encontrada», ejecuta
+`uv tool update-shell` y abre otra terminal. Sin `@v1.2.0` al final se instala lo último de
+`main`. Con pipx también vale: `pipx install "navaja[todo] @ git+https://github.com/SergioCHP/Proyecto-CLI@v1.2.0"`.
+
+Instales como instales: para actualizar, vuelve a ejecutar el instalador (o
+`uv tool upgrade navaja`); para quitarlo, `uv tool uninstall navaja`.
 
 Instalada así, navaja guarda tus cosas en su carpeta de datos (`navaja config ver` te dice
-cuál es; en Windows, `%LOCALAPPDATA%\navaja`; en Linux, `~/.local/share/navaja`). Ahí van tu `acciones.json` (créalo con
-`navaja acciones editar`, que lo crea con las 10 acciones de este repo: cambia las carpetas
-que no tengas por las tuyas) y, si usas
-la IA, tu `.env` con la clave (ver [IA](#ia)).
+cuál es; en Windows, `%LOCALAPPDATA%\navaja`; en Linux, `~/.local/share/navaja`). Ahí van tu
+`acciones.json` (créalo con `navaja acciones editar`, que lo crea con las 10 acciones de
+este repo: cambia las carpetas que no tengas por las tuyas) y, si usas la IA, tu `.env`
+con la clave (ver [IA](#ia)).
 
 Las órdenes de documentos e imágenes usan librerías opcionales, para no instalar lo que no
 uses. `[todo]` las trae todas menos la de quitar fondos, que pesa unos 300 MB más:
@@ -460,21 +483,12 @@ uv tool install "navaja[todo,fondo] @ git+https://github.com/SergioCHP/Proyecto-
 ```
 
 Siempre todos juntos en el mismo comando: `uv tool install` deja solo los extras que le
-dices, así que instalar después solo `[fondo]` quitaría los de `todo`.
+dices, así que instalar después solo `[fondo]` quitaría los de `todo`. `navaja doctor`
+dice la orden exacta según cómo lo instalaste.
 
-**En Ubuntu**, desde cero (uv trae su propio Python; no hace falta instalarlo):
-
-```bash
-sudo apt update && sudo apt install -y curl git   # git: navaja se instala desde GitHub
-curl -LsSf https://astral.sh/uv/install.sh | sh
-source ~/.local/bin/env        # o abre otra terminal
-uv tool install "navaja[todo] @ git+https://github.com/SergioCHP/Proyecto-CLI@v1.2.0"
-navaja doctor
-```
-
-Un `acciones.json` hecho en Windows con `~/Downloads` vale tal cual: en un Ubuntu en
-español navaja usa `~/Descargas` (lo mismo con Documentos, Imágenes, Escritorio, Música y
-Vídeos). Va en `~/.local/share/navaja/`, junto al `.env` si usas la IA.
+Un `acciones.json` hecho en Windows con `~/Downloads` vale tal cual en un Ubuntu en
+español: navaja usa `~/Descargas` (lo mismo con Documentos, Imágenes, Escritorio, Música y
+Vídeos).
 
 **Para programar en ella**, desde una copia del repositorio:
 

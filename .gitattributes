@@ -1,1 +1,4 @@
 * text=auto
+# Los instaladores, con sus finales de línea aunque se clonen en Windows
+*.sh text eol=lf
+*.ps1 text eol=crlf

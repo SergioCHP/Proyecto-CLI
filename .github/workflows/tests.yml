@@ -51,3 +51,37 @@ jobs:
 
       - name: navaja se arranca
         run: uv run navaja --help
+
+  instalador:
+    # El instalador de una línea, de verdad: en una máquina sin navaja, instala uv (si no
+    # está) y navaja desde el .zip de este mismo commit (NAVAJA_ORIGEN), como haría el
+    # profesor con la versión publicada. En Windows, con PowerShell 5.1, el que trae Windows.
+    name: instalador en ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      NAVAJA_ORIGEN: ${{ github.server_url }}/${{ github.repository }}/archive/${{ github.event.pull_request.head.sha || github.sha }}.zip
+
+    steps:
+      - name: Bajar el código (solo para tener los instaladores)
+        uses: actions/checkout@v5
+
+      - name: Instalar con instalar.sh
+        if: runner.os != 'Windows'
+        run: |
+          sh instalar.sh
+          "$HOME/.local/bin/navaja" --version
+          "$HOME/.local/bin/navaja" --help > /dev/null
+
+      - name: Instalar con instalar.ps1
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          Get-Content instalar.ps1 -Raw -Encoding UTF8 | Invoke-Expression
+          navaja --version
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          navaja --help > $null
+          if ($LASTEXITCODE -ne 0) { exit 1 }
