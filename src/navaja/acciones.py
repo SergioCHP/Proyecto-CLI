@@ -81,7 +81,7 @@ class Accion(ABC):
     usa_archivos: ClassVar[bool] = False
     """Si lleva «carpeta» y «filtro»."""
     usa_ia: ClassVar[bool] = False
-    """Si necesita la IA (y por tanto la clave de Gemini y conexión)."""
+    """Si necesita la IA (Gemini con su clave, o un servidor compatible con OpenAI)."""
 
     _registro: ClassVar[dict[str, type[Accion]]] = {}
 
@@ -727,7 +727,7 @@ def limpiar_nombre(respuesta: str) -> str:
 class AccionConIA(AccionDeArchivos):
     """Una acción que le pide algo a la IA por cada archivo.
 
-    El proveedor (Gemini) se pide la primera vez que hace falta, así que «acciones ver» y
+    El proveedor (Gemini o un servidor) se pide la primera vez que hace falta, así que «acciones ver» y
     «validar» funcionan sin clave. Si la IA deja de estar disponible a medias (se va
     internet, se acaba el cupo), no se le vuelve a preguntar: lo que queda sale como «sin
     IA» y lo ya hecho se queda hecho (y se puede deshacer).
@@ -805,7 +805,7 @@ class RenombrarIA(AccionConIA):
     tipo = "renombrar-ia"
     explicacion = (
         "La IA lee el principio de cada documento (PDF, Word, ODT, texto) y le pone un nombre "
-        "que dice lo que es: factura-movistar-octubre-2026.pdf. Necesita la clave de Gemini."
+        "que dice lo que es: factura-movistar-octubre-2026.pdf. Necesita IA (Gemini o tu servidor)."
     )
     campos = {"instrucciones": False}
     verbo = "Renombrar"
@@ -859,7 +859,7 @@ class ResumirIA(AccionConIA):
     explicacion = (
         "La IA lee cada documento y escribe al lado su resumen en Markdown "
         "(«tema5.resumen.md»): la idea principal y los puntos clave. El original no se toca. "
-        "Necesita la clave de Gemini."
+        "Necesita IA (Gemini o tu servidor)."
     )
     campos = {"destino": False, "instrucciones": False}
     verbo = "Resumir"

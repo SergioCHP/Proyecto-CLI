@@ -172,6 +172,9 @@ def revisar_ia() -> Revision:
     datos = proveedor_ia.configuracion()
     if datos.apagada:
         return Revision("navaja", "IA (Gemini)", "aviso", f"apagada con {proveedor_ia.ENV_SIN_IA}")
+    if datos.con_servidor:
+        return Revision("navaja", "IA (servidor)", "ok", f"{datos.url} · {datos.modelo}",
+                        "navaja comprobar-ia lo prueba")
     if not datos.clave:
         return Revision("navaja", "IA (Gemini)", "aviso", "sin clave (solo hace falta para renombrar-ia y resumir-ia)",
                         f"Pon {proveedor_ia.ENV_CLAVE} en .env (copia .env.example)")

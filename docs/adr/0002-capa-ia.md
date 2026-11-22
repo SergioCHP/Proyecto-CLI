@@ -72,3 +72,14 @@ nunca en el repositorio y que la CLI funcione sin red.
   `renombrar-ia` pregunta al hacer el plan, así que `--simular` también gasta cupo.
 - **Si cambia el proveedor:** una subclase nueva de `ProveedorIA` y que `desde_entorno`
   la elija; las acciones y `acciones.json` no cambian.
+
+## Actualización (2026-11-22): servidores compatibles con OpenAI
+
+Para poder usar el servidor de modelos del centro (el mismo que usa OpenCode) u Ollama sin
+tener aquí su dirección ni su clave, hay una segunda subclase, `Servidor`, que habla la API
+de OpenAI (`POST …/chat/completions`), que es la que entienden Ollama, LM Studio, vLLM y la
+mayoría de servidores de modelos. Se elige solo con el `.env`: si está `NAVAJA_IA_URL`, se
+usa ese servidor (con `NAVAJA_IA_CLAVE` si la pide y `NAVAJA_MODELO`, por defecto
+`llama3.2`); si no, Gemini. Las dos comparten la llamada HTTP (`ProveedorIA.llamar`) y cada
+una traduce sus errores. Así queda resuelta la alternativa 1 (Ollama) sin cambiar la
+decisión: Gemini sigue siendo el de por defecto.

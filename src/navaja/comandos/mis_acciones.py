@@ -155,7 +155,7 @@ def comprobar_y_contar(ruta: Path) -> None:
     if con_ia and not hay_clave():
         console.print(
             f"[aviso]Ojo: {escape(', '.join(con_ia))} {'usa' if len(con_ia) == 1 else 'usan'} IA y no "
-            "hay clave de Gemini: no se podrán hacer hasta que la pongas en .env. Las demás, sí. "
+            "hay clave de Gemini ni servidor de IA: no se podrán hacer hasta que lo pongas en .env. Las demás, sí. "
             f"Más en: {escape(como_se_escribe('comprobar-ia'))}[/]",
             soft_wrap=True,
         )

@@ -23,7 +23,7 @@ description: Reglas del archivo acciones.json de navaja (campos, tipos, filtro, 
 - Cada clase de `acciones.py` comprueba lo suyo en `comprobar_valores`.
 - `Motor` (`motor.py`) elige la carpeta y los archivos; la acción hace el plan (`planificar`, sin tocar el disco) y lo ejecuta (`aplicar` por archivo).
 - `comandos/mis_acciones.py` solo pinta y pregunta.
-- La IA está solo en `proveedor_ia.py`: `ProveedorIA` (fábrica `desde_entorno`, `preguntar`) y `Gemini` (urllib, clave en la cabecera). Los tipos con IA heredan de `AccionConIA` (`usa_ia = True`, `proveedor`, `texto`, `pedir`). Errores: `IANoDisponible` (código 4: sin clave, sin red, clave mala, sin cupo; no se insiste más) y `RespuestaIARara` (solo falla ese archivo).
+- La IA está solo en `proveedor_ia.py`: `ProveedorIA` (fábrica `desde_entorno`, `preguntar`, `llamar`), `Gemini` (urllib, clave en la cabecera) y `Servidor` (compatible con OpenAI: Ollama o el del centro, si hay `NAVAJA_IA_URL`). Los tipos con IA heredan de `AccionConIA` (`usa_ia = True`, `proveedor`, `texto`, `pedir`). Errores: `IANoDisponible` (código 4: sin clave, sin red, clave mala, sin cupo; no se insiste más) y `RespuestaIARara` (solo falla ese archivo).
 - Tipo nuevo: subclase de `AccionDeArchivos` con `tipo`, `explicacion`, `campos` (campo → obligatorio), `planificar` y `aplicar`. Documenta sus campos en `DOC_CAMPOS` y en el README. Si el formato cambia de forma incompatible, sube `esquema.VERSION`.
 - Errores: `NavajaError` (1), `ConfigError` (3) o `AccionNoValida` diciendo qué acción y qué campo; la orden los captura y sale con `error.codigo_salida`.
 

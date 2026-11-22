@@ -23,6 +23,7 @@ def sin_ia_real(monkeypatch):
     archivos .env. Los tests de la IA ponen un proveedor falso o su propio .env."""
     from navaja import proveedor_ia
 
-    for variable in (proveedor_ia.ENV_CLAVE, proveedor_ia.ENV_MODELO, proveedor_ia.ENV_SIN_IA):
+    for variable in (proveedor_ia.ENV_CLAVE, proveedor_ia.ENV_MODELO, proveedor_ia.ENV_SIN_IA,
+                     proveedor_ia.ENV_URL, proveedor_ia.ENV_CLAVE_SERVIDOR):
         monkeypatch.delenv(variable, raising=False)
     monkeypatch.setattr(proveedor_ia, "archivos_env", lambda: [])

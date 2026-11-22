@@ -1,12 +1,16 @@
 """El proveedor de IA: la única parte de navaja que habla con un modelo.
 
 Las acciones con IA (``renombrar-ia`` y ``resumir-ia``) no saben a quién preguntan: piden
-el proveedor a ``ProveedorIA.desde_entorno()`` y le llaman ``preguntar``. Hoy solo hay
-Gemini; otro (Ollama, el servidor del centro…) sería una subclase más con su ``_pedir``.
+el proveedor a ``ProveedorIA.desde_entorno()`` y le llaman ``preguntar``. Hay dos:
 
-La clave nunca está en el código ni en el repositorio. Se lee, por este orden, de la
-variable de entorno ``GEMINI_API_KEY``, del archivo ``.env`` de la carpeta actual o del
-``.env`` de tus datos de navaja. Git ignora ``.env``; ``.env.example`` dice qué poner.
+- ``Gemini`` (Google), con ``GEMINI_API_KEY``: el de por defecto.
+- ``Servidor``: cualquier servidor compatible con la API de OpenAI (Ollama, LM Studio, el
+  servidor de modelos del centro…), si se pone su dirección en ``NAVAJA_IA_URL`` (y su clave
+  en ``NAVAJA_IA_CLAVE``, si la pide).
+
+Las claves nunca están en el código ni en el repositorio. Se leen, por este orden, de las
+variables de entorno, del archivo ``.env`` de la carpeta actual o del ``.env`` de tus datos
+de navaja. Git ignora ``.env``; ``.env.example`` dice qué poner.
 
 Sin clave, sin internet, con una clave mala o sin cupo, se lanza ``IANoDisponible`` con
 un mensaje en castellano: quien llama lo enseña en una línea y el resto de navaja sigue
@@ -33,6 +37,12 @@ from .errores import IANoDisponible, RespuestaIARara
 ENV_CLAVE = "GEMINI_API_KEY"
 ENV_MODELO = "NAVAJA_MODELO"
 ENV_SIN_IA = "NAVAJA_SIN_IA"
+ENV_URL = "NAVAJA_IA_URL"
+"""La dirección de un servidor compatible con OpenAI. Si está, se usa en vez de Gemini."""
+ENV_CLAVE_SERVIDOR = "NAVAJA_IA_CLAVE"
+"""La clave de ese servidor, si la pide (Ollama en tu PC no pide ninguna)."""
+MODELO_SERVIDOR = "llama3.2"
+"""El modelo del servidor si no se dice otro: el de los ejemplos de clase con Ollama."""
 MODELO_POR_DEFECTO = "gemini-flash-lite-latest"
 """Un alias de Google que apunta siempre al Flash-Lite más reciente: así no caduca. Es el
 rápido (contesta en un segundo); el Flash normal «piensa» antes y a veces pasaba de 60 s."""
@@ -78,12 +88,20 @@ def archivos_env() -> list[Path]:
 @dataclass
 class Configuracion:
     clave: str
+    """La del proveedor que toca: ``GEMINI_API_KEY`` o, con servidor, ``NAVAJA_IA_CLAVE``."""
     modelo: str
+    """El que se usará: el de ``NAVAJA_MODELO`` o el de por defecto de ese proveedor."""
     origen: str
     """De dónde salió la clave, para «comprobar-ia»: «la variable GEMINI_API_KEY» o la
     ruta del .env. Vacío si no hay clave."""
     apagada: bool = False
     """``NAVAJA_SIN_IA``: la IA está apagada a propósito."""
+    url: str = ""
+    """``NAVAJA_IA_URL``: con ella, un servidor compatible con OpenAI en vez de Gemini."""
+
+    @property
+    def con_servidor(self) -> bool:
+        return bool(self.url)
 
 
 def configuracion(entorno: Mapping[str, str] | None = None) -> Configuracion:
@@ -96,29 +114,33 @@ def configuracion(entorno: Mapping[str, str] | None = None) -> Configuracion:
         for clave, valor in leer_env(ruta).items():
             if valor:
                 valores[clave], origenes[clave] = valor, str(ruta)
-    for clave in (ENV_CLAVE, ENV_MODELO, ENV_SIN_IA):
+    for clave in (ENV_CLAVE, ENV_MODELO, ENV_SIN_IA, ENV_URL, ENV_CLAVE_SERVIDOR):
         if entorno.get(clave):
             valores[clave], origenes[clave] = entorno[clave], f"la variable {clave}"
-    clave = valores.get(ENV_CLAVE, "").strip()
+    url = valores.get(ENV_URL, "").strip()
+    nombre_clave = ENV_CLAVE_SERVIDOR if url else ENV_CLAVE
+    clave = valores.get(nombre_clave, "").strip()
     return Configuracion(
         clave=clave,
-        modelo=valores.get(ENV_MODELO, "").strip() or MODELO_POR_DEFECTO,
-        origen=origenes.get(ENV_CLAVE, "") if clave else "",
+        modelo=valores.get(ENV_MODELO, "").strip() or (MODELO_SERVIDOR if url else MODELO_POR_DEFECTO),
+        origen=origenes.get(nombre_clave, "") if clave else "",
         apagada=valores.get(ENV_SIN_IA, "").strip().lower() not in ("", "0", "no", "false"),
+        url=url,
     )
 
 
 def hay_clave() -> bool:
-    """¿Se podría usar la IA? (sin preguntar a nadie: solo mira si hay clave)."""
+    """¿Se podría usar la IA? (sin preguntar a nadie: hay clave de Gemini o un servidor)."""
     datos = configuracion()
-    return bool(datos.clave) and not datos.apagada
+    return (datos.con_servidor or bool(datos.clave)) and not datos.apagada
 
 
 def sin_clave() -> IANoDisponible:
     return IANoDisponible(
         f"Las acciones con IA necesitan una clave de Gemini y no la encuentro. Sácala gratis en "
         f"{DONDE_SACAR_CLAVE} y ponla en un archivo .env (copia .env.example): "
-        f"{ENV_CLAVE}=tu-clave. Lo demás de navaja funciona sin ella."
+        f"{ENV_CLAVE}=tu-clave. Si tienes un servidor de IA (Ollama, el del centro…), pon su "
+        f"dirección en {ENV_URL}. Lo demás de navaja funciona sin ella."
     )
 
 
@@ -151,6 +173,8 @@ class ProveedorIA(ABC):
                 f"La IA está apagada ({ENV_SIN_IA}). Quítalo para usar las acciones con IA; "
                 "lo demás de navaja funciona igual."
             )
+        if datos.con_servidor:
+            return Servidor(datos.url, datos.modelo, datos.clave)
         if not datos.clave:
             raise sin_clave()
         return Gemini(datos.clave, datos.modelo)
@@ -174,14 +198,60 @@ class ProveedorIA(ABC):
         """Le manda el texto al modelo y devuelve lo que contesta. Lanza ``IANoDisponible``
         o ``RespuestaIARara``; nunca una excepción de la red."""
 
+    ESPERA: ClassVar[int] = 60
+    """Segundos como mucho por respuesta."""
+
+    def llamar(self, peticion: urllib.request.Request) -> Any:
+        """Hace la petición y devuelve el JSON. Cada fallo, traducido por la subclase
+        (``error_http`` y ``error_de_red``): nunca sale una excepción de la red."""
+        try:
+            with urllib.request.urlopen(peticion, timeout=self.ESPERA) as respuesta:
+                return json.loads(respuesta.read().decode("utf-8"))
+        except urllib.error.HTTPError as error:
+            raise self.error_http(error.code, self.mensaje_de(error)) from None
+        except (urllib.error.URLError, TimeoutError, OSError) as error:
+            raise self.error_de_red(error) from None
+        except (ValueError, UnicodeDecodeError):
+            raise RespuestaIARara(f"{self.nombre} ha contestado algo que no es JSON.") from None
+
+    @staticmethod
+    def mensaje_de(error: urllib.error.HTTPError) -> str:
+        """El «message» que viene en el cuerpo del error (Google y OpenAI lo mandan en
+        ``{"error": {"message": …}}``; Ollama, a veces, en ``{"error": "…"}``)."""
+        try:
+            cuerpo = json.loads(error.read().decode("utf-8"))
+            detalle = cuerpo.get("error", "")
+            return str(detalle.get("message", "") if isinstance(detalle, dict) else detalle)
+        except (ValueError, OSError, AttributeError):
+            return ""
+
+    def error_http(self, codigo: int, mensaje: str) -> IANoDisponible | RespuestaIARara:
+        """El error HTTP ``codigo``, en castellano. Cada proveedor lo afina con qué hacer."""
+        detalle = f": {mensaje}" if mensaje else ""
+        if codigo in (401, 403, 404, 429) or codigo >= 500:
+            return IANoDisponible(f"{self.nombre} no se puede usar ahora (error {codigo}{detalle}).")
+        return RespuestaIARara(f"{self.nombre} no ha aceptado la petición (error {codigo}){detalle}")
+
+    def error_de_red(self, error: OSError) -> IANoDisponible:
+        """Por qué no se llega al modelo. Cada proveedor lo afina con qué hacer."""
+        return IANoDisponible(f"No hay conexión con {self.nombre}. Detalle: {self.motivo_de_red(error)[1]}")
+
+    @staticmethod
+    def motivo_de_red(error: OSError) -> tuple[str, Any]:
+        """«certificado», «espera» u «otro», y el motivo de verdad (para el «Detalle»)."""
+        motivo = getattr(error, "reason", error)
+        if isinstance(motivo, ssl.SSLError) or "CERTIFICATE" in str(motivo).upper():
+            return "certificado", motivo
+        if isinstance(motivo, TimeoutError) or "timed out" in str(motivo).lower():
+            return "espera", motivo
+        return "otro", motivo
+
 
 class Gemini(ProveedorIA):
     """Gemini de Google por su API REST, con la librería estándar (sin dependencias)."""
 
     nombre = "Gemini"
     URL = "https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent"
-    ESPERA = 60
-    """Segundos como mucho por respuesta: un PDF largo tarda, pero sin red no se espera más."""
 
     def __init__(self, clave: str, modelo: str = MODELO_POR_DEFECTO) -> None:
         super().__init__(modelo)
@@ -202,28 +272,19 @@ class Gemini(ProveedorIA):
         )
 
     def _pedir(self, prompt: str) -> str:
-        try:
-            with urllib.request.urlopen(self.peticion(prompt), timeout=self.ESPERA) as respuesta:
-                datos = json.loads(respuesta.read().decode("utf-8"))
-        except urllib.error.HTTPError as error:
-            raise self.error_http(error.code, self.mensaje_de(error)) from None
-        except (urllib.error.URLError, TimeoutError, OSError) as error:
-            raise self.error_de_red(error) from None
-        except (ValueError, UnicodeDecodeError):
-            raise RespuestaIARara("Gemini ha contestado algo que no es JSON.") from None
-        return self.texto_de(datos)
+        return self.texto_de(self.llamar(self.peticion(prompt)))
 
     def error_de_red(self, error: OSError) -> IANoDisponible:
         """Por qué no se llega a Gemini, con el motivo de verdad al final (no siempre es que
         no haya internet: un antivirus que revisa HTTPS, un certificado, que tarde mucho…)."""
-        motivo = getattr(error, "reason", error)
-        if isinstance(motivo, ssl.SSLError) or "CERTIFICATE" in str(motivo).upper():
+        tipo, motivo = self.motivo_de_red(error)
+        if tipo == "certificado":
             return IANoDisponible(
                 "No se puede comprobar el certificado de Gemini (HTTPS). Suele ser un antivirus o "
                 "un proxy que revisa las conexiones seguras, o la fecha del PC mal puesta. "
                 f"Detalle: {motivo}"
             )
-        if isinstance(motivo, TimeoutError) or "timed out" in str(motivo).lower():
+        if tipo == "espera":
             return IANoDisponible(
                 f"Gemini no ha contestado en {self.ESPERA} segundos. Prueba otra vez en un rato"
                 + (f" o quita {ENV_MODELO} del .env para usar el rápido ({MODELO_POR_DEFECTO})."
@@ -233,15 +294,6 @@ class Gemini(ProveedorIA):
             "No hay conexión con Gemini: ¿tienes internet? Las acciones sin IA funcionan igual; "
             f"vuelve a probar cuando tengas red (navaja comprobar-ia). Detalle: {motivo}"
         )
-
-    @staticmethod
-    def mensaje_de(error: urllib.error.HTTPError) -> str:
-        """El «message» que manda Google en el cuerpo del error, si lo hay."""
-        try:
-            cuerpo = json.loads(error.read().decode("utf-8"))
-            return str(cuerpo.get("error", {}).get("message", ""))
-        except (ValueError, OSError, AttributeError):
-            return ""
 
     def error_http(self, codigo: int, mensaje: str) -> IANoDisponible | RespuestaIARara:
         """Cada error de Google, en castellano y con qué hacer. Sin ``mensaje`` (el cuerpo no
@@ -290,4 +342,100 @@ class Gemini(ProveedorIA):
             motivo = candidatos[0].get("finishReason", "")
             extra = f" ({motivo})" if motivo and motivo != "STOP" else ""
             raise RespuestaIARara(f"Gemini ha contestado en blanco{extra}.")
+        return texto
+
+
+class Servidor(ProveedorIA):
+    """Un servidor compatible con la API de OpenAI (``POST …/chat/completions``): Ollama
+    (``http://localhost:11434/v1``), LM Studio, vLLM o el servidor de modelos del centro.
+
+    Con ``NAVAJA_IA_URL`` en el .env se usa este en vez de Gemini; la clave
+    (``NAVAJA_IA_CLAVE``) solo si el servidor la pide, y va en la cabecera
+    ``Authorization``, nunca en la URL.
+    """
+
+    nombre = "el servidor de IA"
+    ESPERA = 120  # un modelo en tu PC o en el del centro puede ir más despacio que Gemini
+
+    def __init__(self, url: str, modelo: str = MODELO_SERVIDOR, clave: str = "") -> None:
+        super().__init__(modelo)
+        if not url.lower().startswith(("http://", "https://")):
+            raise IANoDisponible(
+                f"{ENV_URL} no parece una dirección: «{url}». Tiene que empezar por http:// o "
+                "https://, por ejemplo http://localhost:11434/v1 para Ollama."
+            )
+        self.url = url.rstrip("/")
+        self._clave = clave  # privada: nunca se enseña ni se escribe en ningún sitio
+
+    def __repr__(self) -> str:
+        return f"Servidor({self.url!r}, {self.modelo!r})"
+
+    def peticion(self, prompt: str) -> urllib.request.Request:
+        cuerpo = {
+            "model": self.modelo,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.2,
+            "stream": False,
+        }
+        cabeceras = {"Content-Type": "application/json"}
+        if self._clave:
+            cabeceras["Authorization"] = f"Bearer {self._clave}"
+        return urllib.request.Request(
+            f"{self.url}/chat/completions",
+            data=json.dumps(cuerpo).encode("utf-8"),
+            headers=cabeceras,
+            method="POST",
+        )
+
+    def _pedir(self, prompt: str) -> str:
+        return self.texto_de(self.llamar(self.peticion(prompt)))
+
+    def error_de_red(self, error: OSError) -> IANoDisponible:
+        tipo, motivo = self.motivo_de_red(error)
+        if tipo == "certificado":
+            return IANoDisponible(
+                f"No se puede comprobar el certificado HTTPS de {self.url}. Si es un servidor del "
+                f"centro con certificado propio, pide la dirección con http://. Detalle: {motivo}"
+            )
+        if tipo == "espera":
+            return IANoDisponible(
+                f"El servidor de IA no ha contestado en {self.ESPERA} segundos. Puede que el modelo "
+                f"«{self.modelo}» sea muy grande para ese equipo: prueba otro más pequeño con {ENV_MODELO}."
+            )
+        return IANoDisponible(
+            f"No hay conexión con el servidor de IA ({self.url}): ¿está encendido (Ollama) o estás "
+            f"en la red del centro? Las acciones sin IA funcionan igual. Detalle: {motivo}"
+        )
+
+    def error_http(self, codigo: int, mensaje: str) -> IANoDisponible | RespuestaIARara:
+        detalle = f": {mensaje}" if mensaje else ""
+        if codigo in (401, 403):
+            return IANoDisponible(
+                f"El servidor de IA no acepta la clave (error {codigo}): pon la buena en "
+                f"{ENV_CLAVE_SERVIDOR} en el .env{detalle}"
+            )
+        if codigo == 404:
+            return IANoDisponible(
+                f"El servidor de IA no encuentra «{self.url}/chat/completions» o el modelo "
+                f"«{self.modelo}» (error 404{detalle}). Comprueba {ENV_URL} (en Ollama acaba en /v1) "
+                f"y {ENV_MODELO} (en Ollama, «ollama list» dice cuáles tienes)."
+            )
+        if codigo == 429:
+            return IANoDisponible("El servidor de IA está saturado (demasiadas peticiones). Prueba en un rato.")
+        if codigo >= 500:
+            return IANoDisponible(f"El servidor de IA ha fallado (error {codigo}{detalle}). Prueba más tarde.")
+        return RespuestaIARara(f"El servidor de IA no ha aceptado la petición (error {codigo}){detalle}")
+
+    @staticmethod
+    def texto_de(datos: Any) -> str:
+        """El texto de ``choices[0].message.content``. ``RespuestaIARara`` si no viene."""
+        try:
+            texto = datos["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, TypeError):
+            raise RespuestaIARara("El servidor de IA no ha devuelto ninguna respuesta.") from None
+        if not isinstance(texto, str) or not texto.strip():
+            raise RespuestaIARara("El servidor de IA ha contestado en blanco.")
+        # algunos modelos (deepseek-r1, qwen3…) «piensan» en voz alta entre <think> y </think>
+        if "</think>" in texto:
+            texto = texto.split("</think>", 1)[1]
         return texto
