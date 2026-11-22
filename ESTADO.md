@@ -5,7 +5,7 @@ Bitácora de lo implementado y de lo que queda pendiente.
 ## Resumen
 
 - **Producto:** `navaja`, CLI de utilidades de terminal.
-- **Versión:** 0.1.0.
+- **Versión:** 1.0.0 (ver [CHANGELOG.md](CHANGELOG.md)).
 - **Stack:** Python 3.12+, Typer, Rich, prompt_toolkit, SQLite (stdlib), setuptools.
 - **Estado:** funcional y probado localmente.
 
@@ -1414,6 +1414,16 @@ cosas mal:
   (`fail-fast: false`: si falla uno, se ven los otros). Insignia en el README.
 - Los dos tests que solo tienen sentido en Windows (`test_copia` con `documentos\ESTUDIO` y
   `test_lotes` con `C:` y `\\servidor`) se saltan fuera de Windows en vez de fallar.
+
+### 2026-11-22 — Versión 1.0.0
+
+- `pyproject.toml` y `__version__` a 1.0.0. `CHANGELOG.md` con todo lo que trae.
+- README: instalación con una orden desde GitHub
+  (`uv tool install "navaja[todo] @ git+https://github.com/SergioCHP/Proyecto-CLI@v1.0.0"`,
+  probada en limpio: instala, `navaja --version`, las chuletas incluidas y el aviso de
+  `acciones.json` sin traza), dónde van `acciones.json` y `.env` cuando está instalada, y
+  aparte cómo instalarla para programar (`--editable`).
+- Etiqueta `v1.0.0` y Release en GitHub con las notas del CHANGELOG.
 
 ## Decisiones técnicas
 
