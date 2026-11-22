@@ -1524,6 +1524,17 @@ cosas mal:
   pasa a `[1.1.0]`. README: instalación con `@v1.1.0` y cómo instalar en Ubuntu desde cero.
 - Etiqueta `v1.1.0` y Release en GitHub con las notas del CHANGELOG.
 
+### 2026-11-22 — Prueba en Ubuntu (PC de casa, en español)
+
+- Instalada la 1.1.0 desde GitHub con uv: `doctor` bien (Python 3.12 lo trae uv). Hizo
+  falta `git` (ya en el README).
+- `acciones validar` avisaba de que `~/Downloads` no existe y `ver` lo enseñaba así: ahora
+  `esquema.avisos` y `donde` usan `carpeta_personal`. Test con un Ubuntu falso.
+- `doctor` y `sin_clave` dicen la ruta del `.env` en vez de «copia .env.example».
+- Instalado desde GitHub, `acciones editar` creaba un `acciones.json` con una sola acción:
+  ahora copia las 10 del proyecto, que van en el paquete (`ejemplo-acciones.json`,
+  `package-data`). Un test comprueba que es igual que el `acciones.json` del repo.
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.

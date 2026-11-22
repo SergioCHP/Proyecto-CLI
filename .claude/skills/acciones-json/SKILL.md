@@ -16,6 +16,7 @@ description: Reglas del archivo acciones.json de navaja (campos, tipos, filtro, 
   - Con IA (necesitan clave de Gemini): `renombrar-ia` (la IA propone el nombre por el contenido; pregunta en `planificar`, así que `--simular` ya enseña los nombres) y `resumir-ia` (escribe `nombre.resumen.md` al lado o en `destino`; pregunta en `aplicar`; registro `como: "creado"`, que `deshacer` manda a la papelera). Las dos admiten `instrucciones` (texto, ≤ 500) y leen lo que sabe `cuenta.texto_de` (`cuenta.LEIBLES`).
 - Las de archivos admiten `carpeta` (ruta con ~ y /) y `filtro`: `solo`, `contiene`, `patron`, `desde`, `hasta`, `mayor_que`, `recursivo`, `ocultos`, `excluir` (nombres de carpeta en las que no entra con `recursivo`).
 - Una ruta relativa en `destino` se cuenta desde la carpeta de la acción.
+- `src/navaja/ejemplo-acciones.json` es una copia de `acciones.json` (lo que crea `acciones editar` al que instala desde GitHub): si cambias uno, copia el otro (un test lo comprueba).
 - Al ejecutar, `CARPETA` y `--destino` cambian carpeta y destino solo esa vez (`AccionDeArchivos.con_destino`; no vale con rutinas ni con tipos sin destino).
 
 ## Cómo está repartido el código

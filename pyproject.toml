@@ -43,7 +43,7 @@ nav = "navaja.app:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-navaja = ["chuletas/*.md"]
+navaja = ["chuletas/*.md", "ejemplo-acciones.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

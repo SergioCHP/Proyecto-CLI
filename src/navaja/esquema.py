@@ -10,13 +10,14 @@ from __future__ import annotations
 import difflib
 import json
 import re
+from importlib import resources
 from pathlib import Path
 from typing import Any
 
 from .acciones import Accion
 from .comandos.duplicados import a_bytes
 from .comandos.renombra import error_de_regex
-from .comun import directorio_datos
+from .comun import carpeta_personal, directorio_datos
 from .errores import AccionNoValida, ConfigError
 from .filtros import periodo, rango
 
@@ -85,19 +86,14 @@ DOC_FILTRO = [
      "ni comodines. Sin recursivo no hace nada (validar lo avisa)."),
 ]
 
-PLANTILLA_INICIAL = {
-    "version": 1,
-    "acciones": [
-        {
-            "nombre": "ordenar-descargas",
-            "descripcion": "Mete cada archivo de Descargas en su carpeta: Imagenes, Documentos…",
-            "tipo": "ordenar",
-            "carpeta": "~/Downloads",
-            "por": "tipo",
-        }
-    ],
-}
-"""Lo que escribe «acciones editar» si todavía no tienes acciones.json."""
+EJEMPLO = "ejemplo-acciones.json"
+"""Las acciones del proyecto, dentro del paquete: es una copia del ``acciones.json`` del repo
+(un test comprueba que son iguales). Así quien instala navaja desde GitHub las tiene todas."""
+
+
+def plantilla_inicial() -> str:
+    """Lo que escribe «acciones editar» si todavía no tienes acciones.json."""
+    return resources.files("navaja").joinpath(EJEMPLO).read_text(encoding="utf-8")
 
 
 # ── Dónde está ─────────────────────────────────────────────────────────────
@@ -119,7 +115,7 @@ def buscar(config: Path | None = None) -> Path:
             return ruta
     raise ConfigError(
         f"No encuentro {ARCHIVO}: ni en esta carpeta ({Path.cwd()}) ni en tus datos "
-        f"({en_datos()}). Créalo con: navaja acciones editar"
+        f"({en_datos()}). Créalo con: navaja acciones editar (trae las acciones de ejemplo)"
     )
 
 
@@ -431,7 +427,7 @@ def avisos(acciones: list[dict[str, Any]]) -> list[str]:
     for accion in acciones:
         nombre = accion["nombre"]
         carpeta = accion.get("carpeta")
-        if carpeta and not Path(carpeta).expanduser().is_dir():
+        if carpeta and not carpeta_personal(Path(carpeta).expanduser().absolute()).is_dir():
             mensajes.append(f"«{nombre}»: la carpeta {carpeta} no existe ahora mismo.")
         destino = accion.get("destino")
         unidad = Path(destino).expanduser().anchor if isinstance(destino, str) else ""

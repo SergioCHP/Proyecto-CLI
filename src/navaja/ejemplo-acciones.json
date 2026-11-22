@@ -1,0 +1,115 @@
+{
+  "version": 1,
+  "_ayuda": "Cómo se escribe: navaja manual acciones (o el README). Lo que empieza por _ es una nota: navaja no lo lee.",
+  "acciones": [
+    {
+      "nombre": "ordenar-descargas",
+      "descripcion": "Mete cada archivo de Descargas en su carpeta: Imagenes, Documentos, Videos…",
+      "tipo": "ordenar",
+      "carpeta": "~/Downloads",
+      "por": "tipo"
+    },
+    {
+      "nombre": "imagenes-ia",
+      "descripcion": "Saca de Descargas las imágenes que hago con Gemini y las junta en Imágenes",
+      "tipo": "mover",
+      "carpeta": "~/Downloads",
+      "filtro": { "solo": "imagenes", "contiene": "gemini" },
+      "destino": "~/Pictures/Imagenes IA"
+    },
+    {
+      "nombre": "instaladores-viejos",
+      "descripcion": "Manda a la papelera de navaja los instaladores (.exe, .msi…) de hace más de un mes",
+      "tipo": "borrar",
+      "carpeta": "~/Downloads",
+      "filtro": { "solo": "ejecutables", "hasta": "hace 30 días" }
+    },
+    {
+      "nombre": "fotos-con-fecha",
+      "descripcion": "Pone la fecha delante a las fotos del móvil: IMG_1234.jpg → 2026-10-26_IMG_1234.jpg",
+      "tipo": "renombrar",
+      "carpeta": "~/Pictures",
+      "filtro": { "solo": "imagenes", "patron": "^(IMG|PXL)_" },
+      "plantilla": "{fecha:%Y-%m-%d}_{nombre}{ext}",
+      "_nota": "El patrón solo coge las que empiezan por IMG_ o PXL_, así que las ya renombradas no se vuelven a tocar."
+    },
+    {
+      "nombre": "limpieza-semanal",
+      "descripcion": "Lo de cada domingo: quita instaladores viejos, aparta las imágenes de IA y ordena Descargas",
+      "tipo": "rutina",
+      "pasos": ["instaladores-viejos", "imagenes-ia", "ordenar-descargas"]
+    },
+    {
+      "nombre": "usb-a-pc",
+      "descripcion": "Trae al PC lo nuevo del USB de clase (DAM), con sus subcarpetas; lo que ya está no se copia otra vez",
+      "tipo": "copiar",
+      "carpeta": "D:/DAM",
+      "filtro": {
+        "recursivo": true,
+        "excluir": [
+          "node_modules",
+          "__pycache__",
+          "build",
+          "dist",
+          "target"
+        ]
+      },
+      "destino": "~/Documents/ESTUDIO/DAM",
+      "si_cambia": "el-mas-nuevo",
+      "_nota": "Si un archivo es distinto en los dos sitios, gana el más reciente y el viejo se guarda: acciones versiones ver lo enseña, acciones versiones recuperar lo devuelve y acciones versiones borrar lo quita cuando ya no lo quieras. No copia ocultos (.gitignore, .vscode…): añade \"ocultos\": true al filtro si los quieres. Si el USB sale con otra letra: navaja acciones ejecutar usb-a-pc E:/DAM (la carpeta) o pc-a-usb --destino E:/DAM."
+    },
+    {
+      "nombre": "pc-a-usb",
+      "descripcion": "Lleva al USB de clase lo nuevo de ESTUDIO/DAM del PC, con sus subcarpetas",
+      "tipo": "copiar",
+      "carpeta": "~/Documents/ESTUDIO/DAM",
+      "filtro": {
+        "recursivo": true,
+        "excluir": [
+          "node_modules",
+          "__pycache__",
+          "build",
+          "dist",
+          "target"
+        ]
+      },
+      "destino": "D:/DAM",
+      "si_cambia": "el-mas-nuevo"
+    },
+    {
+      "nombre": "nombres-claros",
+      "descripcion": "La IA lee los PDF y Word de esta semana en Descargas y les pone un nombre que dice lo que son",
+      "tipo": "renombrar-ia",
+      "carpeta": "~/Downloads",
+      "filtro": { "solo": "pdf,docx,odt", "desde": "hace 7 días" },
+      "_nota": "documento (3).pdf → factura-movistar-octubre-2026.pdf. Necesita la clave de Gemini en .env (navaja comprobar-ia). Pruébala antes con --simular: enseña los nombres sin tocar nada."
+    },
+    {
+      "nombre": "resumir-apuntes",
+      "descripcion": "La IA resume los apuntes nuevos de DAM: deja «tema.resumen.md» al lado de cada uno",
+      "tipo": "resumir-ia",
+      "carpeta": "~/Documents/ESTUDIO/DAM",
+      "filtro": {
+        "solo": "pdf,docx,odt",
+        "recursivo": true,
+        "desde": "hace 7 días",
+        "excluir": [
+          "node_modules",
+          "__pycache__",
+          "build",
+          "dist",
+          "target"
+        ]
+      },
+      "instrucciones": "Resúmelo para estudiar: conceptos clave, definiciones y algún ejemplo si lo hay",
+      "_nota": "Los que ya tienen resumen se saltan: así solo resume lo nuevo. Quita «desde» para resumir también los viejos (ojo con el cupo gratis de Gemini). acciones deshacer manda los resúmenes a la papelera de navaja."
+    },
+    {
+      "nombre": "descargas-con-ia",
+      "descripcion": "Quita instaladores viejos, pone nombres claros a los documentos con IA y ordena Descargas",
+      "tipo": "rutina",
+      "pasos": ["instaladores-viejos", "nombres-claros", "ordenar-descargas"],
+      "_nota": "Sin internet o sin clave, el paso con IA se salta y los demás se hacen igual."
+    }
+  ]
+}

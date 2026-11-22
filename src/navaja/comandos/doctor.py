@@ -177,7 +177,7 @@ def revisar_ia() -> Revision:
                         "navaja comprobar-ia lo prueba")
     if not datos.clave:
         return Revision("navaja", "IA (Gemini)", "aviso", "sin clave (solo hace falta para renombrar-ia y resumir-ia)",
-                        f"Pon {proveedor_ia.ENV_CLAVE} en .env (copia .env.example)")
+                        f"Pon {proveedor_ia.ENV_CLAVE}=tu-clave en {directorio_datos() / '.env'}")
     return Revision("navaja", "IA (Gemini)", "ok", f"clave en {datos.origen} · {datos.modelo}",
                     "navaja comprobar-ia la prueba")
 

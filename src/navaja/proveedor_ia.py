@@ -138,8 +138,8 @@ def hay_clave() -> bool:
 def sin_clave() -> IANoDisponible:
     return IANoDisponible(
         f"Las acciones con IA necesitan una clave de Gemini y no la encuentro. Sácala gratis en "
-        f"{DONDE_SACAR_CLAVE} y ponla en un archivo .env (copia .env.example): "
-        f"{ENV_CLAVE}=tu-clave. Si tienes un servidor de IA (Ollama, el del centro…), pon su "
+        f"{DONDE_SACAR_CLAVE} y ponla en {directorio_datos() / '.env'} (o en un .env en la "
+        f"carpeta actual): {ENV_CLAVE}=tu-clave. Si tienes un servidor de IA (Ollama, el del centro…), pon su "
         f"dirección en {ENV_URL}. Lo demás de navaja funciona sin ella."
     )
 

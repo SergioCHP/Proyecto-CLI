@@ -528,7 +528,7 @@ EXTRA: dict[str, str] = {
     ),
     "acciones editar": (
         "Usa el Bloc de notas en Windows (o el editor de la variable EDITOR). Si no tienes "
-        "acciones.json, lo crea en tus datos con una acción de ejemplo."
+        "acciones.json, lo crea en tus datos con las acciones de ejemplo del proyecto."
     ),
     "manual": "Sin nada, este manual entero. Con un comando, solo su parte.",
 }

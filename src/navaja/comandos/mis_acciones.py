@@ -8,7 +8,6 @@ y se sale con su código (1 al ejecutar, 3 si acciones.json está mal).
 
 from __future__ import annotations
 
-import json
 from datetime import datetime
 from pathlib import Path
 from typing import Any, NoReturn
@@ -34,6 +33,7 @@ from ..comun import (
     bonita,
     cargar_acciones,
     carpeta_papelera,
+    carpeta_personal,
     carpetas_creadas,
     carpetas_supuestas,
     como_se_escribe,
@@ -111,7 +111,12 @@ def donde(accion: Accion) -> str:
     if isinstance(accion, Rutina):
         return " → ".join(accion.pasos)
     assert isinstance(accion, AccionDeArchivos)
-    return accion.datos.get("carpeta", "(la carpeta actual)")
+    carpeta = accion.datos.get("carpeta")
+    if not carpeta:
+        return "(la carpeta actual)"
+    escrita = Path(carpeta).expanduser().absolute()
+    real = carpeta_personal(escrita)
+    return carpeta if real == escrita else bonita(real)  # en Ubuntu en español: ~/Descargas
 
 
 # ── ver y validar ──────────────────────────────────────────────────────────
@@ -600,11 +605,12 @@ def editar(ctx: typer.Context, config: Path | None = OPCION_CONFIG) -> None:
             ruta = esquema.en_datos()
     if not ruta.exists():
         ruta.parent.mkdir(parents=True, exist_ok=True)
-        ruta.write_text(
-            json.dumps(esquema.PLANTILLA_INICIAL, ensure_ascii=False, indent=2) + "\n",
-            encoding="utf-8",
+        ruta.write_text(esquema.plantilla_inicial(), encoding="utf-8")
+        console.print(
+            f"[ok]He creado {escape(str(ruta))} con las acciones de ejemplo del proyecto.[/] "
+            "[pista]Las carpetas que no tengas, cámbialas por las tuyas.[/]",
+            soft_wrap=True,
         )
-        console.print(f"[ok]He creado {escape(str(ruta))} con una acción de ejemplo.[/]", soft_wrap=True)
     console.print(
         f"[pista]Abriendo {escape(str(ruta))}… Guarda y cierra el editor para seguir.[/]",
         soft_wrap=True,
