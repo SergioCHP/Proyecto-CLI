@@ -405,26 +405,47 @@ si la hay (sin llamar a Gemini). Por qué IA y por qué así: [ADR-0002](docs/ad
 
 ## Instalación
 
-Con [uv](https://docs.astral.sh/uv/) (Linux, macOS y Windows), desde la carpeta del repo:
+Hace falta [uv](https://docs.astral.sh/uv/) (Linux, macOS y Windows). En Windows se instala con
+`winget install astral-sh.uv`; en Linux y macOS, con `curl -LsSf https://astral.sh/uv/install.sh | sh`.
+uv se encarga de todo lo demás, también de Python 3.12.
+
+**Con una orden, desde GitHub** (no hace falta clonar nada):
 
 ```bash
-uv tool install --editable .   # deja el comando navaja disponible en cualquier carpeta
+uv tool install "navaja[todo] @ git+https://github.com/SergioCHP/Proyecto-CLI@v1.0.0"
 navaja --help
 ```
 
-Si dice «orden no encontrada», ejecuta `uv tool update-shell` y abre otra terminal.
+Queda el comando `navaja` (y su atajo `nav`) en cualquier carpeta. Si dice «orden no
+encontrada», ejecuta `uv tool update-shell` y abre otra terminal. Sin `@v1.0.0` al final se
+instala lo último de `main`; para actualizar, `uv tool upgrade navaja`; para quitarlo,
+`uv tool uninstall navaja`. Con pipx también vale: `pipx install "navaja[todo] @ git+https://github.com/SergioCHP/Proyecto-CLI@v1.0.0"`.
+
+Instalada así, navaja guarda tus cosas en su carpeta de datos (`navaja config ver` te dice
+cuál es; en Windows, `%LOCALAPPDATA%\navaja`). Ahí van tu `acciones.json` (créalo con
+`navaja acciones editar`, que deja una acción de ejemplo, o copia el de este repo) y, si usas
+la IA, tu `.env` con la clave (ver [IA](#ia-gemini)).
 
 Las órdenes de documentos e imágenes usan librerías opcionales, para no instalar lo que no
-uses. Cada grupo con su nombre, o todas a la vez:
+uses. `[todo]` las trae todas menos la de quitar fondos, que pesa unos 300 MB más:
 
 ```bash
-uv tool install --editable ".[todo]"         # pdf, imagen, qr, documentos y baja
-uv tool install --editable ".[todo,fondo]"   # y además quitar fondos (unos 300 MB más)
+uv tool install "navaja[todo,fondo] @ git+https://github.com/SergioCHP/Proyecto-CLI@v1.0.0"
 ```
 
 Siempre todos juntos en el mismo comando: `uv tool install` deja solo los extras que le
-dices, así que instalar después `".[fondo]"` quitaría los de `todo`. Si cambias algo de
-`pyproject.toml`, vuelve a ejecutar el mismo comando.
+dices, así que instalar después solo `[fondo]` quitaría los de `todo`.
+
+**Para programar en ella**, desde una copia del repositorio:
+
+```bash
+git clone https://github.com/SergioCHP/Proyecto-CLI.git
+cd Proyecto-CLI
+uv tool install --editable ".[todo]"   # navaja usa el código de esta carpeta: lo que cambies, se nota ya
+uv run --extra dev pytest              # los tests
+```
+
+Si cambias algo de `pyproject.toml`, vuelve a ejecutar el mismo `uv tool install`.
 
 | Extra | Librerías | Para |
 | --- | --- | --- |
@@ -665,6 +686,7 @@ La estructura está en `src/navaja/` y cada utilidad vive en `src/navaja/comando
   modo interactivo, ayuda, convenciones y cómo añadir comandos).
 - [docs/adr/](docs/adr/): las decisiones importantes y por qué: [0001](docs/adr/0001-configuracion-externa.md)
   (acciones en un JSON y no en el código) y [0002](docs/adr/0002-capa-ia.md) (la capa de IA).
+- [CHANGELOG.md](CHANGELOG.md): qué trae cada versión.
 - [ESTADO.md](ESTADO.md): bitácora de lo implementado, decisiones y pendientes.
 - Agente de programación: las normas están en [AGENTS.md](AGENTS.md). Para OpenCode,
   `opencode.json` y `.opencode/`; para Claude Code, `CLAUDE.md` y `.claude/`. En los dos:

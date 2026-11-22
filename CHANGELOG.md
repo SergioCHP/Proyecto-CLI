@@ -1,0 +1,73 @@
+# Changelog
+
+Lo que cambia en cada versión de navaja. El formato sigue
+[Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y las versiones,
+[Versionado Semántico](https://semver.org/lang/es/). El detalle de cada día está en
+[ESTADO.md](ESTADO.md) y en el historial de git.
+
+## [1.0.0] - 2026-11-22
+
+Primera versión completa: la que se entrega. Se instala con una orden:
+
+```bash
+uv tool install "navaja[todo] @ git+https://github.com/SergioCHP/Proyecto-CLI@v1.0.0"
+```
+
+### Acciones (`acciones.json`)
+
+- Las acciones viven en `acciones.json`, no en el código: tipos `mover`, `copiar`, `ordenar`,
+  `renombrar`, `borrar`, `rutina` y, con IA, `renombrar-ia` y `resumir-ia`. Añadir una
+  acción es escribirla en el JSON ([ADR-0001](docs/adr/0001-configuracion-externa.md)).
+- Órdenes `acciones ver`, `ejecutar`, `deshacer`, `validar`, `editar` y `versiones`. Todas
+  enseñan el plan y preguntan `[s/n]` antes de tocar nada; `--simular` solo mira; `deshacer`
+  devuelve lo último que se hizo y nada se borra de verdad (va a la papelera de navaja).
+- El JSON se valida antes de ejecutar: cada error dice qué acción y qué campo falla, y
+  sugiere la palabra correcta («¿Querías decir mover?»).
+- Acciones propias: `ordenar-descargas`, `imagenes-ia`, `instaladores-viejos`,
+  `fotos-con-fecha`, `usb-a-pc`, `pc-a-usb`, `nombres-claros`, `resumir-apuntes` y las
+  rutinas `limpieza-semanal` y `descargas-con-ia`.
+- Copias entre el USB y el PC con «el más nuevo gana»: la versión vieja se guarda aparte
+  (`acciones versiones`) y caduca sola.
+
+### IA (Gemini)
+
+- `renombrar-ia`: la IA lee el principio de cada documento y le pone un nombre que dice lo
+  que es. `resumir-ia`: escribe `nombre.resumen.md` al lado de cada documento.
+- `navaja comprobar-ia`: dice si la IA está lista y, si no, por qué.
+- La clave va en `.env` (ignorado por git; `.env.example` explica qué poner). Sin clave, sin
+  red o sin cupo, navaja lo explica en una línea (código 4) y lo demás funciona igual; en
+  una rutina, el paso con IA se salta y se hacen los demás
+  ([ADR-0002](docs/adr/0002-capa-ia.md)).
+
+### Órdenes
+
+- **Archivos:** `listar`, `ocupa`, `limpia`, `arbol`, `busca`, `comprime`, `extrae`,
+  `ordena`, `renombra`, `duplicados`, `copia` y `notas`.
+- **Documentos e imágenes:** `convierte`, `cuenta`, `fondo`, `baja`, `qr`, `pdf` e `imagen`.
+- **Redes e informática:** `base`, `chmod`, `red`, `puertos`, `sistema` y `subred`.
+- **Estudio:** `chuleta`, `estudia`, `foco` y `entregas`.
+- **Programación:** `nuevo`, `hoy`, `compara`, `falsos`, `sql`, `hash`, `genera` y `clave`.
+- **navaja:** `doctor`, `comprobar-ia`, `tema`, `config`, `manual` y `version`.
+
+### Modo interactivo
+
+- `navaja` sin nada abre un menú por grupos con iconos; cada opción se puede elegir por
+  número o escribiendo la orden, y las que necesitan datos los preguntan paso a paso.
+- Tab completa órdenes, opciones, rutas y nombres de acciones (también en PowerShell y bash
+  con `config autocompletar`); flechas con historial; `ayuda` según dónde estés.
+- En ventanas bajas, el menú pasa a dos columnas.
+
+### Calidad
+
+- Errores propios (`ConfigError`, `AccionNoValida`, `IANoDisponible`…) con mensajes en
+  castellano y códigos de salida: 0 bien, 1 algo falló, 2 orden mal escrita, 3
+  `acciones.json` mal, 4 sin IA. Ningún error previsible acaba en traza.
+- Más de 1000 tests con pytest, siempre en carpetas temporales y sin llamar a Gemini.
+- GitHub Actions pasa los tests en Ubuntu, Windows y macOS en cada push y PR.
+
+### Documentación
+
+- README con la spec, todas las órdenes, el esquema de `acciones.json`, la IA y la
+  instalación. Arquitectura en `docs/arquitectura.md` y decisiones en `docs/adr/`.
+
+[1.0.0]: https://github.com/SergioCHP/Proyecto-CLI/releases/tag/v1.0.0
