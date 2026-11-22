@@ -12,7 +12,7 @@ from rich.theme import Theme
 from typer.testing import CliRunner
 
 from navaja import comun, esquema, interactivo
-from navaja.acciones import Accion, AccionDeArchivos, Copiar, Mover, Renombrar, Resultado, Rutina
+from navaja.acciones import Accion, AccionDeArchivos, Copiar, Mover, Resultado, Rutina
 from navaja.app import app
 from navaja.comandos.ayuda import subcomandos
 from navaja.comun import directorio_datos

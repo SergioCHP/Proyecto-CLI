@@ -283,7 +283,7 @@ CORTO = {
     "comprime": "Un .zip sin .git, .venv ni lo que sobra.",
     "extrae": "Descomprime, enseñando antes lo que lleva.",
     "doctor": "Revisa que todo esté listo y cómo arreglarlo.",
-    "comprobar-ia": "Mira si la IA (Gemini) está lista y contesta.",
+    "comprobar-ia": "Mira si la IA está lista y contesta.",
     "busca": "Un texto dentro de los archivos (Word y PDF).",
     "convierte": "Imágenes, PDF ↔ Word, a PDF, CSV, vídeo…",
     "fondo": "Quita el fondo de una foto (IA, sin internet).",

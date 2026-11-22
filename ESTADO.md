@@ -1452,6 +1452,17 @@ cosas mal:
 - 12 tests nuevos en `test_ia.py` (lo que se manda, sin clave sin cabecera, `<think>`, cada
   error, URL mal escrita y `comprobar-ia`), sin servidor de verdad.
 
+### 2026-11-22 — Revisión: códigos de salida en el README y limpieza
+
+- Revisión completa (tests, ruff con F/E9/PLE, `--help` de todas las órdenes y los códigos
+  de salida comparados con el README): sin fallos graves.
+- README: «0 también si respondo n» solo vale en las órdenes sueltas; en `acciones ejecutar`
+  decir «n» (o un paso de rutina sin hacer) sale con 1, a propósito.
+- Fuera los imports sin usar (`shutil` en `ordena`, `escape` en `convierte`, dos en tests) y
+  un f-string sin nada dentro en `doctor`. El menú ya no dice «(Gemini)» en `comprobar-ia`.
+- Pendiente para el final: la v1.1.0 (versión, CHANGELOG, README con `@v1.1.0`, etiqueta y
+  Release), por si cambia algo más antes de entregar.
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.

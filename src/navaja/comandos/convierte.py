@@ -31,7 +31,6 @@ from pathlib import Path
 from typing import Any
 
 import typer
-from rich.markup import escape
 
 from ..comun import DOCUMENTOS, console, directorio_datos
 from ..errores import NavajaError

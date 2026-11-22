@@ -1,7 +1,6 @@
 import io
 import tarfile
 import zipfile
-from pathlib import PurePosixPath
 
 import pytest
 from typer.testing import CliRunner

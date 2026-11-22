@@ -23,6 +23,10 @@ Lo que cambia en cada versión de navaja. El formato sigue
 
 - Modo guiado: un número opcional vacío ya no se escribe como `""` (`puertos` con Intro
   fallaba).
+- README: los códigos de salida dicen que en `acciones ejecutar` responder «n» sale con 1
+  (en las órdenes sueltas, con 0), como hace el programa.
+- Limpieza: imports que no se usaban y un f-string vacío (lo marcaba ruff). En el menú,
+  `comprobar-ia` ya no dice solo «Gemini» (también puede ser un servidor).
 
 ## [1.0.0] - 2026-11-22
 

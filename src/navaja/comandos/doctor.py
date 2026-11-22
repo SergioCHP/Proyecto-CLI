@@ -224,7 +224,7 @@ def doctor() -> None:
     if errores:
         final = f"[error]✘ {errores} {'cosa' if errores == 1 else 'cosas'} por arreglar.[/]"
     elif avisos:
-        final = f"[ok]✔ Todo lo necesario está bien.[/] [pista]Lo marcado con ! es opcional: solo lo usan algunas órdenes.[/]"
+        final = "[ok]✔ Todo lo necesario está bien.[/] [pista]Lo marcado con ! es opcional: solo lo usan algunas órdenes.[/]"
     else:
         final = "[ok]✔ Todo está perfecto.[/]"
     console.print(recuadro(f"navaja {__version__} · doctor", tabla, Text.from_markup(final)))

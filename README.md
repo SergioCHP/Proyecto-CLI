@@ -37,8 +37,10 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
    - Con `--simular`, cambiar nada (ni siquiera crear carpetas).
 8. **Plataformas:** Windows en mi PC y Linux en clase. Python 3.12 o superior.
 9. **Códigos de salida:**
-   - 0: todo bien (también si respondo «n» a una confirmación).
-   - 1: fallo al ejecutar (una carpeta o una acción que no existe).
+   - 0: todo bien (en las órdenes sueltas, también si respondo «n» a una confirmación).
+   - 1: fallo al ejecutar (una carpeta o una acción que no existe). En `acciones ejecutar`,
+     también si respondo «n» o si un paso de una rutina no se pudo hacer: así un script sabe
+     que la acción no se hizo entera.
    - 2: uso incorrecto (falta un argumento o una opción no existe).
    - 3: `acciones.json` no existe o está mal escrito.
    - 4: la IA no se puede usar ahora (sin clave, sin internet, clave mala o sin cupo).
