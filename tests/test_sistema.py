@@ -13,12 +13,13 @@ Particion = namedtuple("Particion", "device mountpoint fstype opts")
 
 
 def test_barra_y_colores():
-    assert sistema.barra(0, ancho=10) == "[ok][/][pista]░░░░░░░░░░[/]   0 %"
-    assert sistema.barra(50, ancho=10).startswith("[ok]█████[/]")
-    assert sistema.barra(75, ancho=4).startswith("[aviso]")
+    assert sistema.barra(0, ancho=10) == "[ok][/][borde]━━━━━━━━━━[/]   0 %"  # vacía: todo gris
+    assert sistema.barra(50, ancho=10).startswith("[ok]━━━━━[/][borde]━━━━━[/]")  # mitad y mitad
+    assert sistema.barra(25, ancho=10).startswith("[ok]━━╸[/][borde]━━━━━━━[/]")  # 2,5 celdas: media al final
+    assert sistema.barra(75, ancho=4).startswith("[aviso]")  # cada nivel, su color
     assert sistema.barra(95, ancho=4).startswith("[error]")
-    assert sistema.barra(150, ancho=4) == "[error]████[/][pista][/] 100 %"
-    assert sistema.barra(30, ancho=10, utf8=False).startswith("[ok]###[/][pista]-------")
+    assert sistema.barra(150, ancho=4) == "[error]━━━━[/][borde][/] 100 %"  # nunca pasa de 100
+    assert sistema.barra(30, ancho=10, utf8=False).startswith("[ok]###[/][borde]-------")  # sin UTF-8
     assert sistema.nivel(15, invertido=True) == "aviso" and sistema.nivel(5, invertido=True) == "error"
 
 
