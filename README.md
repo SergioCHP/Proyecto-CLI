@@ -14,7 +14,7 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
    interactivo. Alias corto: `nav`.
 4. **Órdenes que ya tiene:** `listar`, `ocupa`, `limpia`, `arbol`, `busca`, `comprime`,
    `extrae`, `ordena`, `renombra`, `duplicados`, `copia`, `notas`, `convierte`, `cuenta`,
-   `fondo`, `baja`, `qr`, `pdf`, `imagen`, `base`, `chmod`, `subred` (`ver`, `dividir`, `vlsm`,
+   `fondo`, `baja`, `qr`, `pdf`, `imagen`, `base`, `chmod`, `red`, `puertos`, `sistema`, `subred` (`ver`, `dividir`, `vlsm`,
    `misma`, `practica`), `estudia` (`repasa`, `importa`, `estadisticas`), `foco` (`empieza`,
    `historial`), `entregas` (`agregar`, `listar`, `hecha`, `borrar`), `chuleta`, `nuevo`, `hoy`,
    `compara`, `falsos`, `sql`, `hash`, `genera`, `clave`, `doctor`, `comprobar-ia`,
@@ -95,7 +95,7 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
 | `navaja clave` | `nueva` (contraseña segura al azar), `frase` (palabras al azar, fácil de recordar) y `fuerza` (cómo de fuerte es la tuya: la escribes sin que se vea y no se guarda). |
 | `navaja acciones` | Tus tareas de siempre guardadas con un nombre en `acciones.json` (ordenar Descargas, copiar apuntes, quitar instaladores viejos…) para hacerlas con una orden. Con simulación, confirmación y deshacer; lo que sustituye una copia se guarda en `acciones versiones`. |
 | `navaja doctor` | Revisa que todo esté listo: Python, librerías (y las opcionales), programas de fuera (git, LibreOffice, Pandoc, FFmpeg, 7-Zip, Word, winget), la carpeta de datos, `acciones.json`, si hay clave para la IA y la terminal. Dice cómo arreglar lo que falta. |
-| `navaja comprobar-ia` | Dice si la IA (Gemini) está lista: de dónde sale la clave (sin enseñarla), qué modelo se usa y, con una pregunta mínima, si contesta. Si no, por qué y qué hacer (código 4). `--sin-llamar` solo mira la configuración. Ver [IA](#ia). |
+| `navaja comprobar-ia` | Dice si la IA (Gemini o tu servidor) está lista: de dónde sale la clave (sin enseñarla), qué modelo se usa y, con una pregunta mínima, si contesta. Si no, por qué y qué hacer (código 4). `--sin-llamar` solo mira la configuración. Ver [IA](#ia). |
 | `navaja tema` | `ver` los temas y `elegir` uno (clasico, morado, terminal, pastel). |
 | `navaja config` | Tu nombre para el saludo y dónde guarda navaja tus datos. La primera vez que abres navaja te pregunta cómo llamarte (Intro = tu usuario de Windows); con `config nombre` lo cambias para siempre; con `config versiones 30`, cuántos días se guardan las versiones viejas de «el-mas-nuevo» (0: siempre); con `config autocompletar $PROFILE`, Tab en PowerShell. |
 | `navaja manual [comando]` | El manual completo: cómo se usa, todos los comandos con sus opciones, atajos, seguridad y datos. Con un comando, solo su parte. |
@@ -126,11 +126,12 @@ la que entras, que se ve siempre en el prompt.
 El menú (y `navaja --help`) va en siete grupos. Los de **Archivos** (1-12) se usan al
 momento: les dices qué hacer y lo hacen. **Documentos e imágenes** (13-19) convierten,
 trabajan con PDF y fotos, bajan vídeos y hacen QR, sin tocar nunca el original. **Redes e
-informática** (20-22) son calculadoras para clase: `base`, `chmod` y `subred`.
-**Estudio** (23-26) es para clase y para todo lo que quieras tener a mano: `chuleta` (chuletas
+informática** (20-25) son calculadoras para clase y tu PC: `base`, `chmod`, `red`, `puertos`,
+`sistema` y `subred`.
+**Estudio** (26-29) es para clase y para todo lo que quieras tener a mano: `chuleta` (chuletas
 sin internet, de cualquier tema), `estudia` (tarjetas para memorizar), `foco` (pomodoro) y
-`entregas` (deberes y exámenes con cuenta atrás). **Programación** (27-34) es la caja de
-herramientas para tus proyectos: `nuevo`, `hoy`, `compara`, `falsos`, `sql`, `hash`, `genera` y `clave`. **Lo que repites** (35) son tus acciones: recetas
+`entregas` (deberes y exámenes con cuenta atrás). **Programación** (30-37) es la caja de
+herramientas para tus proyectos: `nuevo`, `hoy`, `compara`, `falsos`, `sql`, `hash`, `genera` y `clave`. **Lo que repites** (38) son tus acciones: recetas
 guardadas en `acciones.json` que se hacen con una palabra (`acciones ejecutar
 usb-a-pc`). Y **navaja**: colores, tu nombre y el manual.
 
@@ -148,16 +149,19 @@ Archivos — Se usan al momento: les dices qué hacer y lo hacen.
 Documentos e imágenes — Convertir, PDF, fotos, vídeos y QR. El original nunca se toca.
 13  convierte   Imágenes, PDF ↔ Word, a PDF, CSV, vídeo…
  …
-Redes e informática — Calculadoras para clase, con los pasos explicados.
+Redes e informática — Calculadoras de clase y tu PC: red, puertos y sistema.
 20  base        Binario, octal, decimal y hexadecimal.
  …
-Programación — Para tus proyectos: huellas, datos de prueba y contraseñas.
-23  hash        Comprueba que una descarga está bien.
+Estudio — Chuletas, tarjetas para memorizar, pomodoro y tus entregas.
+26  chuleta     git, Linux y PowerShell, sin internet.
+ …
+Programación — Para tus proyectos: crearlos, tus commits, comparar, huellas y claves.
+30  nuevo       Un proyecto listo: README, .gitignore y git.
  …
 Lo que repites — Recetas guardadas en acciones.json: se hacen con una palabra.
-26  acciones    Tus recetas guardadas: verlas y hacerlas.
+38  acciones    Tus recetas guardadas: verlas y hacerlas.
 navaja — Colores, tu nombre y el manual.
-27  doctor      Revisa que todo esté listo y cómo arreglarlo.
+39  doctor      Revisa que todo esté listo y cómo arreglarlo.
  …
  0  salir
 
@@ -389,13 +393,16 @@ quieras mandar a Google.
 va en un archivo `.env`, nunca en el código ni en `acciones.json`:
 
 ```powershell
-Copy-Item .env.example .env     # y escribe tu clave detrás de GEMINI_API_KEY=
+Copy-Item .env.example .env     # en la carpeta del proyecto; y escribe tu clave detrás de GEMINI_API_KEY=
 navaja comprobar-ia             # ✔ La IA está lista
 ```
 
+Si instalaste navaja (sin la carpeta del proyecto), crea el `.env` en tu carpeta de datos
+con una sola línea, `GEMINI_API_KEY=tu-clave`: `navaja doctor` te dice la ruta exacta.
+
 navaja busca la clave por este orden: la variable de entorno `GEMINI_API_KEY`, el `.env`
 de la carpeta en la que estás y el `.env` de tus datos (`%LOCALAPPDATA%\navaja\.env`
-en Windows; así vale en cualquier carpeta). `.env` está en el `.gitignore` desde el
+en Windows, `~/.local/share/navaja/.env` en Linux; así vale en cualquier carpeta). `.env` está en el `.gitignore` desde el
 principio, así que la clave no se sube nunca; [.env.example](.env.example) explica qué
 poner. Otras variables: `NAVAJA_MODELO` (por defecto `gemini-flash-lite-latest`, el Flash-Lite
 más nuevo: contesta en un segundo; el Flash normal piensa antes y puede tardar más de 60 s) y `NAVAJA_SIN_IA=1` (apaga la IA aunque haya clave).
