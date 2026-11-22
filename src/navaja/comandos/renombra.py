@@ -32,6 +32,7 @@ from ..comun import (
     ruta_libre,
 )
 from ..filtros import (
+    FILTRO,
     OPCION_CARPETA,
     OPCION_CONTIENE,
     OPCION_DESDE,
@@ -532,6 +533,115 @@ def avanzado(
     )
 
 
+DOCUMENTOS_IA = "pdf,docx,odt"
+"""Lo que mira «renombra ia» si no dices --solo: los documentos que la IA sabe leer."""
+
+
+def ia(
+    instrucciones: str = typer.Option(
+        "",
+        "--instrucciones",
+        "-i",
+        help="Algo más para la IA, hasta 500 letras: «en valenciano», «la asignatura delante»…",
+        show_default=False,
+        rich_help_panel=AJUSTE,
+    ),
+    carpeta: Path = OPCION_CARPETA,
+    solo: str = typer.Option(
+        "",
+        "--solo",
+        help=f"Solo estas extensiones (por defecto, {DOCUMENTOS_IA}; también txt, md, html).",
+        show_default=False,
+        rich_help_panel=FILTRO,
+    ),
+    contiene: str = OPCION_CONTIENE,
+    desde: str = OPCION_DESDE,
+    hasta: str = OPCION_HASTA,
+    recursivo: bool = OPCION_RECURSIVO,
+    ocultos: bool = OPCION_OCULTOS,
+    simular: bool = OPCION_SIMULAR,
+    si: bool = OPCION_SI,
+) -> None:
+    """La IA lee cada documento y le pone un nombre que dice lo que es.
+
+    Es la acción «renombrar-ia» (la de nombres-claros) hecha en el momento, en la carpeta
+    que digas o en la actual: el mismo plan, la misma IA y el deshacer de «renombra»."""
+    from ..acciones import Accion  # aquí: mis_acciones → esquema → renombra (se importaría en círculo)
+    from ..errores import NavajaError
+    from ..motor import Motor
+    from .mis_acciones import fallar, hacer, mostrar_plan
+
+    filtro = {
+        clave: valor
+        for clave, valor in {
+            "solo": solo or DOCUMENTOS_IA,
+            "contiene": contiene,
+            "desde": desde,
+            "hasta": hasta,
+            "recursivo": recursivo,
+            "ocultos": ocultos,
+        }.items()
+        if valor
+    }
+    datos: dict[str, object] = {
+        "nombre": "renombra ia",
+        "descripcion": "La IA lee cada documento y le pone un nombre que dice lo que es.",
+        "tipo": "renombrar-ia",
+        "carpeta": str(carpeta),
+        "filtro": filtro,
+    }
+    if instrucciones:
+        datos["instrucciones"] = instrucciones
+    try:
+        tipo = Accion.tipos()["renombrar-ia"]
+        tipo.comprobar(datos)  # «instrucciones» muy larga o vacía: el mismo error que en acciones.json
+        paso = tipo(datos)
+        with console.status("[pista]Preguntando a la IA el nombre de cada documento…[/]"):
+            base, plan = Motor([]).planificar(paso, carpeta)
+    except NavajaError as error:  # carpeta que no existe, sin IA (código 4)…
+        fallar(error)
+    except ValueError as exc:  # una fecha que no se entiende en --desde o --hasta
+        error_console.print(f"[error]✘ {escape(str(exc))}[/]", soft_wrap=True)
+        raise typer.Exit(2)
+
+    mostrar_plan(paso, base, plan)
+    pendientes = sum(r.estado == "pendiente" for r in plan)
+    if not pendientes:
+        detalle = "ningún documento cumple el filtro" if not plan else "ningún nombre cambia"
+        console.print(f"[aviso]Nada que hacer: {detalle}.[/]")
+        if not plan and not recursivo:
+            avisar_de_subcarpetas(base, filtro)
+        return
+    if simular:
+        console.print("[pista]Simulación: no se ha cambiado nada. Sin --simular, lo hace.[/]")
+        return
+    if not confirmar(paso.pregunta(pendientes), saltar=si, por_defecto=False):
+        console.print("[aviso]Cancelado.[/]")
+        raise typer.Exit(1)
+
+    fallos = hacer(paso, plan, "renombra", [])
+    if any(r.estado == "hecho" for r in plan):
+        console.print(f"[pista]Para deshacerlo: {como_se_escribe('renombra deshacer')}[/]")
+    if fallos:
+        raise typer.Exit(1)
+
+
+def avisar_de_subcarpetas(carpeta: Path, filtro: dict[str, object]) -> None:
+    """Sin -r no se mira dentro de las subcarpetas: si allí sí hay documentos, se dice (los
+    apuntes suelen estar por temas, y «0 archivos» sin más hacía pensar que no iba)."""
+    from ..motor import Motor
+
+    try:
+        dentro = [a for a in Motor.seleccionar(carpeta, {**filtro, "recursivo": True}) if a.parent != carpeta]
+    except (OSError, ValueError):
+        return
+    if dentro:
+        console.print(
+            f"[pista]En las subcarpetas hay {cuantos(len(dentro), 'documento')}: "
+            "añade -r para incluirlos.[/]"
+        )
+
+
 def deshacer(si: bool = OPCION_SI) -> None:
     """Deja los nombres como estaban antes del último renombrado."""
     acciones = cargar_acciones("renombra")
@@ -580,5 +690,6 @@ def registrar(app: typer.Typer) -> None:
     )
     sub.command("plantilla", help="Tú decides el formato con huecos ({fecha}_{n:03}{ext}).")(plantilla)
     sub.command("avanzado", help="Con expresiones regulares, para casos difíciles.")(avanzado)
+    sub.command("ia", help="La IA lee cada documento y le pone un nombre que dice lo que es.")(ia)
     sub.command("deshacer", help="Deja los nombres como estaban antes del último renombrado.")(deshacer)
     app.add_typer(sub, name="renombra", rich_help_panel=ARCHIVOS)

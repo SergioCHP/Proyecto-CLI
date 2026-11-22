@@ -253,6 +253,7 @@ CORTO = {
     "renombra arreglar": "Minúsculas, sin tildes ni espacios.",
     "renombra plantilla": "Tu formato con huecos ({fecha}_{n:03}{ext}).",
     "renombra avanzado": "Con expresiones regulares (casos difíciles).",
+    "renombra ia": "La IA les pone un nombre claro (PDF, Word…).",
     "renombra deshacer": "Deja los nombres como estaban antes.",
     "copia a": "Copia una carpeta (o unos archivos) a otra.",
     "notas agregar": "Añade una nota o un enlace.",
