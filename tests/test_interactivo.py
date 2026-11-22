@@ -511,3 +511,15 @@ def test_una_unidad_de_red_que_no_contesta_no_frena_la_lista(tmp_path):
         raise OSError("la red no responde")
 
     assert interactivo.responden([tmp_path], existe=da_error) == set()
+
+
+def test_un_numero_opcional_vacio_no_se_escribe(carpeta, capsys, monkeypatch):
+    """«puertos» guiado, Intro en «Un puerto concreto»: antes salía «navaja puertos ""» y
+    typer se quejaba de que "" no es un número. Vacío = sin puerto = todos los abiertos."""
+    from navaja.comandos import puertos
+
+    monkeypatch.setattr(puertos, "recoger", lambda udp, puerto: [])  # sin mirar los de verdad
+    interactivo.iniciar(app, lector(numero_de("puertos"), "", "", "", "", ""))
+    texto = " ".join(salida(capsys).split())
+    assert "valid integer" not in texto
+    assert 'puertos ""' not in texto

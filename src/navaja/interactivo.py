@@ -34,6 +34,7 @@ from .comandos.ayuda import (
     opciones_visibles,
     por_secciones,
     resolver,
+    tipo_texto,
     valor_texto,
 )
 from .comandos.ayuda import subcomandos as opciones_de
@@ -671,6 +672,9 @@ def _preguntar_argumento(param: Any, leer: Lector, delante: list[str]) -> list[s
         defecto = "" if param.default is None else valor_texto(param.default)
         pista = "vacío" if defecto == "" else defecto
         valor = leer_texto(leer, f"  {texto} [pista](Intro = {escape(pista)})[/]: ", defecto)
+        if not valor and tipo_texto(param) == "número":
+            # un número vacío no existe («puertos ""» fallaba): sin valor, ni se escribe
+            return []
     return delante + (dividir(valor) if es_lista else [valor])
 
 
