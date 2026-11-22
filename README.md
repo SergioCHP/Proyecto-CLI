@@ -459,19 +459,19 @@ uv tool install "navaja[todo,fondo] @ git+https://github.com/SergioCHP/Proyecto-
 Siempre todos juntos en el mismo comando: `uv tool install` deja solo los extras que le
 dices, así que instalar después solo `[fondo]` quitaría los de `todo`.
 
-**En Ubuntu**, desde cero (sin `sudo`; uv trae su propio Python):
+**En Ubuntu**, desde cero (uv trae su propio Python; no hace falta instalarlo):
 
 ```bash
+sudo apt update && sudo apt install -y curl git   # git: navaja se instala desde GitHub
 curl -LsSf https://astral.sh/uv/install.sh | sh
 source ~/.local/bin/env        # o abre otra terminal
 uv tool install "navaja[todo] @ git+https://github.com/SergioCHP/Proyecto-CLI@v1.1.0"
 navaja doctor
 ```
 
-Si `curl` no está, `sudo apt install curl`.
 Un `acciones.json` hecho en Windows con `~/Downloads` vale tal cual: en un Ubuntu en
 español navaja usa `~/Descargas` (lo mismo con Documentos, Imágenes, Escritorio, Música y
-Vídeos).
+Vídeos). Va en `~/.local/share/navaja/`, junto al `.env` si usas la IA.
 
 **Para programar en ella**, desde una copia del repositorio:
 

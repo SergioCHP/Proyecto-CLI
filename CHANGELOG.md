@@ -7,6 +7,10 @@ Lo que cambia en cada versión de navaja. El formato sigue
 
 ## [Sin publicar]
 
+### Documentación
+
+- README: en Ubuntu hace falta `git` para instalar desde GitHub (`sudo apt install git`).
+
 ## [1.1.0] - 2026-11-22
 
 ### Añadido
