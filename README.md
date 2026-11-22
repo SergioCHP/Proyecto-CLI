@@ -93,7 +93,7 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
 | `navaja clave` | `nueva` (contraseña segura al azar), `frase` (palabras al azar, fácil de recordar) y `fuerza` (cómo de fuerte es la tuya: la escribes sin que se vea y no se guarda). |
 | `navaja acciones` | Tus tareas de siempre guardadas con un nombre en `acciones.json` (ordenar Descargas, copiar apuntes, quitar instaladores viejos…) para hacerlas con una orden. Con simulación, confirmación y deshacer; lo que sustituye una copia se guarda en `acciones versiones`. |
 | `navaja doctor` | Revisa que todo esté listo: Python, librerías (y las opcionales), programas de fuera (git, LibreOffice, Pandoc, FFmpeg, 7-Zip, Word, winget), la carpeta de datos, `acciones.json`, si hay clave para la IA y la terminal. Dice cómo arreglar lo que falta. |
-| `navaja comprobar-ia` | Dice si la IA (Gemini) está lista: de dónde sale la clave (sin enseñarla), qué modelo se usa y, con una pregunta mínima, si contesta. Si no, por qué y qué hacer (código 4). `--sin-llamar` solo mira la configuración. Ver [IA](#ia-gemini). |
+| `navaja comprobar-ia` | Dice si la IA (Gemini) está lista: de dónde sale la clave (sin enseñarla), qué modelo se usa y, con una pregunta mínima, si contesta. Si no, por qué y qué hacer (código 4). `--sin-llamar` solo mira la configuración. Ver [IA](#ia). |
 | `navaja tema` | `ver` los temas y `elegir` uno (clasico, morado, terminal, pastel). |
 | `navaja config` | Tu nombre para el saludo y dónde guarda navaja tus datos. La primera vez que abres navaja te pregunta cómo llamarte (Intro = tu usuario de Windows); con `config nombre` lo cambias para siempre; con `config versiones 30`, cuántos días se guardan las versiones viejas de «el-mas-nuevo» (0: siempre); con `config autocompletar $PROFILE`, Tab en PowerShell. |
 | `navaja manual [comando]` | El manual completo: cómo se usa, todos los comandos con sus opciones, atajos, seguridad y datos. Con un comando, solo su parte. |
@@ -373,10 +373,11 @@ navaja acciones validar --config pruebas/roto-tipo.json
 $LASTEXITCODE   # 3
 ```
 
-## IA (Gemini)
+## IA
 
-Dos tipos de acción usan IA: `renombrar-ia` y `resumir-ia`. Las dos le mandan a Gemini
-(Google) el texto del documento (en `renombrar-ia`, solo el principio) y nada más: ni la
+Dos tipos de acción usan IA: `renombrar-ia` y `resumir-ia`. Por defecto usan Gemini
+(Google); también pueden usar Ollama o el servidor de modelos del centro (más abajo). Las
+dos le mandan al modelo el texto del documento (en `renombrar-ia`, solo el principio) y nada más: ni la
 ruta ni otros archivos. No uses las acciones con IA con documentos privados que no
 quieras mandar a Google.
 
@@ -446,7 +447,7 @@ instala lo último de `main`; para actualizar, `uv tool upgrade navaja`; para qu
 Instalada así, navaja guarda tus cosas en su carpeta de datos (`navaja config ver` te dice
 cuál es; en Windows, `%LOCALAPPDATA%\navaja`). Ahí van tu `acciones.json` (créalo con
 `navaja acciones editar`, que deja una acción de ejemplo, o copia el de este repo) y, si usas
-la IA, tu `.env` con la clave (ver [IA](#ia-gemini)).
+la IA, tu `.env` con la clave (ver [IA](#ia)).
 
 Las órdenes de documentos e imágenes usan librerías opcionales, para no instalar lo que no
 uses. `[todo]` las trae todas menos la de quitar fondos, que pesa unos 300 MB más:

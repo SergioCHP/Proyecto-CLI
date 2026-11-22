@@ -6,8 +6,8 @@ Bitácora de lo implementado y de lo que queda pendiente.
 
 - **Producto:** `navaja`, CLI de utilidades de terminal.
 - **Versión:** 1.0.0 (ver [CHANGELOG.md](CHANGELOG.md)).
-- **Stack:** Python 3.12+, Typer, Rich, prompt_toolkit, SQLite (stdlib), setuptools.
-- **Estado:** funcional y probado localmente.
+- **Stack:** Python 3.12+, Typer, Rich, prompt_toolkit, SQLite (stdlib), setuptools, uv.
+- **Estado:** funcional; tests y ruff en verde en Ubuntu, Windows y macOS (GitHub Actions).
 
 ## Hecho
 
@@ -1481,6 +1481,15 @@ cosas mal:
 - En una pregunta de archivo obligatoria, `ls` o `dir` enseñan lo que hay en la carpeta
   (`ver_carpeta`: en columnas, carpetas con «/», como mucho 60) y vuelven a preguntar.
 - 3 tests en `test_interactivo.py`.
+
+### 2026-11-22 — Repaso de los documentos
+
+- `docs/arquitectura.md`: faltaban `logo.py`, `chuletas/` y las órdenes de estudio y
+  programación (`chuleta`, `estudia`, `foco`, `entregas`, `nuevo`, `hoy`, `compara`,
+  `falsos`, `sql`); `config` tiene también `versiones` y `autocompletar`.
+- `AGENTS.md`: ruff y `IANoDisponible`; los tests nunca llaman a la IA de verdad.
+- README: la sección «IA (Gemini)» pasa a «IA» (también Ollama o el servidor del centro).
+- Resumen de este archivo: probado en los tres sistemas con GitHub Actions.
 
 ## Decisiones técnicas
 

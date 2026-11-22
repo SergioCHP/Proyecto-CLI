@@ -10,6 +10,7 @@ Reglas de `acciones.json`: la skill `acciones-json`.
 - Ejecutar: `uv run navaja --help`
 - Validar acciones: `uv run navaja acciones validar --config pruebas/acciones-prueba.json`
 - Tests: `uv run --extra dev pytest` (y `uv run python -m compileall -q src tests`)
+- Linter: `uvx ruff check src tests` (lo pasa también GitHub Actions en cada push y PR)
 
 ## Normas
 
@@ -19,10 +20,11 @@ Reglas de `acciones.json`: la skill `acciones-json`.
 - Nunca actuar sobre carpetas reales: solo en `~/pruebas-navaja`, con
   `--config pruebas/acciones-prueba.json` y `--simular`. Las acciones sin `--simular`
   las ejecuta Sergio, no el agente.
-- No tocar `.env` ni escribir claves en ningún archivo.
+- No tocar `.env` ni escribir claves en ningún archivo. Los tests nunca llaman a la IA de
+  verdad (proveedor falso en `tests/test_ia.py`).
 - Antes de cambiar un archivo, explicar en 2-3 líneas qué se va a hacer.
-- Errores previsibles: `NavajaError` / `ConfigError` / `AccionNoValida` con mensaje en
-  castellano; nunca una traza de Python.
+- Errores previsibles: `NavajaError` / `ConfigError` / `AccionNoValida` / `IANoDisponible`
+  con mensaje en castellano; nunca una traza de Python.
 - Colores solo con los estilos del tema (`ok`, `error`, `aviso`…) y todo texto del
   usuario dentro de markup Rich pasado por `escape()`.
 - Cada comando, argumento y opción con `help` en castellano (sale en el menú y en el

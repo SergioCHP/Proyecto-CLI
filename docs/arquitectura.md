@@ -24,7 +24,10 @@ src/navaja/
 ├── versiones.py        # las versiones viejas que sustituye copiar (carpeta + índice)
 ├── ignorados.py        # qué se salta arbol, comprime y busca: lo de siempre y el .gitignore
 ├── lotes.py            # convierte, imagen, pdf, fondo: comodines, nombre nuevo al lado, plan, [s/n],
-│                       #   en paralelo, librerías opcionales (FaltaAlgo) y programas de fuera
+│                       #   en paralelo, librerías opcionales (FaltaAlgo, la orden según cómo se
+│                       #   instaló navaja) y programas de fuera
+├── logo.py             # el rótulo NAVAJA de bienvenida (grande o sencillo, según quepa)
+├── chuletas/           # git.md, linux.md y powershell.md (van dentro del paquete)
 └── comandos/
     ├── listar.py       # listar (contenido de una carpeta en tabla)
     ├── arbol.py        # arbol (árbol de carpetas; --guardar en Markdown)
@@ -54,11 +57,20 @@ src/navaja/
     ├── huella.py       # sub-app hash: archivo / texto (MD5, SHA-1, SHA-256 y --compara)
     ├── genera.py       # sub-app: uuid / lorem / numero
     ├── clave.py        # sub-app: nueva / frase / fuerza (con secrets)
+    ├── chuleta.py      # chuleta (las de chuletas/ o tuyas; --editar crea tu copia)
+    ├── estudia.py      # sub-app: tarjetas con repetición espaciada (SM-2): repasa / importa / estadisticas
+    ├── foco.py         # sub-app: pomodoro (empieza / historial)
+    ├── entregas.py     # sub-app: deberes y exámenes con cuenta atrás (agregar / listar / hecha / borrar)
+    ├── nuevo.py        # nuevo (proyecto con plantilla, .gitignore, git init y primer commit)
+    ├── hoy.py          # hoy (tus commits de hoy en todos los repos de una carpeta)
+    ├── compara.py      # compara (diferencias entre dos archivos o carpetas, con difflib)
+    ├── falsos.py       # falsos (datos de prueba con Faker, a CSV, JSON o SQL)
+    ├── sql.py          # sql (una base SQLite: tablas y consultas)
     ├── doctor.py       # doctor (Python, librerías, programas, datos, acciones.json, IA, terminal)
     ├── ia.py           # comprobar-ia (clave, modelo y una pregunta mínima)
     ├── mis_acciones.py # sub-app acciones: ver / ejecutar / deshacer / (versiones) / editar / validar
     ├── versiones.py    # acciones versiones: ver / recuperar / borrar
-    └── ajustes.py      # sub-apps tema (ver / elegir) y config (ver / nombre)
+    └── ajustes.py      # sub-apps tema (ver / elegir) y config (ver / nombre / versiones / autocompletar)
 tests/                  # un archivo por módulo
 acciones.json           # las acciones de Sergio; pruebas/acciones-prueba.json, las mismas en ~/pruebas-navaja
 ```
