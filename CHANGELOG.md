@@ -7,6 +7,20 @@ Lo que cambia en cada versión de navaja. El formato sigue
 
 ## [Sin publicar]
 
+### Cambiado
+
+- `acciones editar`, si aún no tienes `acciones.json`, lo crea con las 10 acciones del
+  proyecto (antes, una sola de ejemplo). Así quien instala navaja desde GitHub las ve todas.
+  Van dentro del paquete (`navaja/ejemplo-acciones.json`, copia de `acciones.json`).
+
+### Arreglado
+
+- Ubuntu en español: `acciones validar` avisaba de que `~/Downloads` no existe y `acciones
+  ver` lo enseñaba así, aunque al ejecutar se usaba `~/Descargas`. Ahora los dos dicen
+  `~/Descargas`.
+- `doctor` y el aviso de «sin clave» decían «copia .env.example», que solo está en el repo;
+  ahora dicen dónde va el `.env` (la carpeta de datos de navaja).
+
 ### Documentación
 
 - README: en Ubuntu hace falta `git` para instalar desde GitHub (`sudo apt install git`).

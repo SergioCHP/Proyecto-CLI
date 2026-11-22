@@ -1070,7 +1070,15 @@ def test_editar_crea_el_archivo_en_tus_datos_y_lo_comprueba(tmp_path, monkeypatc
     resultado = acciones("editar")
     assert resultado.exit_code == 0, resultado.output
     assert esquema.en_datos().is_file()
-    assert "✔ 1 acción válida" in resultado.output
+    assert "✔ 10 acciones válidas" in resultado.output  # las del proyecto, no una sola
+
+
+def test_las_acciones_de_ejemplo_son_las_del_repo():
+    """El paquete lleva una copia de acciones.json (lo que crea «editar» al que instala desde
+    GitHub). Si se cambia una y no la otra, este test lo dice."""
+    raiz = Path(__file__).resolve().parent.parent
+    assert esquema.plantilla_inicial() == (raiz / "acciones.json").read_text(encoding="utf-8")
+    assert len(esquema.validar(json.loads(esquema.plantilla_inicial()))) == 10  # y todas válidas
 
 
 def test_acciones_en_el_menu_interactivo(tmp_path, descargas, monkeypatch, capsys):

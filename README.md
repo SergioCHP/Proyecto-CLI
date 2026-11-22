@@ -446,7 +446,8 @@ instala lo último de `main`; para actualizar, `uv tool upgrade navaja`; para qu
 
 Instalada así, navaja guarda tus cosas en su carpeta de datos (`navaja config ver` te dice
 cuál es; en Windows, `%LOCALAPPDATA%\navaja`; en Linux, `~/.local/share/navaja`). Ahí van tu `acciones.json` (créalo con
-`navaja acciones editar`, que deja una acción de ejemplo, o copia el de este repo) y, si usas
+`navaja acciones editar`, que lo crea con las 10 acciones de este repo: cambia las carpetas
+que no tengas por las tuyas) y, si usas
 la IA, tu `.env` con la clave (ver [IA](#ia)).
 
 Las órdenes de documentos e imágenes usan librerías opcionales, para no instalar lo que no

@@ -267,3 +267,20 @@ def test_carpeta_personal_sin_user_dirs_la_deja_igual(tmp_path, monkeypatch):
     casa = _ubuntu_en_espanol(tmp_path, monkeypatch)
     (casa / ".config" / "user-dirs.dirs").unlink()
     assert carpeta_personal(casa / "Downloads") == casa / "Downloads"
+
+
+def test_validar_y_ver_en_ubuntu_en_espanol_usan_descargas(tmp_path, monkeypatch):
+    """En el Ubuntu de prueba, «validar» avisaba de que ~/Downloads no existe y «ver» decía
+    ~/Downloads, aunque al ejecutar se usaba ~/Descargas."""
+    from navaja import esquema
+    from navaja.acciones import Accion
+    from navaja.comandos.mis_acciones import donde
+
+    casa = _ubuntu_en_espanol(tmp_path, monkeypatch)
+    datos = {"nombre": "ordenar-descargas", "descripcion": "x", "tipo": "ordenar", "carpeta": "~/Downloads", "por": "tipo"}
+    monkeypatch.setenv("HOME", str(casa))
+    monkeypatch.setenv("USERPROFILE", str(casa))  # Windows: expanduser mira esta
+    assert esquema.avisos([datos]) == []  # ya no avisa
+    assert donde(Accion.tipos()["ordenar"](datos)) == str(Path("~") / "Descargas")
+    sin_descargas = dict(datos, carpeta="~/Proyectos")
+    assert esquema.avisos([sin_descargas]) == ["«ordenar-descargas»: la carpeta ~/Proyectos no existe ahora mismo."]
