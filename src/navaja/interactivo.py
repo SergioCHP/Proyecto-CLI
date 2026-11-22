@@ -575,6 +575,8 @@ def preguntar_carpeta(leer: Lector, como_opcion: bool = True) -> list[str]:
         )
         if not valor:
             return []
+        if valor.lower().startswith("cd "):  # la costumbre de la terminal: «cd ..» es «..»
+            valor = expandir(quitar_comillas(valor[3:].strip()))
         ruta = Path(valor)
         if ruta.is_dir():
             if ruta.resolve() == actual.resolve():
@@ -679,11 +681,14 @@ def _preguntar_argumento(param: Any, leer: Lector, delante: list[str]) -> list[s
 
 
 def pasos_ajustes(comando: Any, leer: Lector) -> list[Paso]:
-    """Una pregunta por cada opción del panel «Ajustes»."""
+    """Una pregunta por cada opción del panel «Ajustes». ``--carpeta`` no: esa ya la ha
+    preguntado «¿En qué carpeta?» (en «nuevo» salía dos veces)."""
     return [
         functools.partial(preguntar_ajuste, param, leer)
         for param in comando.params
-        if param.param_type_name == "option" and getattr(param, "rich_help_panel", None) == AJUSTE
+        if param.param_type_name == "option"
+        and getattr(param, "rich_help_panel", None) == AJUSTE
+        and "--carpeta" not in param.opts
     ]
 
 

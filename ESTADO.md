@@ -1472,6 +1472,14 @@ cosas mal:
   `uvx ruff@0.17.6 check src tests`, aparte de los tests. Versión fija para que no falle
   de repente por una regla nueva. README: cómo pasarlo en local.
 
+### 2026-11-22 — Modo guiado: la carpeta una sola vez y «cd …»
+
+- `pasos_ajustes` ya no pregunta `--carpeta`: lo pregunta antes `pasos_carpeta` («¿En qué
+  carpeta?»). En `nuevo` salía dos veces.
+- `preguntar_carpeta` entiende `cd ..` / `cd "Mis cosas"` (se escribe por costumbre de la
+  terminal) igual que `..`.
+- 2 tests en `test_interactivo.py`.
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.
