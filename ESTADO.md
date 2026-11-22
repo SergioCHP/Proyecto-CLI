@@ -1556,6 +1556,25 @@ cosas mal:
   de la prueba en Ubuntu. README con `@v1.2.0`.
 - Etiqueta `v1.2.0` y Release en GitHub con las notas del CHANGELOG.
 
+### 2026-11-22 — Instalador de una línea
+
+- `instalar.ps1` (Windows, PowerShell 5.1) e `instalar.sh` (Linux y macOS): buscan uv (o lo
+  instalan con el instalador oficial de astral.sh), y `uv tool install --force
+  "navaja[todo] @ …/archive/refs/tags/vX.Y.Z.zip"`: el .zip de la versión, para no
+  necesitar git. Luego `uv tool update-shell` y `navaja --version`. Variables:
+  `NAVAJA_VERSION`, `NAVAJA_EXTRAS` y `NAVAJA_ORIGEN` (las pruebas).
+- El .ps1 va dentro de `& { }` y sin `exit`: con `irm | iex`, un exit cierra la ventana.
+  `$ErrorActionPreference = "Continue"`: con «Stop», PowerShell 5.1 toma el stderr de uv
+  (su barra de progreso) por un error.
+- `lotes.como_instalar` entiende `archive_info` en `direct_url.json` (instalado desde un
+  .zip) y, si no se sabe el origen, propone el .zip de la versión (`zip_de_version`).
+- Tests (`test_instalar.py`): la versión de los dos scripts es la de navaja (al sacar una
+  versión hay que cambiarla también ahí), bajan el .zip y no usan git, el .ps1 no tiene
+  `exit`, `sh -n`, y el camino de `instalar.sh` con un `uv` de mentira (instala con
+  `--force`, otra versión y extras, y si uv falla sale con 1).
+- GitHub Actions: trabajo «instalador» en Ubuntu, Windows (PowerShell 5.1) y macOS que
+  instala de verdad desde el .zip de ese commit. Probado aquí con un .zip local.
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.

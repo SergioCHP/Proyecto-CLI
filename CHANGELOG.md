@@ -7,6 +7,15 @@ Lo que cambia en cada versión de navaja. El formato sigue
 
 ## [Sin publicar]
 
+### Añadido
+
+- Instalador de una línea, sin tener nada instalado (ni Python ni git):
+  `irm …/instalar.ps1 | iex` en Windows y `curl -LsSf …/instalar.sh | sh` en Linux y macOS.
+  Instala uv si falta y navaja desde el `.zip` de la versión. GitHub Actions lo prueba de
+  verdad en los tres sistemas (trabajo «instalador»).
+- `doctor` y los avisos de librerías opcionales dicen la orden con ese `.zip` si navaja se
+  instaló con el instalador (y, si no se sabe cómo, también: no necesita git).
+
 ## [1.2.0] - 2026-11-22
 
 ### Añadido
