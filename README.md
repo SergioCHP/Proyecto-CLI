@@ -1,5 +1,7 @@
 # Navaja
 
+[![Tests](https://github.com/SergioCHP/Proyecto-CLI/actions/workflows/tests.yml/badge.svg)](https://github.com/SergioCHP/Proyecto-CLI/actions/workflows/tests.yml)
+
 Caja de herramientas de terminal con utilidades cotidianas, con todos los comandos en castellano.
 
 ## Spec
@@ -649,6 +651,10 @@ navaja config ver
 ```bash
 uv run --extra dev pytest
 ```
+
+En cada `push` y en cada PR, [GitHub Actions](.github/workflows/tests.yml) pasa los mismos
+tests en Ubuntu, Windows y macOS (la insignia de arriba dice si están en verde). Los tests
+trabajan siempre en carpetas temporales y nunca llaman a Gemini.
 
 La estructura está en `src/navaja/` y cada utilidad vive en `src/navaja/comandos/`.
 

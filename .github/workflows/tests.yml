@@ -1,0 +1,40 @@
+# Pasa los tests de navaja en Linux, Windows y macOS en cada push y en cada PR.
+# Así se ve en GitHub (pestaña Actions y la marca verde de cada commit) que sigue funcionando
+# en los tres sistemas, no solo en mi PC.
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  pytest:
+    name: pytest en ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false  # si falla en uno, que acaben los otros: así se ve si es cosa de un sistema
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - name: Bajar el código
+        uses: actions/checkout@v5
+
+      - name: Instalar uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          enable-cache: true
+
+      - name: Instalar Python 3.12 y las dependencias (las de uv.lock, con las de pruebas)
+        run: uv sync --frozen --extra dev
+
+      - name: Que todo compile
+        run: uv run python -m compileall -q src tests
+
+      - name: Tests
+        run: uv run pytest
+        env:
+          PYTHONUTF8: "1"  # en Windows, la salida en UTF-8 como en Windows Terminal
+
+      - name: navaja se arranca
+        run: uv run navaja --help
