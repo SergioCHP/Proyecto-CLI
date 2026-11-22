@@ -18,6 +18,7 @@ from typing import Any
 import typer
 from rich import box
 from rich.cells import cell_len
+from rich.columns import Columns
 from rich.console import Group
 from rich.markup import escape
 from rich.padding import Padding
@@ -593,6 +594,27 @@ def preguntar_carpeta(leer: Lector, como_opcion: bool = True) -> list[str]:
             )
 
 
+def ver_carpeta(maximo: int = 60) -> None:
+    """Lo que hay en la carpeta actual, en columnas (las carpetas con «/»): para cuando, en una
+    pregunta de archivo, se escribe «ls» o «dir» por costumbre."""
+    try:
+        entradas = sorted(Path.cwd().iterdir(), key=lambda e: (not e.is_dir(), e.name.lower()))
+    except OSError as exc:
+        console.print(f"  [aviso]No se puede ver la carpeta: {escape(str(exc))}[/]")
+        return
+    visibles = [e for e in entradas if not e.name.startswith(".")]
+    if not visibles:
+        console.print("  [pista]Esta carpeta está vacía.[/]")
+        return
+    nombres = [
+        Text(e.name + "/", style="titulo") if e.is_dir() else Text(e.name) for e in visibles[:maximo]
+    ]
+    console.print(Padding(Columns(nombres, padding=(0, 3)), (0, 0, 0, 2)))
+    if len(visibles) > maximo:
+        console.print(f"  [pista]… y {len(visibles) - maximo} más.[/]")
+    console.print("  [pista]Escribe el nombre (Tab lo completa) o una ruta.[/]")
+
+
 def parece_carpeta(valor: str) -> bool:
     """«C:\\Users\\…», «~\\Documents» o una carpeta que existe con barras: no es un texto del nombre."""
     if re.match(r"^[a-zA-Z]:[\\/]", valor) or valor.startswith(("~/", "~\\", "\\\\", "/")):
@@ -650,6 +672,9 @@ def _preguntar_argumento(param: Any, leer: Lector, delante: list[str]) -> list[s
             valor = leer_texto(leer, f"  {texto}: ", "")
             if not valor:
                 console.print("  [aviso]Hace falta un valor.[/]")
+                continue
+            if es_ruta and valor.lower() in ALIAS:  # «ls» o «dir»: ver qué hay y volver a preguntar
+                ver_carpeta()
                 continue
             # en una lista (fotos, PDF, archivos a convertir…) las rutas son justo lo que va
             if not es_ruta and not es_lista and parece_carpeta(valor):

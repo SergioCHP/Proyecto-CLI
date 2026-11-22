@@ -1478,7 +1478,9 @@ cosas mal:
   carpeta?»). En `nuevo` salía dos veces.
 - `preguntar_carpeta` entiende `cd ..` / `cd "Mis cosas"` (se escribe por costumbre de la
   terminal) igual que `..`.
-- 2 tests en `test_interactivo.py`.
+- En una pregunta de archivo obligatoria, `ls` o `dir` enseñan lo que hay en la carpeta
+  (`ver_carpeta`: en columnas, carpetas con «/», como mucho 60) y vuelven a preguntar.
+- 3 tests en `test_interactivo.py`.
 
 ## Decisiones técnicas
 

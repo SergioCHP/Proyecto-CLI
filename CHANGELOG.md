@@ -28,6 +28,8 @@ Lo que cambia en cada versión de navaja. El formato sigue
   fallaba).
 - Modo guiado: `nuevo` preguntaba la carpeta dos veces («¿En qué carpeta?» y «Dónde
   crearlo»); ahora, una. En «¿En qué carpeta?» vale también `cd ..` o `cd Documentos`.
+- Modo guiado: en una pregunta de archivo (por ejemplo, en `compara`), `ls` o `dir` enseñan
+  lo que hay en la carpeta y vuelven a preguntar, en vez de tomarse como un archivo «ls».
 - README: los códigos de salida dicen que en `acciones ejecutar` responder «n» sale con 1
   (en las órdenes sueltas, con 0), como hace el programa.
 - Limpieza: imports que no se usaban y un f-string vacío (lo marcaba ruff). En el menú,
