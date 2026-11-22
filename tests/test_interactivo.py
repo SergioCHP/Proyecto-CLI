@@ -523,3 +523,26 @@ def test_un_numero_opcional_vacio_no_se_escribe(carpeta, capsys, monkeypatch):
     texto = " ".join(salida(capsys).split())
     assert "valid integer" not in texto
     assert 'puertos ""' not in texto
+
+
+def test_nuevo_guiado_pregunta_la_carpeta_una_sola_vez(carpeta, capsys):
+    """Antes preguntaba «¿En qué carpeta?» y luego otra vez «Dónde crearlo»."""
+    comando = typer.main.get_command(app).commands["nuevo"]
+    preguntas = []
+
+    def leer(prompt):
+        preguntas.append(prompt)
+        return ""
+
+    pasos = interactivo.pasos_carpeta(comando, leer) + interactivo.pasos_ajustes(comando, leer)
+    for paso in pasos:
+        paso()
+    texto = " ".join(preguntas)
+    assert texto.count("¿En qué carpeta?") == 1
+    assert "Dónde crearlo" not in texto
+
+
+def test_en_que_carpeta_entiende_cd(carpeta):
+    """Por costumbre de la terminal se escribe «cd ..»: vale igual que «..»."""
+    assert interactivo.preguntar_carpeta(lector("cd sub")) == ["--carpeta", "sub"]
+    assert interactivo.preguntar_carpeta(lector('cd "sub"'), como_opcion=False) == ["sub"]
