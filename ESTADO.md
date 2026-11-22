@@ -5,7 +5,7 @@ Bitácora de lo implementado y de lo que queda pendiente.
 ## Resumen
 
 - **Producto:** `navaja`, CLI de utilidades de terminal.
-- **Versión:** 1.1.0 (ver [CHANGELOG.md](CHANGELOG.md)).
+- **Versión:** 1.2.0 (ver [CHANGELOG.md](CHANGELOG.md)).
 - **Stack:** Python 3.12+, Typer, Rich, prompt_toolkit, SQLite (stdlib), setuptools, uv.
 - **Estado:** funcional; tests y ruff en verde en Ubuntu, Windows y macOS (GitHub Actions).
 
@@ -1548,6 +1548,13 @@ cosas mal:
   una carpeta que no existe.
 - Probado en `DAM/Inglés`: «0 archivos» porque los apuntes están por unidades. Ahora, sin
   `-r` y sin nada arriba, dice cuántos documentos hay en las subcarpetas (`avisar_de_subcarpetas`).
+
+### 2026-11-22 — Versión 1.2.0
+
+- `pyproject.toml`, `__version__` y `uv.lock` a 1.2.0. En el CHANGELOG, lo de «Sin publicar»
+  pasa a `[1.2.0]`: `renombra ia`, las 10 acciones al crear `acciones.json` y los arreglos
+  de la prueba en Ubuntu. README con `@v1.2.0`.
+- Etiqueta `v1.2.0` y Release en GitHub con las notas del CHANGELOG.
 
 ## Decisiones técnicas
 
