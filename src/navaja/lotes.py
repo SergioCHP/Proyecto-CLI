@@ -7,7 +7,10 @@ paralelo y decir qué ha fallado, y avisar bien cuando falta una librería o un 
 from __future__ import annotations
 
 import contextlib
+import functools
 import importlib
+import importlib.metadata
+import json
 import os
 import shutil
 import signal
@@ -30,14 +33,49 @@ from .comun import (
 from .errores import NavajaError
 
 WINDOWS = sys.platform == "win32"
+REPO = "https://github.com/SergioCHP/Proyecto-CLI"
+"""De donde se instala navaja si no se sabe de dónde vino (la orden del README)."""
+
+
+@functools.cache
+def origen_instalacion() -> dict:
+    """Cómo se instaló navaja, según el ``direct_url.json`` que deja uv (o pip):
+    ``{"dir_info": {"editable": true}}`` desde una carpeta con --editable, o
+    ``{"url": "https://github.com/…", "vcs_info": {…}}`` desde GitHub. Vacío si no se sabe."""
+    try:
+        texto = importlib.metadata.distribution("navaja").read_text("direct_url.json")
+        datos = json.loads(texto) if texto else {}
+    except (importlib.metadata.PackageNotFoundError, ValueError, OSError):
+        return {}
+    return datos if isinstance(datos, dict) else {}
+
+
+def instalada_editable() -> bool:
+    """¿Usa navaja el código de una carpeta (``uv tool install --editable`` o ``uv run``)?"""
+    return bool((origen_instalacion().get("dir_info") or {}).get("editable"))
+
+
 def como_instalar(extra: str = "todo") -> str:
-    """El comando para tener las librerías opcionales en el navaja de la terminal.
+    """El comando para tener las librerías opcionales en el navaja de la terminal, según
+    cómo se instaló: desde la carpeta del proyecto (``--editable``) o desde GitHub (la
+    misma dirección y la misma versión, con ``--force`` para cambiar la que hay).
 
     Siempre con ``todo`` (y ``fondo`` si hace falta): ``uv tool install`` deja solo los
     extras que se le dicen, así que instalar «.[qr]» quitaría los que ya tenías.
     """
     extras = "todo,fondo" if extra == "fondo" else "todo"
-    return f'uv tool install --editable ".[{extras}]"'
+    if instalada_editable():
+        return f'uv tool install --editable ".[{extras}]"'
+    origen = origen_instalacion()
+    vcs = origen.get("vcs_info") or {}
+    url = origen.get("url") if vcs.get("vcs") == "git" and origen.get("url") else REPO
+    version = vcs.get("requested_revision")
+    return f'uv tool install --force "navaja[{extras}] @ git+{url}{"@" + version if version else ""}"'
+
+
+def donde_instalar() -> str:
+    """Lo que va delante del comando: con --editable hay que estar en la carpeta de navaja."""
+    return "Desde la carpeta de navaja" if instalada_editable() else "Instálalo con"
 
 
 class FaltaAlgo(NavajaError):
@@ -50,7 +88,7 @@ def libreria(modulo: str, paquete: str, extra: str, para: str) -> ModuleType:
         return importlib.import_module(modulo)
     except ImportError:
         raise FaltaAlgo(
-            f"Para {para} hace falta {paquete}. Desde la carpeta de navaja: {como_instalar(extra)}"
+            f"Para {para} hace falta {paquete}. {donde_instalar()}: {como_instalar(extra)}"
         ) from None
 
 

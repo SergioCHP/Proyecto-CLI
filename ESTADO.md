@@ -1425,6 +1425,17 @@ cosas mal:
   aparte cómo instalarla para programar (`--editable`).
 - Etiqueta `v1.0.0` y Release en GitHub con las notas del CHANGELOG.
 
+### 2026-11-22 — La orden para instalar lo que falta, según cómo se instaló navaja
+
+- Antes, `doctor` y los avisos de librerías opcionales decían siempre
+  `uv tool install --editable ".[todo]"`, que solo vale desde la carpeta del proyecto.
+- `lotes.origen_instalacion()` lee el `direct_url.json` que deja uv: si navaja está instalada
+  con `--editable`, sale esa orden («Desde la carpeta de navaja»); si vino de GitHub, la
+  misma dirección y versión con `--force` («Instálalo con: uv tool install --force
+  "navaja[todo,fondo] @ git+https://github.com/SergioCHP/Proyecto-CLI@v1.0.0"»). Lo usan
+  `doctor`, `libreria()` (todas las órdenes con librerías opcionales), `cuenta` y `baja`.
+- 3 tests nuevos en `test_lotes.py` (editable, GitHub con y sin versión, y `doctor`).
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.

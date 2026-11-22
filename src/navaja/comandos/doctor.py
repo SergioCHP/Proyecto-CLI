@@ -108,7 +108,7 @@ def revisar_librerias() -> list[Revision]:
         if version:
             lista.append(Revision("Librerías", paquete, "ok", f"{version} · {para}"))
         else:
-            lista.append(Revision("Librerías", paquete, "error", f"falta ({para})", "uv tool install --editable ."))
+            lista.append(Revision("Librerías", paquete, "error", f"falta ({para})", como_instalar()))
     for paquete, para, extra in OPCIONALES:
         version = version_de(paquete)
         if version:
