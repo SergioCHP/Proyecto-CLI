@@ -176,7 +176,7 @@ def borrar(
     numeros: list[int] | None = typer.Argument(
         None,
         help="Números de las versiones (los de «versiones ver»). Sin números, todas (o las "
-        "de --hasta).",
+        "de antes de la fecha que digas).",
         autocompletion=numeros_para_tab,
         show_default=False,
     ),

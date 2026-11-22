@@ -85,7 +85,7 @@ def destino_png(guardar: Path) -> Path:
 
 
 def qr(
-    texto: str = typer.Argument("", help="Lo que lleva el QR: un enlace o un texto (con --wifi, el nombre de la red).", show_default=False),
+    texto: str = typer.Argument("", help="Lo que lleva el QR: un enlace, un texto o, para la wifi, el nombre de la red.", show_default=False),
     wifi: bool = typer.Option(False, "--wifi", "-w", help="Un QR para conectarse a tu wifi (pregunta la contraseña sin que se vea)."),
     guardar: Path = typer.Option(None, "--guardar", "-g", help="Guardarlo también en un PNG.", show_default=False, rich_help_panel=AJUSTE),
 ) -> None:

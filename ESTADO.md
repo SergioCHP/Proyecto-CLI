@@ -1491,6 +1491,17 @@ cosas mal:
 - README: la sección «IA (Gemini)» pasa a «IA» (también Ollama o el servidor del centro).
 - Resumen de este archivo: probado en los tres sistemas con GitHub Actions.
 
+### 2026-11-22 — Modo guiado de `falsos` paso a paso
+
+- `interactivo.pasos_falsos` (en `PREGUNTAS_PROPIAS`): cuántas filas (1-10 000), qué
+  columnas (enseña las que hay, las comprueba con `falsos.leer_campos`), formato en un menú
+  (tabla, csv, json, sql) y, según el formato, el archivo (Intro = `datos.csv`…), el nombre
+  de la tabla SQL (validado) o el separador del CSV (`;` o `,`). La semilla y `--simular`
+  no se preguntan: quien los quiera los escribe en la orden.
+- Repaso de las preguntas del guiado que nombraban opciones (`--algo`): `qr` y
+  `acciones versiones borrar` cambiadas a castellano normal; `copia a` tiene sus preguntas.
+- 3 tests en `test_interactivo.py`.
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.

@@ -1328,7 +1328,87 @@ def entender_archivos(respuesta: str, visibles: list[Path], carpeta: Path) -> li
     return list(dict.fromkeys(elegidos))  # sin repetir, en el orden en que se dijeron
 
 
-PREGUNTAS_PROPIAS: dict[str, Callable[[Any, Lector], list[Paso]]] = {"copia a": pasos_copia}
+def pasos_falsos(comando: Any, leer: Lector) -> list[Paso]:
+    """«falsos» por menú: cuántas filas, qué columnas (enseñando las que hay) y el formato;
+    y solo si hace falta, el archivo, la tabla del SQL o el separador del CSV. Antes
+    preguntaba las 8 opciones siempre, también las que no tocaban (con «tabla», el nombre
+    de la tabla SQL o el separador del CSV), y en «idioma de terminal» («Con --lista…»).
+    """
+    from .comandos import falsos
+
+    eleccion = {"formato": "tabla"}
+    formatos = [
+        ("tabla", "verlos aquí, en una tabla"),
+        ("csv", "un .csv para Excel o para importar"),
+        ("json", "un .json"),
+        ("sql", "un .sql con los INSERT para tu base de datos"),
+    ]
+
+    def cantidad() -> list[str]:
+        while True:
+            valor = leer_texto(leer, f"  Cuántas filas [pista](Intro = 10 · como mucho {falsos.MAXIMO})[/]: ", "10")
+            if valor.isdigit() and 1 <= int(valor) <= falsos.MAXIMO:
+                return [] if valor == "10" else ["--cantidad", valor]
+            console.print(f"  [aviso]Un número del 1 al {falsos.MAXIMO}.[/]")
+
+    def columnas() -> list[str]:
+        console.print(
+            f"  [pista]Columnas que hay: {escape(', '.join(falsos.campos_disponibles()))}[/]", soft_wrap=True
+        )
+        defecto = ",".join(falsos.POR_DEFECTO)
+        while True:
+            valor = leer_texto(leer, f"  Qué columnas, separadas por comas [pista](Intro = {defecto})[/]: ", "")
+            if not valor:
+                return []
+            try:
+                return ["--campos", ",".join(falsos.leer_campos(valor))]
+            except NavajaError as error:
+                console.print(f"  [aviso]{escape(str(error))}[/]", soft_wrap=True)
+
+    def formato() -> list[str]:
+        console.print("  [bold]¿Cómo los quieres?[/]")
+        for numero, (nombre, para) in enumerate(formatos, start=1):
+            console.print(f"    [acento]{numero}[/]  {nombre}: {para}")
+        console.print("    [acento]0[/]  [pista]volver[/]")
+        numero = elegir_numero(leer, "  Elige [pista](Intro = 1)[/]: ", len(formatos), intro=1)
+        eleccion["formato"] = formatos[numero - 1][0]
+        return [] if numero == 1 else ["--formato", eleccion["formato"]]
+
+    def archivo() -> list[str] | None:
+        if eleccion["formato"] == "tabla":
+            return None
+        defecto = f"datos.{eleccion['formato']}"
+        valor = leer_texto(
+            leer, f"  En qué archivo lo guardo [pista](Intro = {defecto} · nunca pisa uno que ya existe)[/]: ", defecto
+        )
+        return ["--guardar", valor]
+
+    def tabla_sql() -> list[str] | None:
+        if eleccion["formato"] != "sql":
+            return None
+        while True:
+            valor = leer_texto(leer, "  Nombre de la tabla [pista](Intro = personas)[/]: ", "personas")
+            if falsos.NOMBRE_TABLA.fullmatch(valor):
+                return [] if valor == "personas" else ["--tabla", valor]
+            console.print("  [aviso]Letras, números y _, sin empezar por número (como clientes o alumnos_2026).[/]")
+
+    def separador() -> list[str] | None:
+        if eleccion["formato"] != "csv":
+            return None
+        console.print("  [bold]¿Qué separador?[/]")
+        console.print("    [acento]1[/]  ;  [pista](el que abre bien Excel en español)[/]")
+        console.print("    [acento]2[/]  ,  [pista](el de casi todos los demás programas)[/]")
+        console.print("    [acento]0[/]  [pista]volver[/]")
+        numero = elegir_numero(leer, "  Elige [pista](Intro = 1)[/]: ", 2, intro=1)
+        return [] if numero == 1 else ["--separador", ","]
+
+    return [cantidad, columnas, formato, archivo, tabla_sql, separador]
+
+
+PREGUNTAS_PROPIAS: dict[str, Callable[[Any, Lector], list[Paso]]] = {
+    "copia a": pasos_copia,
+    "falsos": pasos_falsos,
+}
 """Órdenes que por menú hacen sus propias preguntas en vez de las de siempre."""
 
 
