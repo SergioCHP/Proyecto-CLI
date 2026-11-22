@@ -454,6 +454,13 @@ EXTRA: dict[str, str] = {
         "convierte IMG_1234.jpg en foto_1234.jpg. Sin --completo solo cambia el nombre, "
         "no la extensión."
     ),
+    "renombra ia": (
+        "Lo mismo que la acción nombres-claros, pero en la carpeta actual (o la de "
+        "--carpeta): documento (3).pdf → factura-movistar-octubre-2026.pdf. Por defecto mira "
+        "PDF, Word y ODT; --solo txt,md para otros. Con --simular ya pregunta a la IA y enseña "
+        "los nombres sin tocar nada. Necesita IA (navaja comprobar-ia); sin ella, lo explica y "
+        "sale con 4. Se deshace con renombra deshacer."
+    ),
     "duplicados": (
         "Compara el contenido de los archivos (SHA-256), no el nombre: dos archivos son "
         "duplicados aunque se llamen distinto. Los enlaces duros no cuentan dos veces."

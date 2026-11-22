@@ -514,3 +514,80 @@ def test_comprobar_ia_sin_red_no_tiene_traza(monkeypatch):
 def test_ningun_error_de_ia_es_una_traza():
     """Todos son NavajaError: las órdenes los enseñan en una línea."""
     assert issubclass(IANoDisponible, NavajaError) and issubclass(RespuestaIARara, NavajaError)
+
+
+# ── renombra ia: lo mismo, en la carpeta que digas ─────────────────────────
+
+
+def renombra_ia(*argumentos: str, entrada: str = "s\n"):
+    return runner.invoke(app, ["renombra", "ia", *argumentos], input=entrada)
+
+
+def test_renombra_ia_en_cualquier_carpeta_y_se_deshace(tmp_path, descargas, falso):
+    """Sin escribir ninguna acción: la carpeta con -c, y se deshace con «renombra deshacer»."""
+    falso.responder = nombres_por_contenido
+    resultado = renombra_ia("-c", str(descargas), "--solo", "txt,md", "--si")
+    assert resultado.exit_code == 0, resultado.output
+    assert sorted(p.name for p in descargas.iterdir()) == [
+        "apuntes-subredes-vlsm.md", "factura-movistar-octubre-2026.txt", "setup.exe"
+    ]
+    assert "renombra deshacer" in plano(resultado.output)
+    assert runner.invoke(app, ["renombra", "deshacer", "--si"]).exit_code == 0
+    assert sorted(p.name for p in descargas.iterdir()) == ["Tema5.md", "documento (3).txt", "setup.exe"]
+
+
+def test_renombra_ia_sin_carpeta_usa_la_actual_y_simulado_no_toca(tmp_path, descargas, falso, monkeypatch):
+    falso.responder = nombres_por_contenido
+    monkeypatch.chdir(descargas)  # «donde estoy»
+    antes = sorted(p.name for p in descargas.iterdir())
+    resultado = renombra_ia("--solo", "txt", "--simular")
+    assert resultado.exit_code == 0, resultado.output
+    assert "factura-movistar-octubre-2026.txt" in plano(resultado.output)
+    assert len(falso.preguntas) == 1  # solo el .txt: --solo manda
+    assert sorted(p.name for p in descargas.iterdir()) == antes
+
+
+def test_renombra_ia_por_defecto_solo_mira_documentos(tmp_path, falso):
+    """Sin --solo, PDF, Word y ODT: no le pregunta a la IA por un .txt ni por un .py."""
+    escribir(tmp_path / "notas.txt", "texto")
+    escribir(tmp_path / "programa.py", "print('hola')")
+    resultado = renombra_ia("-c", str(tmp_path), "--simular")
+    assert resultado.exit_code == 0, resultado.output
+    assert "ningún documento cumple el filtro" in plano(resultado.output)
+    assert falso.preguntas == []
+
+
+def test_renombra_ia_las_instrucciones_llegan_a_la_ia(tmp_path, descargas, falso):
+    falso.responder = nombres_por_contenido
+    resultado = renombra_ia("-c", str(descargas), "--solo", "txt", "-i", "en valenciano", "--simular")
+    assert resultado.exit_code == 0, resultado.output
+    assert "en valenciano" in falso.preguntas[0]
+
+
+def test_renombra_ia_sin_clave_lo_explica_sale_con_4_y_no_toca(tmp_path, descargas):
+    antes = sorted(p.name for p in descargas.iterdir())
+    resultado = renombra_ia("-c", str(descargas), "--solo", "txt,md")
+    assert resultado.exit_code == 4
+    assert "Traceback" not in resultado.output
+    assert "clave" in plano(resultado.output)
+    assert sorted(p.name for p in descargas.iterdir()) == antes
+
+
+def test_renombra_ia_carpeta_que_no_existe(tmp_path, falso):
+    resultado = renombra_ia("-c", str(tmp_path / "no-existe"))
+    assert resultado.exit_code == 1
+    assert "no existe" in plano(resultado.output)
+
+
+def test_renombra_ia_sin_nada_arriba_avisa_de_las_subcarpetas(tmp_path, falso):
+    """En «Inglés» los apuntes estaban en subcarpetas: salía «0 archivos» sin más."""
+    escribir(tmp_path / "Ingles" / "Unit 1" / "vocabulario.txt", "Unit 1 vocabulary: house, garden, kitchen, bedroom.")
+    escribir(tmp_path / "Ingles" / "Unit 2" / "grammar.txt", "Unit 2 grammar: the present perfect with already and yet.")
+    resultado = renombra_ia("-c", str(tmp_path / "Ingles"), "--solo", "txt", "--simular")
+    assert resultado.exit_code == 0, resultado.output
+    assert "En las subcarpetas hay 2 documentos: añade -r" in plano(resultado.output)
+    assert falso.preguntas == []  # sin -r no se le pregunta nada a la IA
+    falso.responder = lambda prompt: "apuntes ingles"
+    resultado = renombra_ia("-c", str(tmp_path / "Ingles"), "--solo", "txt", "-r", "--simular")
+    assert "añade -r" not in plano(resultado.output)
+    assert len(falso.preguntas) == 2, resultado.output  # con -r, entra

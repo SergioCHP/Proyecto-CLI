@@ -7,6 +7,14 @@ Lo que cambia en cada versión de navaja. El formato sigue
 
 ## [Sin publicar]
 
+### Añadido
+
+- `navaja renombra ia`: la IA lee cada documento y le pone un nombre que dice lo que es, en
+  la carpeta actual o la de `-c` (la acción `nombres-claros` se queda para Descargas). Por
+  defecto PDF, Word y ODT; `--instrucciones` para pedirle algo más. Se deshace con
+  `renombra deshacer`.
+  Si no encuentra nada pero hay documentos en las subcarpetas, dice cuántos y que añadas `-r`.
+
 ### Cambiado
 
 - `acciones editar`, si aún no tienes `acciones.json`, lo crea con las 10 acciones del

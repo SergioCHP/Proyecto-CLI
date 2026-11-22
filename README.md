@@ -69,7 +69,7 @@ Caja de herramientas de terminal con utilidades cotidianas, con todos los comand
 | `navaja comprime [carpeta]` | Crea un `.zip` (o `.tar.gz`) al lado de la carpeta, sin `.git`, `.venv`, `node_modules`, `__pycache__` ni lo del `.gitignore`: lo que se entrega de una práctica. `--sin *.log`, `--todo`, `--destino`, `--simular` y `[s/n]`. Nunca pisa uno que ya exista. |
 | `navaja extrae ARCHIVO` | Descomprime un `.zip`, `.tar` o `.tar.gz` enseñando antes lo que lleva y preguntando `[s/n]`. Va a una carpeta nueva al lado (sin repetir la que trae dentro), se salta lo que se saldría de la carpeta y nunca pisa nada. |
 | `navaja ordena` | Ordena una carpeta: por tipo, por fecha (mes, año o día), los archivos de unas fechas a una carpeta, por un texto del nombre o por letra. Con deshacer. |
-| `navaja renombra` | Renombrado masivo sin saber regex: cambiar texto, añadir delante o detrás, numerar, poner la fecha, arreglar nombres o una plantilla. Con deshacer. |
+| `navaja renombra` | Renombrado masivo sin saber regex: cambiar texto, añadir delante o detrás, numerar, poner la fecha, arreglar nombres o una plantilla; con `renombra ia`, la IA lee cada documento y le pone un nombre que dice lo que es. Con deshacer. |
 | `navaja duplicados` | Encuentra archivos repetidos por contenido y los manda a una papelera recuperable. |
 | `navaja copia a DESTINO [ARCHIVOS]` | Copia los archivos de una carpeta (o solo los que digas: `horario.pdf`, `*.pdf`) a otra al momento, sin escribir una acción; los originales se quedan. Con filtros, simulación y `copia deshacer`. |
 | `navaja notas` | Notas y enlaces con etiquetas, guardados en SQLite. Lo que empieza por `https://` o `www.` es un enlace. |
@@ -375,7 +375,9 @@ $LASTEXITCODE   # 3
 
 ## IA
 
-Dos tipos de acción usan IA: `renombrar-ia` y `resumir-ia`. Por defecto usan Gemini
+Dos tipos de acción usan IA: `renombrar-ia` y `resumir-ia`. La orden `navaja renombra ia`
+hace lo mismo que `renombrar-ia` en la carpeta actual (o la de `-c`), sin escribir una
+acción: `navaja renombra ia -c ~/Documents/ESTUDIO --simular`. Por defecto usan Gemini
 (Google); también pueden usar Ollama o el servidor de modelos del centro (más abajo). Las
 dos le mandan al modelo el texto del documento (en `renombrar-ia`, solo el principio) y nada más: ni la
 ruta ni otros archivos. No uses las acciones con IA con documentos privados que no
@@ -562,6 +564,7 @@ navaja renombra fecha -c ~/Fotos                     # IMG_1.jpg → 2026-10-26_
 navaja renombra arreglar                             # Foto Año (1).JPG → foto-ano-1.jpg
 navaja renombra plantilla "{fecha:%Y-%m-%d}_{n:03}{ext}" --simular
 navaja renombra avanzado 'IMG_(\d+)' 'foto_\1'       # con expresiones regulares
+navaja renombra ia --simular                         # la IA propone un nombre a cada PDF y Word de aquí
 navaja renombra deshacer
 
 # Duplicados: mirar, quitar las copias y, si te arrepientes, recuperarlas

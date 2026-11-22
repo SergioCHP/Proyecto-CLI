@@ -1535,6 +1535,20 @@ cosas mal:
   ahora copia las 10 del proyecto, que van en el paquete (`ejemplo-acciones.json`,
   `package-data`). Un test comprueba que es igual que el `acciones.json` del repo.
 
+### 2026-11-22 — `renombra ia`: nombres claros en cualquier carpeta
+
+- Orden nueva `renombra ia` (en `comandos/renombra.py`): una acción `renombrar-ia` hecha en
+  el momento, como `copia a` con `copiar`: el mismo plan, `Motor.planificar`, `mostrar_plan`
+  y `hacer`, con el registro «renombra» (`renombra deshacer`). Por defecto
+  `--solo pdf,docx,odt`; `-i/--instrucciones` pasa por la misma validación que en
+  `acciones.json`. Los imports de acciones/motor/mis_acciones van dentro de la función:
+  `esquema` importa `renombra` y se importarían en círculo.
+- Tests en `test_ia.py` con el proveedor `Falso`: otra carpeta y deshacer, la carpeta
+  actual con `--simular`, el filtro por defecto, las instrucciones, sin clave (código 4) y
+  una carpeta que no existe.
+- Probado en `DAM/Inglés`: «0 archivos» porque los apuntes están por unidades. Ahora, sin
+  `-r` y sin nada arriba, dice cuántos documentos hay en las subcarpetas (`avisar_de_subcarpetas`).
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.
