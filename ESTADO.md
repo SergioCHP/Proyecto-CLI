@@ -1463,6 +1463,15 @@ cosas mal:
 - Pendiente para el final: la v1.1.0 (versión, CHANGELOG, README con `@v1.1.0`, etiqueta y
   Release), por si cambia algo más antes de entregar.
 
+### 2026-11-22 — ruff en GitHub Actions
+
+- `pyproject.toml`: `[tool.ruff]` con `select = ["F", "E9", "PLE"]` (nombres sin definir,
+  imports y variables sin usar, errores de sintaxis); el estilo no se revisa. En `tests/`
+  se ignora F811, porque pytest pasa los fixtures importados como parámetro.
+- `.github/workflows/tests.yml`: un trabajo «ruff (linter)» en Ubuntu con
+  `uvx ruff@0.17.6 check src tests`, aparte de los tests. Versión fija para que no falle
+  de repente por una regla nueva. README: cómo pasarlo en local.
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.
@@ -1575,7 +1584,7 @@ cosas mal:
   de Rich; se podría dejar una columna de margen.
 - [ ] La barra de `ocupa` con `#` y `-` (salida sin UTF-8) no se ha probado a mano: desde Git
   Bash navaja siempre escribe en UTF-8.
-- [ ] Linter/formateador (ruff). (CI con GitHub Actions: hecho.)
+- [x] Linter (ruff) en GitHub Actions. Formateador: no, para no cambiar el estilo de todo.
 - [x] IA: Ollama o el servidor del centro como otro proveedor (`Servidor`, con `NAVAJA_IA_URL`).
 - [ ] Empaquetado y publicación (pipx / PyPI).
 
