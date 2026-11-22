@@ -5,6 +5,25 @@ Lo que cambia en cada versión de navaja. El formato sigue
 [Versionado Semántico](https://semver.org/lang/es/). El detalle de cada día está en
 [ESTADO.md](ESTADO.md) y en el historial de git.
 
+## [Sin publicar]
+
+### Añadido
+
+- IA con Ollama, LM Studio o el servidor de modelos del centro: cualquier servidor
+  compatible con la API de OpenAI, con `NAVAJA_IA_URL` (y `NAVAJA_IA_CLAVE` si la pide) en
+  el `.env`. Gemini sigue siendo el de por defecto.
+
+### Cambiado
+
+- `sistema`: barras finas como las de `ocupa`, con media celda de precisión.
+- `doctor` y los avisos de librerías opcionales dicen la orden para instalarlas según cómo
+  se instaló navaja (desde GitHub o desde la carpeta con `--editable`).
+
+### Arreglado
+
+- Modo guiado: un número opcional vacío ya no se escribe como `""` (`puertos` con Intro
+  fallaba).
+
 ## [1.0.0] - 2026-11-22
 
 Primera versión completa: la que se entrega. Se instala con una orden:

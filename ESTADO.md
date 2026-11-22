@@ -1436,6 +1436,22 @@ cosas mal:
   `doctor`, `libreria()` (todas las órdenes con librerías opcionales), `cuenta` y `baja`.
 - 3 tests nuevos en `test_lotes.py` (editable, GitHub con y sin versión, y `doctor`).
 
+### 2026-11-22 — IA con Ollama o el servidor del centro (compatible con OpenAI)
+
+- **Decisión** (Sergio): dejarlo preparado para quien quiera usar el servidor de modelos del
+  centro (en casa no tiene su dirección ni su clave) u Ollama.
+- `proveedor_ia.Servidor`: habla la API de OpenAI (`POST {NAVAJA_IA_URL}/chat/completions`,
+  clave opcional en `Authorization: Bearer`, `NAVAJA_IA_CLAVE`). Con `NAVAJA_IA_URL` en el
+  `.env` se usa en vez de Gemini; modelo por defecto `llama3.2`. Espera hasta 120 s (los
+  modelos locales van más lentos), quita lo que va entre `<think>` y `</think>`, y cada
+  error dice qué hacer (no llega, la clave, el modelo que no existe, saturado, tarda mucho).
+- La llamada HTTP pasa a `ProveedorIA.llamar`, que usan los dos; cada uno traduce sus errores
+  (`error_http`, `error_de_red`).
+- `comprobar-ia` y `doctor` enseñan el servidor; `.env.example`, README, ayuda y ADR-0002
+  (actualización) lo explican.
+- 12 tests nuevos en `test_ia.py` (lo que se manda, sin clave sin cabecera, `<think>`, cada
+  error, URL mal escrita y `comprobar-ia`), sin servidor de verdad.
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.
@@ -1549,7 +1565,7 @@ cosas mal:
 - [ ] La barra de `ocupa` con `#` y `-` (salida sin UTF-8) no se ha probado a mano: desde Git
   Bash navaja siempre escribe en UTF-8.
 - [ ] Linter/formateador (ruff). (CI con GitHub Actions: hecho.)
-- [ ] IA: Ollama o el servidor del centro como otro proveedor (una subclase de `ProveedorIA`).
+- [x] IA: Ollama o el servidor del centro como otro proveedor (`Servidor`, con `NAVAJA_IA_URL`).
 - [ ] Empaquetado y publicación (pipx / PyPI).
 
 ## Cómo comprobar el estado

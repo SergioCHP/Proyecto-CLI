@@ -406,6 +406,23 @@ se queda (y se puede deshacer) y no se le vuelve a preguntar.
 `acciones validar` avisa si tienes acciones con IA y no hay clave, y `navaja doctor` dice
 si la hay (sin llamar a Gemini). Por qué IA y por qué así: [ADR-0002](docs/adr/0002-capa-ia.md).
 
+**Con Ollama o el servidor del centro, en vez de Gemini.** navaja también habla con
+cualquier servidor compatible con la API de OpenAI (`…/v1/chat/completions`): Ollama en tu
+PC, LM Studio o el servidor de modelos del centro. No hay que tocar código: basta con su
+dirección en el `.env` (si está, se usa en vez de Gemini y `GEMINI_API_KEY` no hace falta):
+
+```ini
+NAVAJA_IA_URL=http://localhost:11434/v1   # Ollama; el del centro te lo da el profesor
+NAVAJA_MODELO=llama3.2                    # por defecto, llama3.2
+NAVAJA_IA_CLAVE=                          # solo si el servidor pide clave
+```
+
+`navaja comprobar-ia` dice a qué servidor pregunta, con qué modelo y si contesta. Si no
+llega («¿está encendido o estás en la red del centro?»), si el modelo no existe («ollama
+list» dice cuáles tienes) o si tarda demasiado (un modelo grande en un PC normal), lo
+explica igual que con Gemini, y lo demás de navaja sigue funcionando. Con un modelo
+pequeño en local, los nombres y los resúmenes salen algo peores que con Gemini.
+
 ## Instalación
 
 Hace falta [uv](https://docs.astral.sh/uv/) (Linux, macOS y Windows). En Windows se instala con

@@ -18,7 +18,8 @@ src/navaja/
 ├── esquema.py          # acciones.json: dónde está, leerlo y comprobarlo entero
 ├── acciones.py         # clases Accion (registro + fábrica desde_config) y una por tipo;
 │                       #   AccionConIA → RenombrarIA y ResumirIA
-├── proveedor_ia.py     # la única parte que habla con la IA: ProveedorIA (desde_entorno, .env) y Gemini
+├── proveedor_ia.py     # la única parte que habla con la IA: ProveedorIA (desde_entorno, .env),
+│                       #   Gemini y Servidor (compatible con OpenAI: Ollama, el del centro)
 ├── motor.py            # Motor: elige carpeta y archivos, pide el plan a la acción
 ├── versiones.py        # las versiones viejas que sustituye copiar (carpeta + índice)
 ├── ignorados.py        # qué se salta arbol, comprime y busca: lo de siempre y el .gitignore

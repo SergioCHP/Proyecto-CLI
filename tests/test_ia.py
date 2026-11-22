@@ -19,7 +19,7 @@ from navaja import esquema, proveedor_ia
 from navaja.acciones import Accion, RenombrarIA, ResumirIA, limpiar_nombre
 from navaja.app import app
 from navaja.errores import AccionNoValida, IANoDisponible, NavajaError, RespuestaIARara
-from navaja.proveedor_ia import Gemini, ProveedorIA, leer_env
+from navaja.proveedor_ia import Gemini, ProveedorIA, Servidor, leer_env
 
 runner = CliRunner()
 
@@ -192,6 +192,85 @@ def test_una_respuesta_bloqueada_o_vacia_es_rara(monkeypatch, datos):
     con_urlopen(monkeypatch, lambda _: Respuesta(json.dumps(datos).encode()))
     with pytest.raises(RespuestaIARara):
         Gemini("clave-1234").preguntar("hola")
+
+
+# ── Un servidor compatible con OpenAI (Ollama, el del centro…) ─────────────
+
+
+def respuesta_openai(texto: str) -> Respuesta:
+    return Respuesta(json.dumps({"choices": [{"message": {"role": "assistant", "content": texto}}]}).encode())
+
+
+def test_con_navaja_ia_url_se_usa_el_servidor_y_no_hace_falta_clave():
+    proveedor = ProveedorIA.desde_entorno({"NAVAJA_IA_URL": "http://localhost:11434/v1"})
+    assert isinstance(proveedor, Servidor)  # sin GEMINI_API_KEY y sin NAVAJA_IA_CLAVE
+    assert proveedor.modelo == proveedor_ia.MODELO_SERVIDOR  # llama3.2 si no se dice otro
+    datos = proveedor_ia.configuracion({"NAVAJA_IA_URL": "http://x/v1", "NAVAJA_MODELO": "qwen3",
+                                        "NAVAJA_IA_CLAVE": "clave-del-centro", "GEMINI_API_KEY": "otra"})
+    assert (datos.con_servidor, datos.modelo, datos.clave) == (True, "qwen3", "clave-del-centro")
+
+
+def test_el_servidor_recibe_lo_que_espera_la_api_de_openai(monkeypatch):
+    vistas = []
+
+    def contestar(peticion):
+        vistas.append(peticion)
+        return respuesta_openai(" hola ")
+
+    con_urlopen(monkeypatch, contestar)
+    assert Servidor("http://centro:8000/v1/", "llama3", "clave-1234").preguntar("di hola") == "hola"
+    peticion = vistas[0]
+    assert peticion.full_url == "http://centro:8000/v1/chat/completions"  # sin la / repetida
+    assert peticion.get_header("Authorization") == "Bearer clave-1234"  # la clave, en la cabecera
+    cuerpo = json.loads(peticion.data)
+    assert cuerpo["model"] == "llama3" and cuerpo["messages"][0]["content"] == "di hola"
+
+
+def test_el_servidor_sin_clave_no_manda_authorization(monkeypatch):
+    vistas = []
+    con_urlopen(monkeypatch, lambda peticion: vistas.append(peticion) or respuesta_openai("ok"))
+    Servidor("http://localhost:11434/v1").preguntar("hola")
+    assert vistas[0].get_header("Authorization") is None
+
+
+def test_el_servidor_quita_lo_que_el_modelo_piensa_en_voz_alta(monkeypatch):
+    con_urlopen(monkeypatch, lambda _: respuesta_openai("<think>a ver…</think>\nfactura-movistar"))
+    assert Servidor("http://localhost:11434/v1").preguntar("nombre") == "factura-movistar"
+
+
+@pytest.mark.parametrize(
+    ("fallo", "esperado"),
+    [
+        (urllib.error.URLError("connection refused"), "¿está encendido"),
+        (TimeoutError(), "más pequeño"),
+        (error_http(401, b'{"error": {"message": "bad key"}}'), "NAVAJA_IA_CLAVE"),
+        (error_http(404, b'{"error": "model \'llama9\' not found"}'), "ollama list"),
+        (error_http(500, b"{}"), "Prueba más tarde"),
+    ],
+)
+def test_cada_fallo_del_servidor_dice_que_hacer(monkeypatch, fallo, esperado):
+    def fallar(_):
+        raise fallo
+
+    con_urlopen(monkeypatch, fallar)
+    with pytest.raises(IANoDisponible) as error:
+        Servidor("http://localhost:11434/v1", "llama9", "clave-1234").preguntar("hola")
+    assert esperado in str(error.value)
+    assert "clave-1234" not in str(error.value)
+
+
+def test_una_url_que_no_es_una_direccion_lo_dice():
+    with pytest.raises(IANoDisponible, match="http://"):
+        ProveedorIA.desde_entorno({"NAVAJA_IA_URL": "localhost:11434"})
+
+
+def test_comprobar_ia_con_servidor_dice_cual_y_que_no_hace_falta_clave(monkeypatch):
+    monkeypatch.setenv("NAVAJA_IA_URL", "http://localhost:11434/v1")
+    monkeypatch.setattr(Servidor, "_pedir", lambda self, prompt: "ok")
+    resultado = runner.invoke(app, ["comprobar-ia"])
+    assert resultado.exit_code == 0, resultado.output
+    texto = plano(resultado.output)
+    assert "localhost:11434" in texto and "llama3.2" in texto and "lista" in texto
 
 
 # ── Validación en acciones.json ────────────────────────────────────────────
