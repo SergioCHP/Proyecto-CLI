@@ -26,8 +26,8 @@ from typing import Any, ClassVar
 
 from .comandos import cuenta, ordena, renombra
 from .comun import (
-    carpeta_papelera, crear_carpetas, cuantos, destino_libre, hora_dudosa, mover_seguro, poner_solo_lectura,
-    quitar_solo_lectura, quitar_vacias, ruta_libre,
+    carpeta_papelera, carpeta_personal, crear_carpetas, cuantos, destino_libre, hora_dudosa, mover_seguro,
+    poner_solo_lectura, quitar_solo_lectura, quitar_vacias, ruta_libre,
 )
 from .errores import AccionNoValida, IANoDisponible, NavajaError, RespuestaIARara
 from .filtros import sin_tildes
@@ -159,7 +159,7 @@ class AccionDeArchivos(Accion):
         """Ruta de un campo: ``~`` es tu carpeta personal y una relativa se cuenta
         desde la carpeta de la acción."""
         ruta = Path(texto).expanduser()
-        return ruta if ruta.is_absolute() else carpeta / ruta
+        return carpeta_personal(ruta) if ruta.is_absolute() else carpeta / ruta
 
     def excluir(self, carpeta: Path) -> Path | None:
         """Carpeta cuyos archivos no se eligen (el destino, si está dentro de la carpeta),
