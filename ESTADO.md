@@ -5,7 +5,7 @@ Bitácora de lo implementado y de lo que queda pendiente.
 ## Resumen
 
 - **Producto:** `navaja`, CLI de utilidades de terminal.
-- **Versión:** 1.2.2 (ver [CHANGELOG.md](CHANGELOG.md)).
+- **Versión:** 1.2.3 (ver [CHANGELOG.md](CHANGELOG.md)).
 - **Stack:** Python 3.12+, Typer, Rich, prompt_toolkit, SQLite (stdlib), setuptools, uv.
 - **Estado:** funcional; tests y ruff en verde en Ubuntu, Windows y macOS (GitHub Actions).
 
@@ -1625,6 +1625,14 @@ cosas mal:
 - `docs/spec.md`, donde lo pide el enunciado: enlaza a la Spec del README (no la copia).
 - `.gitignore`: la carpeta `Claude outputs/`.
 - [ ] Probar `revisar.sh` con OpenCode instalado (en este PC no lo está; con Claude, sí).
+
+### 2026-11-26 — Versión 1.2.3
+
+- Sin cambios en el código de navaja: `scripts/revisar.sh`, context7 en `opencode.json` y
+  `docs/spec.md`.
+- `pyproject.toml`, `__version__`, `uv.lock`, `instalar.ps1` e `instalar.sh` a 1.2.3. En el
+  CHANGELOG, lo de «Sin publicar» pasa a `[1.2.3]`. README con `@v1.2.3`.
+- Etiqueta `v1.2.3` y Release en GitHub con las notas del CHANGELOG.
 
 ## Decisiones técnicas
 

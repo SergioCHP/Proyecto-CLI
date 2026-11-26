@@ -6,14 +6,14 @@
 # permisos de administrador y sin git (se baja el .zip de la versión). uv trae su propio
 # Python 3.12: no toca el tuyo. Para quitarlo: uv tool uninstall navaja
 #
-# Se puede cambiar con variables:  $env:NAVAJA_VERSION = "1.2.2"; $env:NAVAJA_EXTRAS = "todo,fondo"
+# Se puede cambiar con variables:  $env:NAVAJA_VERSION = "1.2.3"; $env:NAVAJA_EXTRAS = "todo,fondo"
 # ($env:NAVAJA_ORIGEN: otra dirección o archivo del que instalar; la usan las pruebas).
 #
 # Va todo dentro de & { }: con «irm | iex», un «exit» cerraría tu ventana de PowerShell.
 
 & {
     $ErrorActionPreference = "Continue"  # con «Stop», PowerShell 5.1 toma lo que uv escribe en stderr por un error
-    $Version = if ($env:NAVAJA_VERSION) { $env:NAVAJA_VERSION } else { "1.2.2" }
+    $Version = if ($env:NAVAJA_VERSION) { $env:NAVAJA_VERSION } else { "1.2.3" }
     $Extras = if ($env:NAVAJA_EXTRAS) { $env:NAVAJA_EXTRAS } else { "todo" }
     $Repo = "https://github.com/SergioCHP/Proyecto-CLI"
     $Origen = if ($env:NAVAJA_ORIGEN) { $env:NAVAJA_ORIGEN } else { "$Repo/archive/refs/tags/v$Version.zip" }
