@@ -1606,6 +1606,17 @@ cosas mal:
   CHANGELOG, lo de «Sin publicar» pasa a `[1.2.2]`. README con `@v1.2.2`.
 - Etiqueta `v1.2.2` y Release en GitHub con las notas del CHANGELOG.
 
+### 2026-11-26 — Lo que faltaba de la rúbrica: `revisar.sh` y context7
+
+- Repaso del enunciado: faltaban dos entregables de las semanas 3 y 4.
+- `scripts/revisar.sh [RAMA]`: lanza el `revisor` con `opencode run` sobre los cambios frente
+  a `main`. Avisa si no hay opencode, si la rama no existe o si no hay nada que revisar.
+  Con `eol=lf` (`.gitattributes`) y permiso de ejecución en git.
+- El `revisor` pasa a `mode: all`: con `mode: subagent`, `opencode run --agent` lo ignora y
+  usa el agente por defecto. Sigue siendo de solo lectura.
+- `opencode.json`: MCP `context7` (remoto) con `"enabled": false`; se enciende con `/mcps`.
+- [ ] Probar `revisar.sh` con OpenCode instalado (en este PC no lo está).
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.

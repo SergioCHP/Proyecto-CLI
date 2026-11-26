@@ -7,6 +7,17 @@ Lo que cambia en cada versión de navaja. El formato sigue
 
 ## [Sin publicar]
 
+### Añadido
+
+- `scripts/revisar.sh`: pide al subagente `revisor` de OpenCode, con `opencode run`, que
+  revise los cambios de la rama frente a `main` (o la rama que se le pase).
+- `opencode.json`: el MCP `context7`, apagado por defecto (se enciende con `/mcps`).
+
+### Cambiado
+
+- El `revisor` pasa de `mode: subagent` a `mode: all`, para que `opencode run --agent
+  revisor` lo use; sus permisos (solo lectura) no cambian.
+
 ## [1.2.2] - 2026-11-26
 
 ### Documentación

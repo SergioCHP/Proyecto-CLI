@@ -1,6 +1,6 @@
 ---
 description: Revisa el código de navaja sin modificar nada y señala errores, casos feos y problemas de Windows
-mode: subagent
+mode: all
 temperature: 0.1
 permission:
   edit: deny
