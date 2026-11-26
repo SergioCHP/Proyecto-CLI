@@ -12,6 +12,9 @@ Lo que cambia en cada versión de navaja. El formato sigue
 - README: los números de los grupos del menú y el ejemplo del menú eran de antes de `red`,
   `puertos`, `sistema` y el grupo Estudio; la spec no nombraba `red`, `puertos` ni
   `sistema`; `comprobar-ia` no es solo Gemini; y dónde va el `.env` si instalaste navaja.
+- `.env.example`: con clave de Gemini y servidor a la vez manda el servidor, sin pasar solo a
+  Gemini si no contesta; cómo volver a Gemini sin un 404 por `NAVAJA_MODELO`; y qué hacer si
+  el servidor del centro tiene un certificado HTTPS propio.
 
 ## [1.2.1] - 2026-11-22
 
