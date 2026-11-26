@@ -1606,6 +1606,26 @@ cosas mal:
   CHANGELOG, lo de «Sin publicar» pasa a `[1.2.2]`. README con `@v1.2.2`.
 - Etiqueta `v1.2.2` y Release en GitHub con las notas del CHANGELOG.
 
+### 2026-11-26 — Lo que faltaba de la rúbrica: `revisar.sh` y context7
+
+- Repaso del enunciado: faltaban dos entregables de las semanas 3 y 4.
+- `scripts/revisar.sh [RAMA]`: lanza el `revisor` sobre los cambios frente a `main`. Usa
+  `opencode run` si está OpenCode y, si no, Claude Code (`claude -p --agent revisor`, con el
+  diff por la entrada, porque ese revisor solo tiene Read, Grep y Glob). `REVISOR=` fuerza
+  uno. Avisa si no hay ninguno, si la rama no existe, si no hay nada que revisar y de los
+  archivos nuevos sin `git add`. Con `eol=lf` (`.gitattributes`) y permiso de ejecución.
+- Probado de verdad con Claude Code en este PC: el revisor contestó con sus cuatro
+  apartados. De lo que señaló se arregló: archivos sin `git add`, un fallo de `git diff`
+  dentro de la tubería que `set -e` no veía, argumentos que empiezan por `-` y la
+  documentación, que solo hablaba de OpenCode. Queda: ramas sin historia común (error de git
+  en inglés) y diffs enormes con Claude.
+- El `revisor` pasa a `mode: all`: con `mode: subagent`, `opencode run --agent` lo ignora y
+  usa el agente por defecto. Sigue siendo de solo lectura.
+- `opencode.json`: MCP `context7` (remoto) con `"enabled": false`; se enciende con `/mcps`.
+- `docs/spec.md`, donde lo pide el enunciado: enlaza a la Spec del README (no la copia).
+- `.gitignore`: la carpeta `Claude outputs/`.
+- [ ] Probar `revisar.sh` con OpenCode instalado (en este PC no lo está; con Claude, sí).
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.

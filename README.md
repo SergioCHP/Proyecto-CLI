@@ -750,6 +750,7 @@ La estructura está en `src/navaja/` y cada utilidad vive en `src/navaja/comando
 
 ## Documentación del proyecto
 
+- [docs/spec.md](docs/spec.md): enlace a la [Spec](#spec) de 10 puntos de arriba.
 - [AGENTS.md](AGENTS.md): normas cortas que el agente lee siempre.
 - [docs/arquitectura.md](docs/arquitectura.md): cómo está hecho por dentro (estructura,
   modo interactivo, ayuda, convenciones y cómo añadir comandos).
@@ -760,3 +761,10 @@ La estructura está en `src/navaja/` y cada utilidad vive en `src/navaja/comando
 - Agente de programación: las normas están en [AGENTS.md](AGENTS.md). Para OpenCode,
   `opencode.json` y `.opencode/`; para Claude Code, `CLAUDE.md` y `.claude/`. En los dos:
   la skill `acciones-json`, el comando `/nueva-accion` y el subagente `revisor` (solo lee).
+- Revisar una rama antes del PR: `./scripts/revisar.sh` (o `./scripts/revisar.sh RAMA` para
+  compararla con otra que no sea `main`) lanza el `revisor` con `opencode run` o, si no hay
+  OpenCode, con Claude Code (`claude -p`, pasándole el diff). `REVISOR=claude` o
+  `REVISOR=opencode` fuerza uno. En Windows, desde Git Bash. Los archivos nuevos sin
+  `git add` no los ve (el script avisa).
+- `opencode.json` trae el MCP `context7` apagado: en OpenCode se enciende con `/mcps` solo
+  para consultar documentación de librerías (por ejemplo, httpx) y se vuelve a apagar.

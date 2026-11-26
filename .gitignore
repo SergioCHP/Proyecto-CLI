@@ -16,3 +16,6 @@ htmlcov/
 
 # Ajustes personales de Claude Code (los del proyecto, .claude/settings.json, sí se suben)
 .claude/settings.local.json
+
+# Salidas sueltas de Claude (informes, borradores): no son parte del proyecto
+Claude outputs/

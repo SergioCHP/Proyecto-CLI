@@ -7,6 +7,19 @@ Lo que cambia en cada versión de navaja. El formato sigue
 
 ## [Sin publicar]
 
+### Añadido
+
+- `scripts/revisar.sh`: pide al `revisor` que revise los cambios de la rama frente a `main`
+  (o la rama que se le pase), con `opencode run` o, si no hay OpenCode, con Claude Code
+  (`claude -p`). `REVISOR=claude|opencode` fuerza uno.
+- `opencode.json`: el MCP `context7`, apagado por defecto (se enciende con `/mcps`).
+- `docs/spec.md`: enlaza a la Spec de 10 puntos del README.
+
+### Cambiado
+
+- El `revisor` pasa de `mode: subagent` a `mode: all`, para que `opencode run --agent
+  revisor` lo use; sus permisos (solo lectura) no cambian.
+
 ## [1.2.2] - 2026-11-26
 
 ### Documentación
