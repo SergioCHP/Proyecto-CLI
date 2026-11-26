@@ -1615,6 +1615,8 @@ cosas mal:
 - El `revisor` pasa a `mode: all`: con `mode: subagent`, `opencode run --agent` lo ignora y
   usa el agente por defecto. Sigue siendo de solo lectura.
 - `opencode.json`: MCP `context7` (remoto) con `"enabled": false`; se enciende con `/mcps`.
+- `docs/spec.md`, donde lo pide el enunciado: enlaza a la Spec del README (no la copia).
+- `.gitignore`: la carpeta `Claude outputs/`.
 - [ ] Probar `revisar.sh` con OpenCode instalado (en este PC no lo está).
 
 ## Decisiones técnicas

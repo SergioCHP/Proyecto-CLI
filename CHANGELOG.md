@@ -12,6 +12,7 @@ Lo que cambia en cada versión de navaja. El formato sigue
 - `scripts/revisar.sh`: pide al subagente `revisor` de OpenCode, con `opencode run`, que
   revise los cambios de la rama frente a `main` (o la rama que se le pase).
 - `opencode.json`: el MCP `context7`, apagado por defecto (se enciende con `/mcps`).
+- `docs/spec.md`: enlaza a la Spec de 10 puntos del README.
 
 ### Cambiado
 

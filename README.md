@@ -750,6 +750,7 @@ La estructura está en `src/navaja/` y cada utilidad vive en `src/navaja/comando
 
 ## Documentación del proyecto
 
+- [docs/spec.md](docs/spec.md): enlace a la [Spec](#spec) de 10 puntos de arriba.
 - [AGENTS.md](AGENTS.md): normas cortas que el agente lee siempre.
 - [docs/arquitectura.md](docs/arquitectura.md): cómo está hecho por dentro (estructura,
   modo interactivo, ayuda, convenciones y cómo añadir comandos).
