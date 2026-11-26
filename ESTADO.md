@@ -5,7 +5,7 @@ Bitácora de lo implementado y de lo que queda pendiente.
 ## Resumen
 
 - **Producto:** `navaja`, CLI de utilidades de terminal.
-- **Versión:** 1.2.1 (ver [CHANGELOG.md](CHANGELOG.md)).
+- **Versión:** 1.2.2 (ver [CHANGELOG.md](CHANGELOG.md)).
 - **Stack:** Python 3.12+, Typer, Rich, prompt_toolkit, SQLite (stdlib), setuptools, uv.
 - **Estado:** funcional; tests y ruff en verde en Ubuntu, Windows y macOS (GitHub Actions).
 
@@ -1597,6 +1597,14 @@ cosas mal:
 - Visto al probar: con un texto muy corto, Qwen «rellena» el resumen con cosas que no están
   en el original y repite los puntos clave en dos bloques. Pendiente de mirar con apuntes
   largos antes de tocar la petición.
+
+### 2026-11-26 — Versión 1.2.2
+
+- Solo documentación: el README del menú y las órdenes de redes, y el `.env.example` con el
+  servidor del centro. Sin cambios de código.
+- `pyproject.toml`, `__version__`, `uv.lock`, `instalar.ps1` e `instalar.sh` a 1.2.2. En el
+  CHANGELOG, lo de «Sin publicar» pasa a `[1.2.2]`. README con `@v1.2.2`.
+- Etiqueta `v1.2.2` y Release en GitHub con las notas del CHANGELOG.
 
 ## Decisiones técnicas
 
