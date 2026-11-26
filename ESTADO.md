@@ -1583,6 +1583,21 @@ cosas mal:
   CHANGELOG, lo de «Sin publicar» pasa a `[1.2.1]`. README con `@v1.2.1`.
 - Etiqueta `v1.2.1` y Release en GitHub con las notas del CHANGELOG.
 
+### 2026-11-26 — El servidor de IA del centro, probado de verdad
+
+- Probado contra el servidor del centro (compatible con OpenAI, modelo Qwen): `comprobar-ia`
+  contesta en 0,2 s, `renombrar-ia` en simulado propone un nombre correcto y `resumir-ia`
+  devuelve un resumen en Markdown (en simulado no se pregunta a la IA: solo se planifica).
+- Sin cambios de código. Lo que costó fue el certificado HTTPS propio del centro: Python no
+  lo reconoce hasta instalar su certificado raíz en Windows (`certutil -user -addstore Root`);
+  `NODE_EXTRA_CA_CERTS`, el que dan para OpenCode, no le sirve a navaja.
+- `.env.example`: con las dos claves manda `NAVAJA_IA_URL` y no se pasa solo a Gemini si el
+  servidor no contesta; para volver a Gemini hay que comentar también `NAVAJA_MODELO` (si no,
+  404); qué hacer con el error de certificado; y la dirección de ejemplo con `https://`.
+- Visto al probar: con un texto muy corto, Qwen «rellena» el resumen con cosas que no están
+  en el original y repite los puntos clave en dos bloques. Pendiente de mirar con apuntes
+  largos antes de tocar la petición.
+
 ## Decisiones técnicas
 
 - **Typer + Rich** por rapidez de desarrollo y buena salida en terminal.
