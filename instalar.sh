@@ -7,12 +7,12 @@
 # sin git (se baja el .zip de la versión). uv trae su propio Python 3.12: no toca el tuyo.
 # Para quitarlo: uv tool uninstall navaja
 #
-# Se puede cambiar con variables:  NAVAJA_VERSION=1.2.1  NAVAJA_EXTRAS=todo,fondo
+# Se puede cambiar con variables:  NAVAJA_VERSION=1.2.2  NAVAJA_EXTRAS=todo,fondo
 # (NAVAJA_ORIGEN: otra dirección o archivo del que instalar; la usan las pruebas).
 
 set -eu
 
-VERSION="${NAVAJA_VERSION:-1.2.1}"
+VERSION="${NAVAJA_VERSION:-1.2.2}"
 EXTRAS="${NAVAJA_EXTRAS:-todo}"
 REPO="https://github.com/SergioCHP/Proyecto-CLI"
 ORIGEN="${NAVAJA_ORIGEN:-$REPO/archive/refs/tags/v$VERSION.zip}"
